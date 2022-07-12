@@ -49,3 +49,11 @@ alembic upgrade head
 # Create initial data in DB
 python scripts/initial_data.py
 ```
+
+## Copyright
+
+For all files within this reposity, see below for default copyright unless otherwise declared in file:
+
+```
+Copyright (C) 2022 Zhen Zhang - All Rights Reserved
+```
