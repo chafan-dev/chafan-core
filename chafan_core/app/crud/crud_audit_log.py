@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.audit_log import AuditLog
-from chafan_core.app.schemas.audit_log import AUDIT_LOG_API_TYPE, AuditLogCreate, AuditLogUpdate
+from chafan_core.app.schemas.audit_log import (
+    AUDIT_LOG_API_TYPE,
+    AuditLogCreate,
+    AuditLogUpdate,
+)
 
 
 class CRUDAuditLog(CRUDBase[AuditLog, AuditLogCreate, AuditLogUpdate]):

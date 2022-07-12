@@ -11,7 +11,11 @@ from chafan_core.app.schemas import RewardCreate, RewardUpdate
 
 class CRUDReward(CRUDBase[Reward, RewardCreate, RewardUpdate]):
     def create_with_giver(
-        self, db: Session, *, obj_in: RewardCreate, giver: models.User,
+        self,
+        db: Session,
+        *,
+        obj_in: RewardCreate,
+        giver: models.User,
     ) -> Reward:
         giver.remaining_coins -= obj_in.coin_amount
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)

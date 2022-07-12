@@ -4,8 +4,8 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import JSON, Enum
 
-from chafan_core.utils.base import TaskStatus
 from chafan_core.db.base_class import Base
+from chafan_core.utils.base import TaskStatus
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403

@@ -4,8 +4,8 @@ from sqlalchemy import CHAR, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import JSON
 
-from chafan_core.utils.base import UUID_LENGTH
 from chafan_core.db.base_class import Base
+from chafan_core.utils.base import UUID_LENGTH
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403

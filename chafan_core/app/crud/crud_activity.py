@@ -22,7 +22,11 @@ from chafan_core.app.schemas.event import (
 
 class CRUDActivity(CRUDBase[Activity, NoReturn, NoReturn]):
     def get_multi_by_id_range(
-        self, db: Session, *, min_id: int, max_id: Optional[int],
+        self,
+        db: Session,
+        *,
+        min_id: int,
+        max_id: Optional[int],
     ) -> Iterable[Activity]:
         stream = db.query(Activity)
         if max_id is not None:
@@ -45,7 +49,8 @@ def create_submission_activity(
         event_json=EventInternal(
             created_at=created_at,
             content=CreateSubmissionInternal(
-                subject_id=submission.author.id, submission_id=submission.id,
+                subject_id=submission.author.id,
+                submission_id=submission.id,
             ),
         ).json(),
     )
@@ -60,7 +65,8 @@ def create_article_activity(
         event_json=EventInternal(
             created_at=created_at,
             content=CreateArticleInternal(
-                subject_id=article.author.id, article_id=article.id,
+                subject_id=article.author.id,
+                article_id=article.id,
             ),
         ).json(),
     )
@@ -75,7 +81,8 @@ def create_answer_activity(
         event_json=EventInternal(
             created_at=created_at,
             content=AnswerQuestionInternal(
-                subject_id=answer.author.id, answer_id=answer.id,
+                subject_id=answer.author.id,
+                answer_id=answer.id,
             ),
         ).json(),
     )
@@ -93,20 +100,29 @@ def upvote_answer_activity(
         site_id=site_id,
         event_json=EventInternal(
             created_at=created_at,
-            content=UpvoteAnswerInternal(subject_id=voter.id, answer_id=answer.id,),
+            content=UpvoteAnswerInternal(
+                subject_id=voter.id,
+                answer_id=answer.id,
+            ),
         ).json(),
     )
 
 
 def upvote_article_activity(
-    *, voter: models.User, article: models.Article, created_at: datetime.datetime,
+    *,
+    voter: models.User,
+    article: models.Article,
+    created_at: datetime.datetime,
 ) -> Activity:
     return Activity(
         created_at=created_at,
         site_id=None,
         event_json=EventInternal(
             created_at=created_at,
-            content=UpvoteArticleInternal(subject_id=voter.id, article_id=article.id,),
+            content=UpvoteArticleInternal(
+                subject_id=voter.id,
+                article_id=article.id,
+            ),
         ).json(),
     )
 
@@ -124,7 +140,8 @@ def upvote_question_activity(
         event_json=EventInternal(
             created_at=created_at,
             content=UpvoteQuestionInternal(
-                subject_id=voter.id, question_id=question.id,
+                subject_id=voter.id,
+                question_id=question.id,
             ),
         ).json(),
     )
@@ -143,7 +160,8 @@ def upvote_submission_activity(
         event_json=EventInternal(
             created_at=created_at,
             content=UpvoteSubmissionInternal(
-                subject_id=voter.id, submission_id=submission.id,
+                subject_id=voter.id,
+                submission_id=submission.id,
             ),
         ).json(),
     )
@@ -156,7 +174,10 @@ def follow_user_activity(
         created_at=created_at,
         event_json=EventInternal(
             created_at=created_at,
-            content=FollowUserInternal(subject_id=follower.id, user_id=followed.id,),
+            content=FollowUserInternal(
+                subject_id=follower.id,
+                user_id=followed.id,
+            ),
         ).json(),
     )
 
@@ -172,7 +193,8 @@ def subscribe_article_column_activity(
         event_json=EventInternal(
             created_at=created_at,
             content=SubscribeArticleColumnInternal(
-                subject_id=user.id, article_column_id=article_column.id,
+                subject_id=user.id,
+                article_column_id=article_column.id,
             ),
         ).json(),
     )

@@ -6,14 +6,21 @@ from sqlalchemy.orm import Session
 from chafan_core.app import models
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models import InvitationLink
-from chafan_core.app.schemas.invitation_link import InvitationLinkCreate, InvitationLinkUpdate
+from chafan_core.app.schemas.invitation_link import (
+    InvitationLinkCreate,
+    InvitationLinkUpdate,
+)
 
 
 class CRUDInvitationLink(
     CRUDBase[InvitationLink, InvitationLinkCreate, InvitationLinkUpdate]
 ):
     def create_invitation(
-        self, db: Session, *, invited_to_site_id: Optional[int], inviter: models.User,
+        self,
+        db: Session,
+        *,
+        invited_to_site_id: Optional[int],
+        inviter: models.User,
     ) -> InvitationLink:
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         db_obj = InvitationLink(

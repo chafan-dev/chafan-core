@@ -1,6 +1,6 @@
 from typing import List
 
-from app import models
+from chafan_core.app import models
 
 
 def is_live_answer(answer: models.Answer) -> bool:

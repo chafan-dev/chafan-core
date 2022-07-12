@@ -13,9 +13,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
+from chafan_core.db.base_class import Base
 from chafan_core.utils.base import UUID_LENGTH
 from chafan_core.utils.constants import editor_T
-from chafan_core.db.base_class import Base
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403
@@ -38,7 +38,7 @@ class Comment(Base):
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(CHAR(length=UUID_LENGTH), index=True, unique=True, nullable=False)
 
-    editor: editor_T = Column(String, nullable=False, default="tiptap")  # type: ignore
+    editor: editor_T = Column(String, nullable=False, default="tiptap")
 
     author_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
     author = relationship("User", back_populates="comments")

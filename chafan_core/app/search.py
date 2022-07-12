@@ -5,19 +5,21 @@ from elasticsearch.client import Elasticsearch
 
 from chafan_core.app import crud
 from chafan_core.app.config import settings
-from chafan_core.utils.constants import indexed_object_T
-from chafan_core.db.session import ReadSessionLocal
 from chafan_core.app.es import execute_with_es
 from chafan_core.app.schemas.answer import AnswerDoc
 from chafan_core.app.schemas.article import ArticleDoc
 from chafan_core.app.schemas.question import QuestionDoc
 from chafan_core.app.schemas.site import SiteDoc
 from chafan_core.app.schemas.submission import SubmissionDoc
+from chafan_core.db.session import ReadSessionLocal
+from chafan_core.utils.constants import indexed_object_T
 
 
 # https://www.elastic.co/guide/en/elasticsearch/reference/current/full-text-queries.html
 def es_search(
-    index_type: indexed_object_T, query: str, env: str = settings.ENV,
+    index_type: indexed_object_T,
+    query: str,
+    env: str = settings.ENV,
 ) -> Optional[List[int]]:
     if not settings.ES_ENDPOINT:
         if index_type == "site":
@@ -102,7 +104,10 @@ def es_index_doc(
             return
         index = f"chafan.{settings.ENV}.{index_type}"
         es.index(
-            index=index, id=str(doc.id), doc_type="_doc", document={"doc": doc.dict()},
+            index=index,
+            id=str(doc.id),
+            doc_type="_doc",
+            document={"doc": doc.dict()},
         )
         es.indices.refresh(index=index)
 

@@ -15,9 +15,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.sqltypes import JSON, Enum
 
+from chafan_core.db.base_class import Base
 from chafan_core.utils.base import UUID_LENGTH, ContentVisibility
 from chafan_core.utils.constants import editor_T
-from chafan_core.db.base_class import Base
 from chafan_core.utils.validators import StrippedNonEmptyStr
 
 if TYPE_CHECKING:
@@ -66,20 +66,20 @@ class Article(Base):
 
     # content fields
     title = Column(String, nullable=False)
-    title_draft: Optional[StrippedNonEmptyStr] = Column(String)  # type: ignore
+    title_draft: Optional[StrippedNonEmptyStr] = Column(String)
     body = Column(String, nullable=False)
     body_text = Column(String)
 
     # Not null only if is_published is `True`, in which case it might contain a working draft version.
     body_draft = Column(String)
 
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
 
     created_at = Column(DateTime(timezone=True), nullable=False)
     initial_published_at = Column(DateTime(timezone=True))
     updated_at = Column(DateTime(timezone=True))  # published_at
     draft_saved_at = Column(DateTime(timezone=True))
-    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
 
     is_published = Column(
         Boolean, default=False, server_default="false", nullable=False

@@ -5,10 +5,10 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
-from chafan_core.utils.base import unwrap
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.report import Report
 from chafan_core.app.schemas.report import ReportCreate, ReportUpdate
+from chafan_core.utils.base import unwrap
 
 
 class CRUDReport(CRUDBase[Report, ReportCreate, ReportUpdate]):
@@ -59,7 +59,11 @@ class CRUDReport(CRUDBase[Report, ReportCreate, ReportUpdate]):
                 obj_in_data["article_id"] = crud.article.get_by_uuid(db, uuid=obj_in_data["article_uuid"]).id  # type: ignore
             del obj_in_data["article_uuid"]
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        db_obj = self.model(**obj_in_data, author_id=author_id, created_at=utc_now,)
+        db_obj = self.model(
+            **obj_in_data,
+            author_id=author_id,
+            created_at=utc_now,
+        )
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)

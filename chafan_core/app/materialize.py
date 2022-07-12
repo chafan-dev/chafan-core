@@ -6,7 +6,6 @@ from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, view_counters
-from chafan_core.utils.base import ContentVisibility, HTTPException_, filter_not_none, map_, unwrap
 from chafan_core.app.common import OperationType, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
@@ -31,6 +30,13 @@ from chafan_core.app.schemas.question import QuestionInDBBase
 from chafan_core.app.schemas.reward import AnsweredQuestionCondition, RewardCondition
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.security import IntlPhoneNumber
+from chafan_core.utils.base import (
+    ContentVisibility,
+    HTTPException_,
+    filter_not_none,
+    map_,
+    unwrap,
+)
 
 
 def schema_of_feedback(f: models.Feedback) -> schemas.Feedback:
@@ -50,7 +56,11 @@ def get_active_site_profile(
 
 
 def user_in_site(
-    db: Session, *, site: models.Site, user_id: int, op_type: OperationType,
+    db: Session,
+    *,
+    site: models.Site,
+    user_id: int,
+    op_type: OperationType,
 ) -> bool:
     if op_type == OperationType.ReadSite and site.public_readable:
         return True
@@ -74,7 +84,8 @@ def check_user_in_site(
 ) -> None:
     if not user_in_site(db, site=site, user_id=user_id, op_type=op_type):
         raise HTTPException_(
-            status_code=400, detail="Current user is not allowed in this site.",
+            status_code=400,
+            detail="Current user is not allowed in this site.",
         )
 
 
@@ -85,7 +96,8 @@ def check_user_in_channel(current_user: models.User, channel: models.Channel) ->
         and current_user is not channel.private_with_user
     ):
         raise HTTPException_(
-            status_code=400, detail="Unauthorized.",
+            status_code=400,
+            detail="Unauthorized.",
         )
 
 
@@ -130,7 +142,10 @@ def article_archive_schema_from_orm(
 ) -> schemas.ArticleArchive:
     base = ArticleArchiveInDB.from_orm(article_archive)
     d = base.dict()
-    d["content"] = RichText(source=article_archive.body, editor=article_archive.editor,)
+    d["content"] = RichText(
+        source=article_archive.body,
+        editor=article_archive.editor,
+    )
     return schemas.ArticleArchive(**d)
 
 
@@ -139,7 +154,10 @@ def answer_archive_schema_from_orm(
 ) -> schemas.AnswerArchive:
     base = AnswerArchiveInDB.from_orm(answer_archive)
     d = base.dict()
-    d["content"] = RichText(source=answer_archive.body, editor=answer_archive.editor,)
+    d["content"] = RichText(
+        source=answer_archive.body,
+        editor=answer_archive.editor,
+    )
     return schemas.AnswerArchive(**d)
 
 
@@ -283,7 +301,8 @@ class Materializer(object):
         )
 
     def article_column_schema_from_orm(
-        self, article_column: models.ArticleColumn,
+        self,
+        article_column: models.ArticleColumn,
     ) -> schemas.ArticleColumn:
         base = schemas.ArticleColumnInDBBase.from_orm(article_column)
         data_dict = base.dict()
@@ -315,7 +334,8 @@ class Materializer(object):
         )
 
     def preview_of_question_for_visitor(
-        self, question: models.Question,
+        self,
+        question: models.Question,
     ) -> Optional[schemas.QuestionPreviewForVisitor]:
         if not question.site.public_readable:
             return None
@@ -356,7 +376,8 @@ class Materializer(object):
         )
 
     def preview_of_answer_for_visitor(
-        self, answer: models.Answer,
+        self,
+        answer: models.Answer,
     ) -> Optional[schemas.AnswerPreviewForVisitor]:
         if not visitor_can_read_answer(answer=answer):
             return None
@@ -364,7 +385,10 @@ class Materializer(object):
         if not question:
             return None
         base = self.get_answer_preview_base(answer)
-        return schemas.AnswerPreviewForVisitor(**base.dict(), question=question,)
+        return schemas.AnswerPreviewForVisitor(
+            **base.dict(),
+            question=question,
+        )
 
     def preview_of_answer(
         self, answer: models.Answer
@@ -377,7 +401,10 @@ class Materializer(object):
         if question is None:
             return None
         base = self.get_answer_preview_base(answer)
-        return schemas.AnswerPreview(**base.dict(), question=question,)
+        return schemas.AnswerPreview(
+            **base.dict(),
+            question=question,
+        )
 
     def preview_of_article(
         self, article: models.Article
@@ -417,7 +444,8 @@ class Materializer(object):
         return schemas.Webhook(**d)
 
     def form_response_schema_from_orm(
-        self, form_response: models.FormResponse,
+        self,
+        form_response: models.FormResponse,
     ) -> schemas.FormResponse:
         base = schemas.FormResponseInDBBase.from_orm(form_response)
         d = base.dict()
@@ -447,7 +475,8 @@ class Materializer(object):
         return schemas.QuestionArchive(**d)
 
     def invitation_link_schema_from_orm(
-        self, invitation_link: models.InvitationLink,
+        self,
+        invitation_link: models.InvitationLink,
     ) -> schemas.InvitationLink:
         base = schemas.InvitationLinkInDB.from_orm(invitation_link)
         d = base.dict()
@@ -462,7 +491,8 @@ class Materializer(object):
         return schemas.InvitationLink(**d)
 
     def article_for_visitor_schema_from_orm(
-        self, article: models.Article,
+        self,
+        article: models.Article,
     ) -> Optional[schemas.ArticleForVisitor]:
         if not visitor_can_read_article(article=article):
             return None
@@ -601,8 +631,10 @@ class Materializer(object):
                         submission_suggestion = crud.submission_suggestion.get(db, id=v)
                         if submission_suggestion is None:
                             return None
-                        submission_suggestion_data = self.submission_suggestion_schema_from_orm(
-                            submission_suggestion
+                        submission_suggestion_data = (
+                            self.submission_suggestion_schema_from_orm(
+                                submission_suggestion
+                            )
                         )
                         if submission_suggestion_data is None:
                             return None
@@ -611,8 +643,10 @@ class Materializer(object):
                         answer_suggest_edit = crud.answer_suggest_edit.get(db, id=v)
                         if answer_suggest_edit is None:
                             return None
-                        answer_suggest_edit_data = self.answer_suggest_edit_schema_from_orm(
-                            answer_suggest_edit
+                        answer_suggest_edit_data = (
+                            self.answer_suggest_edit_schema_from_orm(
+                                answer_suggest_edit
+                            )
                         )
                         if answer_suggest_edit_data is None:
                             return None
@@ -700,7 +734,8 @@ class Materializer(object):
                 )
 
     def answer_for_visitor_schema_from_orm(
-        self, answer: models.Answer,
+        self,
+        answer: models.Answer,
     ) -> Optional[schemas.AnswerForVisitor]:
         if not visitor_can_read_answer(answer=answer):
             return None
@@ -822,7 +857,8 @@ class Materializer(object):
             return self.answer_for_visitor_schema_from_orm(answer)
 
     def question_for_visitor_schema_from_orm(
-        self, question: models.Question,
+        self,
+        question: models.Question,
     ) -> Optional[schemas.QuestionForVisitor]:
         if not question.site.public_readable:
             return None
@@ -844,7 +880,8 @@ class Materializer(object):
         return schemas.QuestionForVisitor(**d)
 
     def submission_for_visitor_schema_from_orm(
-        self, submission: models.Submission,
+        self,
+        submission: models.Submission,
     ) -> Optional[schemas.SubmissionForVisitor]:
         if not submission.site.public_readable:
             return None
@@ -909,7 +946,8 @@ class Materializer(object):
         return None
 
     def submission_suggestion_schema_from_orm(
-        self, submission_suggestion: models.SubmissionSuggestion,
+        self,
+        submission_suggestion: models.SubmissionSuggestion,
     ) -> Optional[schemas.SubmissionSuggestion]:
         base = schemas.SubmissionSuggestionInDB.from_orm(submission_suggestion)
         d = base.dict()
@@ -936,7 +974,8 @@ class Materializer(object):
         return schemas.SubmissionSuggestion(**d)
 
     def answer_suggest_edit_schema_from_orm(
-        self, answer_suggest_edit: models.AnswerSuggestEdit,
+        self,
+        answer_suggest_edit: models.AnswerSuggestEdit,
     ) -> Optional[schemas.AnswerSuggestEdit]:
         base = schemas.AnswerSuggestEditInDB.from_orm(answer_suggest_edit)
         d = base.dict()
@@ -957,7 +996,8 @@ class Materializer(object):
         return schemas.AnswerSuggestEdit(**d)
 
     def comment_for_visitor_schema_from_orm(
-        self, comment: models.Comment,
+        self,
+        comment: models.Comment,
     ) -> Optional[schemas.CommentForVisitor]:
         if comment.site and not comment.site.public_readable:
             return None
@@ -966,7 +1006,9 @@ class Materializer(object):
         d["root_route"] = root_route(comment)
         d["author"] = self.preview_of_user(comment.author)
         d["content"] = RichText(
-            source=comment.body, rendered_text=comment.body_text, editor=comment.editor,
+            source=comment.body,
+            rendered_text=comment.body_text,
+            editor=comment.editor,
         )
         d["child_comments"] = filter_not_none(
             [
@@ -1003,7 +1045,9 @@ class Materializer(object):
         d["upvoted"] = upvoted
         d["root_route"] = root_route(comment)
         d["content"] = RichText(
-            source=comment.body, rendered_text=comment.body_text, editor=comment.editor,
+            source=comment.body,
+            rendered_text=comment.body_text,
+            editor=comment.editor,
         )
         d["child_comments"] = filter_not_none(
             [self.comment_schema_from_orm(c) for c in comment.child_comments]

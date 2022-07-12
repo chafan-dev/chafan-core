@@ -5,7 +5,10 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.article_column import ArticleColumn
-from chafan_core.app.schemas.article_column import ArticleColumnCreate, ArticleColumnUpdate
+from chafan_core.app.schemas.article_column import (
+    ArticleColumnCreate,
+    ArticleColumnUpdate,
+)
 
 
 class CRUDArticleColumn(

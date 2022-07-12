@@ -3,12 +3,12 @@ from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
-from chafan_core.utils.base import ContentVisibility
 from chafan_core.app.schemas.article_column import ArticleColumn
 from chafan_core.app.schemas.comment import Comment, CommentForVisitor
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.topic import Topic
+from chafan_core.utils.base import ContentVisibility
 from chafan_core.utils.validators import StrippedNonEmptyStr, validate_article_title
 
 

@@ -3,7 +3,6 @@ from typing import Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel
 
-from chafan_core.utils.base import map_
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.answer import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.answer_suggest_edit import AnswerSuggestEdit
@@ -16,6 +15,7 @@ from chafan_core.app.schemas.reward import Reward
 from chafan_core.app.schemas.site import Site
 from chafan_core.app.schemas.submission import Submission
 from chafan_core.app.schemas.submission_suggestion import SubmissionSuggestion
+from chafan_core.utils.base import map_
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 StringArg = Union[str, Optional[str], int, Optional[CaseInsensitiveEmailStr]]

@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from chafan_core.app import models
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.channel import Channel
-from chafan_core.app.schemas.channel import ChannelCreate, ChannelUpdate, FeedbackSubjectT
+from chafan_core.app.schemas.channel import (
+    ChannelCreate,
+    ChannelUpdate,
+    FeedbackSubjectT,
+)
 
 
 class CRUDChannel(CRUDBase[Channel, ChannelCreate, ChannelUpdate]):
@@ -25,7 +29,9 @@ class CRUDChannel(CRUDBase[Channel, ChannelCreate, ChannelUpdate]):
         subject: FeedbackSubjectT
     ) -> Optional[models.Channel]:
         stream = db.query(Channel).filter_by(
-            is_private=True, admin_id=admin_user.id, private_with_user_id=with_user.id,
+            is_private=True,
+            admin_id=admin_user.id,
+            private_with_user_id=with_user.id,
         )
         if subject is not None:
             if subject.type == "feedback":

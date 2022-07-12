@@ -10,5 +10,9 @@ load_dotenv()
 # Production database_name is: chafan_prod
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True, max_overflow=5,)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    max_overflow=5,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

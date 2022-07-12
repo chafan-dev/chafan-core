@@ -15,9 +15,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.sqltypes import JSON
 
+from chafan_core.db.base_class import Base
 from chafan_core.utils.base import UUID_LENGTH
 from chafan_core.utils.constants import editor_T
-from chafan_core.db.base_class import Base
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403
@@ -67,7 +67,7 @@ class Question(Base):
     title = Column(String, nullable=False)
     description = Column(String)
     description_text = Column(String)
-    description_editor: editor_T = Column(String, nullable=False, default="tiptap")  # type: ignore
+    description_editor: editor_T = Column(String, nullable=False, default="tiptap")
     created_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
 
@@ -84,7 +84,11 @@ class Question(Base):
     )
 
     is_placed_at_home = Column(
-        Boolean, server_default="false", default=False, nullable=False, index=True,
+        Boolean,
+        server_default="false",
+        default=False,
+        nullable=False,
+        index=True,
     )
 
     upvotes_count = Column(Integer, default=0, server_default="0", nullable=False)

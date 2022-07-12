@@ -2,13 +2,13 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import models
-from chafan_core.utils.base import get_utc_now
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.answer_suggest_edit import AnswerSuggestEdit
 from chafan_core.app.schemas.answer_suggest_edit import (
     AnswerSuggestEditCreate,
     AnswerSuggestEditUpdate,
 )
+from chafan_core.utils.base import get_utc_now
 
 
 class CRUDAnswerSuggestEdit(

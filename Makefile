@@ -6,3 +6,11 @@ requirements.txt: poetry.lock
 
 dev-requirements.txt: poetry.lock
 	poetry export --without-hashes --dev -f requirements.txt > dev-requirements.txt
+
+format:
+	bash scripts/format-imports.sh
+	bash scripts/format.sh
+
+check:
+	bash scripts/lint.sh
+	python app/tools/check.py

@@ -5,7 +5,6 @@ from pydantic import BaseModel, validator
 from pydantic.networks import AnyHttpUrl
 from pydantic.types import SecretStr
 
-from chafan_core.utils.constants import editor_T
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.preview import UserFollows, UserPreview
 from chafan_core.app.schemas.profile import Profile
@@ -13,6 +12,7 @@ from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.security import IntlPhoneNumber
 from chafan_core.app.schemas.site import Site
 from chafan_core.app.schemas.topic import Topic
+from chafan_core.utils.constants import editor_T
 from chafan_core.utils.validators import (
     CaseInsensitiveEmailStr,
     StrippedNonEmptyBasicStr,

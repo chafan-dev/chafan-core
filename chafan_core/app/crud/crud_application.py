@@ -22,7 +22,11 @@ class CRUDApplication(CRUDBase[Application, ApplicationCreate, ApplicationUpdate
         )
 
     def create_with_applicant(
-        self, db: Session, *, create_in: ApplicationCreate, applicant_id: int,
+        self,
+        db: Session,
+        *,
+        create_in: ApplicationCreate,
+        applicant_id: int,
     ) -> Application:
         obj_in_data = jsonable_encoder(create_in)
         db_obj = self.model(

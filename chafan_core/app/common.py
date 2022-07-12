@@ -14,9 +14,9 @@ from pymongo import MongoClient
 from pymongo.database import Database as MongoDB
 
 from chafan_core.app import schemas
-from chafan_core.utils.base import HTTPException_
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.event import Event
+from chafan_core.utils.base import HTTPException_
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 
@@ -223,5 +223,6 @@ def report_msg(msg: str) -> None:
 def check_email(email: str) -> None:
     if not is_email(email):
         raise HTTPException_(
-            status_code=404, detail="Invalid email.",
+            status_code=404,
+            detail="Invalid email.",
         )

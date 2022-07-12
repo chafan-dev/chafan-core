@@ -3,8 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from chafan_core.utils.base import ReportReason
 from chafan_core.app.schemas.preview import UserPreview
+from chafan_core.utils.base import ReportReason
 
 
 # Properties to receive via API on creation

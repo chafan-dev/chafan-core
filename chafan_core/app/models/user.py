@@ -14,8 +14,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.sqltypes import JSON
 
-from chafan_core.utils.base import UUID_LENGTH
-from chafan_core.db.base_class import Base
 from chafan_core.app.models.answer_suggest_edit import AnswerSuggestEdit
 from chafan_core.app.models.audit_log import AuditLog
 from chafan_core.app.models.coin_deposit import CoinDeposit
@@ -27,6 +25,8 @@ from chafan_core.app.models.reward import Reward
 from chafan_core.app.models.submission import Submission
 from chafan_core.app.models.submission_suggestion import SubmissionSuggestion
 from chafan_core.app.models.task import Task
+from chafan_core.db.base_class import Base
+from chafan_core.utils.base import UUID_LENGTH
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr
 
 if TYPE_CHECKING:
@@ -101,7 +101,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(CHAR(length=UUID_LENGTH), index=True, unique=True, nullable=False)
     full_name = Column(String)
-    handle: "StrippedNonEmptyBasicStr" = Column(String, unique=True, index=True, nullable=False)  # type: ignore
+    handle: "StrippedNonEmptyBasicStr" = Column(
+        String, unique=True, index=True, nullable=False
+    )
     email = Column(String, unique=True, index=True, nullable=False)
     secondary_emails = Column(JSON, server_default="[]", nullable=False)
 
@@ -241,10 +243,14 @@ class User(Base):
         order_by="Application.created_at.desc()",
     )
     audit_logs: List["AuditLog"] = relationship(  # type: ignore
-        "AuditLog", back_populates="user", order_by="AuditLog.created_at.desc()",
+        "AuditLog",
+        back_populates="user",
+        order_by="AuditLog.created_at.desc()",
     )
     initiated_tasks: List["Task"] = relationship(  # type: ignore
-        "Task", back_populates="initiator", order_by="Task.created_at.desc()",
+        "Task",
+        back_populates="initiator",
+        order_by="Task.created_at.desc()",
     )
     article_columns: List["ArticleColumn"] = relationship(  # type: ignore
         "ArticleColumn",

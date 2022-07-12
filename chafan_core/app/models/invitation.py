@@ -16,7 +16,10 @@ class Invitation(Base):
     inviter = relationship("User", foreign_keys=[inviter_id])
 
     invited_user_id = Column(Integer, ForeignKey("user.id"), nullable=True)
-    invited_user = relationship("User", foreign_keys=[invited_user_id],)
+    invited_user = relationship(
+        "User",
+        foreign_keys=[invited_user_id],
+    )
 
     invited_to_site_id = Column(Integer, ForeignKey("site.id"), nullable=True)
     invited_to_site = relationship("Site", foreign_keys=[invited_to_site_id])

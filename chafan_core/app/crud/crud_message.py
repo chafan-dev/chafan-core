@@ -12,13 +12,20 @@ from chafan_core.app.schemas.message import MessageCreate, MessageUpdate
 
 class CRUDMessage(CRUDBase[Message, MessageCreate, MessageUpdate]):
     def create_with_author(
-        self, broker: DataBroker, *, obj_in: MessageCreate, author: models.User,
+        self,
+        broker: DataBroker,
+        *,
+        obj_in: MessageCreate,
+        author: models.User,
     ) -> Message:
         db = broker.get_db()
         obj_in_data = jsonable_encoder(obj_in)
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         db_obj = self.model(
-            **obj_in_data, author_id=author.id, updated_at=utc_now, created_at=utc_now,
+            **obj_in_data,
+            author_id=author.id,
+            updated_at=utc_now,
+            created_at=utc_now,
         )
         db.add(db_obj)
         db.commit()
@@ -32,7 +39,8 @@ class CRUDMessage(CRUDBase[Message, MessageCreate, MessageUpdate]):
                 event=EventInternal(
                     created_at=utc_now,
                     content=CreateMessageInternal(
-                        subject_id=author.id, channel_id=db_obj.channel.id,
+                        subject_id=author.id,
+                        channel_id=db_obj.channel.id,
                     ),
                 ),
                 receiver_id=member.id,

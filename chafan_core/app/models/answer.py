@@ -15,9 +15,9 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.sqltypes import JSON, Enum
 
+from chafan_core.db.base_class import Base
 from chafan_core.utils.base import UUID_LENGTH, ContentVisibility
 from chafan_core.utils.constants import editor_T
-from chafan_core.db.base_class import Base
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403
@@ -68,10 +68,10 @@ class Answer(Base):
     # Not null only if is_published is `True`, in which case it might contain a working draft version.
     body_draft = Column(String)
 
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
 
     draft_saved_at = Column(DateTime(timezone=True))
-    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
 
     # Whether `body` contains the latest published version
     is_published = Column(
@@ -90,7 +90,7 @@ class Answer(Base):
     # If in private site: site members visible > [my friends visible -- in future]
     # https://stackoverflow.com/questions/37848815/sqlalchemy-postgresql-enum-does-not-create-type-on-db-migrate
     visibility: ContentVisibility = Column(
-        Enum(ContentVisibility), nullable=False, server_default="ANYONE"  # type: ignore
+        Enum(ContentVisibility), nullable=False, server_default="ANYONE"
     )
 
     suggest_edits: List["AnswerSuggestEdit"] = relationship("AnswerSuggestEdit", back_populates="answer", order_by="AnswerSuggestEdit.created_at.desc()")  # type: ignore
@@ -99,7 +99,9 @@ class Answer(Base):
         "User",
         secondary=answer_contributors,
         backref=backref(
-            "contributed_answers", lazy="dynamic", order_by="Answer.updated_at.desc()",
+            "contributed_answers",
+            lazy="dynamic",
+            order_by="Answer.updated_at.desc()",
         ),
     )
 

@@ -11,7 +11,11 @@ from chafan_core.app.schemas.form import FormCreate, FormUpdate
 
 class CRUDForm(CRUDBase[Form, FormCreate, FormUpdate]):
     def create_with_author(
-        self, db: Session, *, obj_in: FormCreate, author: models.User,
+        self,
+        db: Session,
+        *,
+        obj_in: FormCreate,
+        author: models.User,
     ) -> Form:
         obj_in_data = jsonable_encoder(obj_in)
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)

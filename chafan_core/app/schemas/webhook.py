@@ -1,5 +1,5 @@
 import datetime
-from typing import Literal, Optional, Union
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 from pydantic.networks import HttpUrl

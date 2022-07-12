@@ -4,9 +4,9 @@ from sqlalchemy import CHAR, Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.sqltypes import JSON
 
+from chafan_core.db.base_class import Base
 from chafan_core.utils.base import UUID_LENGTH
 from chafan_core.utils.constants import editor_T
-from chafan_core.db.base_class import Base
 from chafan_core.utils.validators import StrippedNonEmptyStr
 
 if TYPE_CHECKING:
@@ -22,10 +22,10 @@ class SubmissionSuggestion(Base):
         "User", back_populates="submission_suggestions", foreign_keys=[author_id]
     )  # type: ignore
 
-    title: StrippedNonEmptyStr = Column(String, nullable=False)  # type: ignore
+    title: StrippedNonEmptyStr = Column(String, nullable=False)
     description = Column(String)
     description_text = Column(String)
-    description_editor: editor_T = Column(String)  # type: ignore
+    description_editor: editor_T = Column(String)
     topic_uuids: Optional[List[str]] = Column(JSON)  # type: ignore
     created_at = Column(DateTime(timezone=True), nullable=False)
 

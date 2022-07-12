@@ -37,7 +37,11 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
         )
 
     def create_with_content(
-        self, broker: DataBroker, *, event: EventInternal, receiver_id: int,
+        self,
+        broker: DataBroker,
+        *,
+        event: EventInternal,
+        receiver_id: int,
     ) -> Notification:
         notification = self.create(
             broker.get_db(),

@@ -5,7 +5,6 @@ from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
 from chafan_core.app.common import is_dev
-from chafan_core.app.security import get_password_hash, verify_password
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.crud.crud_activity import (
     follow_user_activity,
@@ -20,6 +19,7 @@ from chafan_core.app.models.topic import Topic
 from chafan_core.app.models.user import User
 from chafan_core.app.schemas.security import IntlPhoneNumber
 from chafan_core.app.schemas.user import UserCreate, UserUpdate
+from chafan_core.app.security import get_password_hash, verify_password
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr
 
 

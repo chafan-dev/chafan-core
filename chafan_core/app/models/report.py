@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
 
-from chafan_core.utils.base import ReportReason
 from chafan_core.db.base_class import Base
+from chafan_core.utils.base import ReportReason
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403
@@ -33,5 +33,5 @@ class Report(Base):
 
     created_at = Column(DateTime(timezone=True), nullable=False)
 
-    reason: ReportReason = Column(Enum(ReportReason), nullable=False, index=True)  # type: ignore
+    reason: ReportReason = Column(Enum(ReportReason), nullable=False, index=True)
     reason_comment = Column(String, nullable=True)

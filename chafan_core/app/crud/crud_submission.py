@@ -38,7 +38,9 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
         db.refresh(db_obj)
         db.add(
             create_submission_activity(
-                submission=db_obj, site=db_obj.site, created_at=utc_now,
+                submission=db_obj,
+                site=db_obj.site,
+                created_at=utc_now,
             )
         )
         db.commit()

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from chafan_core import crud, schemas
+from chafan_core.app import crud, schemas
 from chafan_core.app.config import settings
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr  # noqa: F401
 from chafan_core.utils.validators import StrippedNonEmptyStr

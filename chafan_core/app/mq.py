@@ -44,5 +44,8 @@ def push_notification(data_broker: DataBroker, *, notif: models.Notification) ->
     queue = get_ws_queue_for_user(notif.receiver_id)
     with pika_chan(queue) as chan:
         if chan:
-            msg = WsUserMsg(type="notification", data=n,)
+            msg = WsUserMsg(
+                type="notification",
+                data=n,
+            )
             chan.basic_publish(exchange="", routing_key=queue, body=msg.json())

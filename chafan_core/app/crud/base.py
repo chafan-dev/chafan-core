@@ -6,8 +6,8 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
 
-from chafan_core.utils.base import get_uuid
 from chafan_core.db.base_class import Base
+from chafan_core.utils.base import get_uuid
 
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)

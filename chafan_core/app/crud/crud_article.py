@@ -6,7 +6,10 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
 from chafan_core.app.crud.base import CRUDBase
-from chafan_core.app.crud.crud_activity import create_article_activity, upvote_article_activity
+from chafan_core.app.crud.crud_activity import (
+    create_article_activity,
+    upvote_article_activity,
+)
 from chafan_core.app.models.article import Article, ArticleUpvotes
 from chafan_core.app.schemas.article import ArticleCreate, ArticleUpdate
 from chafan_core.app.search import es_search
@@ -42,7 +45,12 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
         db.add(db_obj)
         db.commit()
         db.refresh(db_obj)
-        db.add(create_article_activity(article=db_obj, created_at=utc_now,))
+        db.add(
+            create_article_activity(
+                article=db_obj,
+                created_at=utc_now,
+            )
+        )
         db.commit()
         return db_obj
 

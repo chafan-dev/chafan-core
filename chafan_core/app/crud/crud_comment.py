@@ -4,10 +4,10 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
-from chafan_core.utils.base import get_utc_now, unwrap
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.comment import Comment
 from chafan_core.app.schemas.comment import CommentCreate, CommentUpdate
+from chafan_core.utils.base import get_utc_now, unwrap
 
 
 class CRUDComment(CRUDBase[Comment, CommentCreate, CommentUpdate]):

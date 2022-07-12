@@ -3,8 +3,8 @@ from typing import Literal, Union
 
 from pydantic import BaseModel
 
-from chafan_core.utils.base import TaskStatus
 from chafan_core.app.schemas.preview import UserPreview
+from chafan_core.utils.base import TaskStatus
 
 
 class SuperUserBroadcastTaskDefinition(BaseModel):
