@@ -6,9 +6,9 @@ from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, view_counters
-from chafan_core.app.base import ContentVisibility, HTTPException_, filter_not_none, map_, unwrap
+from chafan_core.utils.base import ContentVisibility, HTTPException_, filter_not_none, map_, unwrap
 from chafan_core.app.common import OperationType, is_dev
-from chafan_core.app.core.config import settings
+from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.model_utils import (
     get_live_answers_of_question,

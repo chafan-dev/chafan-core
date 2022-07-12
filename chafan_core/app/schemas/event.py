@@ -4,7 +4,7 @@ from typing import Literal, Mapping, Optional, Union
 from pydantic import BaseModel
 
 from chafan_core.utils.base import map_
-from chafan_core.app.core.config import settings
+from chafan_core.app.config import settings
 from chafan_core.app.schemas.answer import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.answer_suggest_edit import AnswerSuggestEdit
 from chafan_core.app.schemas.article import ArticlePreview
