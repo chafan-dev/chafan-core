@@ -59,6 +59,8 @@ After initialization, run dev server:
 make dev-run
 ```
 
+Open http://dev.cha.fan:4582/docs for API docs.
+
 ## RabbitMQ dev setup in macOS
 
 Management Plugin enabled by default at http://localhost:15672. Default username/password is guest/guest.
