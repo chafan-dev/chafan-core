@@ -1,2 +1,3 @@
-# chafan-core-api
-Chafan Core API Server
+# Chafan Core Backend Framework
+
+Under construction.
