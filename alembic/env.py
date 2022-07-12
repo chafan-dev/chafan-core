@@ -22,7 +22,7 @@ fileConfig(config.config_file_name)
 # target_metadata = mymodel.Base.metadata
 # target_metadata = None
 
-from chafan_core.app.db.base import Base  # noqa
+from chafan_core.db.base_class import Base  # noqa
 
 target_metadata = Base.metadata
 
