@@ -15,7 +15,7 @@ from pydantic.tools import parse_obj_as, parse_raw_as
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models, schemas, security
 from chafan_core.app.api import deps
 from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
@@ -29,8 +29,6 @@ from chafan_core.app.common import (
     verify_password_reset_token,
 )
 from chafan_core.app.config import settings
-from chafan_core.app.core import security
-from chafan_core.app.core.security import get_password_hash
 from chafan_core.app.email_utils import (
     send_reset_password_email,
     send_verification_code_email,
@@ -55,6 +53,7 @@ from chafan_core.app.schemas.security import (
     LoginWithVerificationCode,
     VerificationCodeRequest,
 )
+from chafan_core.app.security import get_password_hash
 from chafan_core.app.task_utils import execute_with_db
 from chafan_core.db.session import ReadSessionLocal
 from chafan_core.utils.base import HTTPException_

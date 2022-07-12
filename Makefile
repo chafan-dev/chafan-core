@@ -1,3 +1,6 @@
+LOCAL_DEV_PORT := 4582
+LOCAL_DEV_HOST := dev.cha.fan
+
 link-venv:
 	ln -s $(shell poetry env info --path) .venv
 
@@ -13,4 +16,7 @@ format:
 
 check:
 	bash scripts/lint.sh
-	python app/tools/check.py
+	python scripts/check.py
+
+dev-run:
+	uvicorn --host $(LOCAL_DEV_HOST) --port $(LOCAL_DEV_PORT) chafan_core.app.main:app --reload
