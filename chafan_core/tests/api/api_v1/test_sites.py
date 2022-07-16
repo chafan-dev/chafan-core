@@ -28,16 +28,11 @@ def test_sites(
     assert r.status_code == 401
 
     r = client.post(
-        f"{settings.API_V1_STR}/sites/", headers=moderator_user_token_headers, json=data
+        f"{settings.API_V1_STR}/sites/", headers=superuser_token_headers, json=data
     )
     assert 200 <= r.status_code < 300, r.text
     assert r.json()["created_site"]["name"] == f"Demo ({demo_name})"
     site_uuid = r.json()["created_site"]["uuid"]
-
-    r = client.post(
-        f"{settings.API_V1_STR}/sites/", headers=superuser_token_headers, json=data
-    )
-    assert r.status_code == 400
 
     data = {
         "description": "Demo Site 2",

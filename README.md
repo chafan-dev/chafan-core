@@ -61,6 +61,27 @@ make dev-run
 
 Open http://dev.cha.fan:4582/docs for API docs.
 
+## DB Schema Migrations
+
+```bash
+$ alembic revision --autogenerate -m "Add column last_name to User model"
+$ alembic upgrade head
+```
+
+## Test
+
+Reset persistent state before testing:
+
+```
+bash scripts/reset_app_state.sh
+```
+
+Test a single file:
+
+```
+pytest chafan_core/tests/api/api_v1/test_sites.py
+```
+
 ## RabbitMQ dev setup in macOS
 
 Management Plugin enabled by default at http://localhost:15672. Default username/password is guest/guest.
