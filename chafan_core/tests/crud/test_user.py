@@ -1,10 +1,10 @@
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from app import crud
-from chafan_core.app.core.security import verify_password
+from chafan_core.app import crud
+from chafan_core.app.security import verify_password
 from chafan_core.app.schemas.user import UserCreate, UserUpdate
-from chafan_core.app.tests.utils.utils import (
+from chafan_core.tests.utils.utils import (
     random_email,
     random_password,
     random_short_lower_string,

@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm.session import Session
 
-from app import crud
+from chafan_core.app import crud
 from chafan_core.app.config import settings
 
 

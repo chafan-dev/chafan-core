@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from chafan_core.app.config import settings
-from chafan_core.app.tests.utils.utils import random_short_lower_string
+from chafan_core.tests.utils.utils import random_short_lower_string
 
 
 def test_sites(

@@ -3,10 +3,10 @@ from typing import Dict
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app import crud
+from chafan_core.app import crud
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.user import UserCreate
-from chafan_core.app.tests.utils.utils import (
+from chafan_core.tests.utils.utils import (
     EMAIL_TEST_USER,
     random_email,
     random_password,

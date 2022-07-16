@@ -7,7 +7,7 @@ from pydantic.types import SecretStr
 
 from chafan_core.utils.base import unwrap
 from chafan_core.app.config import settings
-from chafan_core.app.validators import CaseInsensitiveEmailStr, StrippedNonEmptyBasicStr
+from chafan_core.utils.validators import CaseInsensitiveEmailStr, StrippedNonEmptyBasicStr
 
 EMAIL_TEST_USER = CaseInsensitiveEmailStr("test@example.com")
 EMAIL_TEST_MODERATOR = CaseInsensitiveEmailStr("mod@example.com")

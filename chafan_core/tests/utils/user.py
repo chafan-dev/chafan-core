@@ -4,16 +4,16 @@ from fastapi.testclient import TestClient
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
-from app import crud
+from chafan_core.app import crud
 from chafan_core.app.config import settings
 from chafan_core.app.models.user import User
 from chafan_core.app.schemas.user import UserCreate, UserUpdate
-from chafan_core.app.tests.utils.utils import (
+from chafan_core.tests.utils.utils import (
     random_email,
     random_password,
     random_short_lower_string,
 )
-from chafan_core.app.validators import CaseInsensitiveEmailStr, StrippedNonEmptyBasicStr
+from chafan_core.utils.validators import CaseInsensitiveEmailStr, StrippedNonEmptyBasicStr
 
 
 def user_authentication_headers(
