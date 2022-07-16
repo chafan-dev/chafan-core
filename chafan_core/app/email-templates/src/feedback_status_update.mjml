@@ -1,0 +1,15 @@
+<mjml>
+  <mj-body background-color="#fff">
+    <mj-section>
+      <mj-column>
+        <mj-divider border-color="#1976d2"></mj-divider>
+        <mj-text font-size="20px" font-family="helvetica" color="#1976d2">{{ project_name }} - 您的反馈状态有更新</mj-text>
+        <mj-text font-size="16px">反馈的最新状态为「{{ new_status }}」，原文：</mj-text>
+        <mj-text font-size="14px" padding="15px 35px" line-height="25px">
+          {{ desc }}
+        </mj-text>
+        <mj-text font-size="14px">联系 contact@cha.fan 以获取更多支持</mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

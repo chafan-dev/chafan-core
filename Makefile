@@ -20,3 +20,10 @@ check:
 
 dev-run:
 	uvicorn --host $(LOCAL_DEV_HOST) --port $(LOCAL_DEV_PORT) chafan_core.app.main:app --reload
+
+# npm install mjml -g
+compile-email-templates:
+	mjml app/email-templates/src/reset_password.mjml -o app/email-templates/build/reset_password.html
+	mjml app/email-templates/src/verification_code.mjml -o app/email-templates/build/verification_code.html
+	mjml app/email-templates/src/notifications.mjml -o app/email-templates/build/notifications.html
+	mjml app/email-templates/src/feedback_status_update.mjml -o app/email-templates/build/feedback_status_update.html

@@ -1,0 +1,12 @@
+<mjml>
+  <mj-body background-color="#fff">
+    <mj-section>
+      <mj-column>
+        <mj-divider border-color="#1976d2"></mj-divider>
+        <mj-text font-size="20px" color="#1976d2" font-family="helvetica">{{ project_name }}验证码</mj-text>
+        <mj-text font-size="30px" align="center"><code>{{ code }}</code></mj-text>
+        <mj-text font-size="14px" align="right">验证码将在 {{ valid_hours }} 小时后失效</mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

@@ -54,7 +54,7 @@ class Settings(BaseSettings):
             return values["PROJECT_NAME"]
         return v
 
-    EMAIL_TEMPLATES_DIR: str = "app/email-templates/build"
+    EMAIL_TEMPLATES_DIR: str = "chafan_core/app/email-templates/build"
     EMAILS_ENABLED: bool = False
 
     AWS_ACCESS_KEY_ID: Optional[str] = None
