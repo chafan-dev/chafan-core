@@ -86,7 +86,5 @@ jobs:
         PYTHONPATH=$PWD make check
         psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
         PYTHONPATH=$PWD alembic upgrade head
-        PYTHONPATH=$PWD python app/initial_data.py
-        PYTHONPATH=$PWD make unit-test
-        PYTHONPATH=$PWD bash scripts/reset_app_state.sh
-        PYTHONPATH=$PWD make e2e-test
+        PYTHONPATH=$PWD python scripts/initial_data.py
+        PYTHONPATH=$PWD scripts/run-unit-tests.sh
