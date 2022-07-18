@@ -47,7 +47,6 @@ SITE_SUBMISSIONS_FOR_USER_CACHE_KEY = "chafan:site-submissions:{site_id}:{user_i
 SITE_INFO_CACHE_KEY = "chafan:site-info:{subdomain}"
 SITEMAPS_CACHE_KEY = "chafan:site-maps"
 ANSWER_UPVOTES_CACHE_KEY = "chafan:answer-upvotes:{uuid}:{user_id}"
-SUBMISSIONS_FOR_USER_CACHE_KEY = "chafan:submissions-for-user:{user_id}"
 SITE_SUBMISSIONS_CACHE_KEY = "chafan:site-submissions:{site_id}"
 VERIFICATION_CODE_CACHE_KEY = "chafan:verification-code:{email}"
 SIMILAR_ENTITY_CACHE_KEY = "chafan:similar-entity:{entity_type}"
