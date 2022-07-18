@@ -75,10 +75,12 @@ def moderator_user_uuid(client: TestClient, moderator_user_token_headers: dict) 
 
 
 @pytest.fixture(scope="module")
-def example_site_uuid(client: TestClient, moderator_user_token_headers: dict) -> str:
+def example_site_uuid(
+    client: TestClient, superuser_token_headers: dict, moderator_user_uuid: str
+) -> str:
     r = client.post(
         f"{settings.API_V1_STR}/sites/",
-        headers=moderator_user_token_headers,
+        headers=superuser_token_headers,
         json={
             "name": f"Demo ({random_short_lower_string()})",
             "description": "Demo Site",
@@ -87,7 +89,16 @@ def example_site_uuid(client: TestClient, moderator_user_token_headers: dict) ->
         },
     )
     r.raise_for_status()
-    return r.json()["created_site"]["uuid"]
+    site_uuid = r.json()["created_site"]["uuid"]
+    r = client.put(
+        f"{settings.API_V1_STR}/sites/{site_uuid}/config",
+        json={
+            "moderator_uuid": moderator_user_uuid,
+        },
+        headers=superuser_token_headers,
+    )
+    assert r.ok, r.json()
+    return site_uuid
 
 
 @pytest.fixture(scope="module")
