@@ -1,8 +1,11 @@
 from fastapi.testclient import TestClient
 
-from chafan_core.utils.base import unwrap
-from chafan_core.app.common import check_token_validity_impl, generate_password_reset_token
+from chafan_core.app.common import (
+    check_token_validity_impl,
+    generate_password_reset_token,
+)
 from chafan_core.app.config import settings
+from chafan_core.utils.base import unwrap
 
 
 def test_get_access_token(client: TestClient) -> None:
