@@ -36,6 +36,7 @@ def test_sites(
 
     data = {
         "description": "Demo Site 2",
+        "moderator_uuid": moderator_user_uuid,
     }
 
     r = client.put(f"{settings.API_V1_STR}/sites/{site_uuid}", json=data)
@@ -50,7 +51,7 @@ def test_sites(
 
     r = client.put(
         f"{settings.API_V1_STR}/sites/{site_uuid}/config",
-        headers=moderator_user_token_headers,
+        headers=superuser_token_headers,
         json=data,
     )
     assert 200 <= r.status_code < 300, r.text
