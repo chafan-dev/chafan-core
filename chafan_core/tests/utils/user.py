@@ -13,7 +13,10 @@ from chafan_core.tests.utils.utils import (
     random_password,
     random_short_lower_string,
 )
-from chafan_core.utils.validators import CaseInsensitiveEmailStr, StrippedNonEmptyBasicStr
+from chafan_core.utils.validators import (
+    CaseInsensitiveEmailStr,
+    StrippedNonEmptyBasicStr,
+)
 
 
 def user_authentication_headers(

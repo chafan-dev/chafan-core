@@ -22,7 +22,10 @@ def test_comments(
         },
     }
 
-    r = client.post(f"{settings.API_V1_STR}/comments/", json=data,)
+    r = client.post(
+        f"{settings.API_V1_STR}/comments/",
+        json=data,
+    )
     assert r.status_code == 401
 
     r = client.post(

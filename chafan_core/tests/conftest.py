@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
 from chafan_core.app.config import settings
-from chafan_core.db.session import SessionLocal
 from chafan_core.app.main import app
+from chafan_core.db.session import SessionLocal
 from chafan_core.tests.utils.user import authentication_token_from_email
 from chafan_core.tests.utils.utils import (
     EMAIL_TEST_MODERATOR,

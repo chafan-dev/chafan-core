@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
-from chafan_core.utils.base import get_uuid
 from chafan_core.app.config import settings
+from chafan_core.utils.base import get_uuid
 
 
 def test_answers(
@@ -22,11 +22,16 @@ def test_answers(
         "writing_session_uuid": get_uuid(),
     }
 
-    r = client.post(f"{settings.API_V1_STR}/answers/", json=data,)
+    r = client.post(
+        f"{settings.API_V1_STR}/answers/",
+        json=data,
+    )
     assert r.status_code == 401
 
     r = client.post(
-        f"{settings.API_V1_STR}/answers/", headers=normal_user_token_headers, json=data,
+        f"{settings.API_V1_STR}/answers/",
+        headers=normal_user_token_headers,
+        json=data,
     )
     assert 200 <= r.status_code < 300, r.text
     assert "author" in r.json(), r.json()

@@ -2,8 +2,8 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
-from chafan_core.app.security import verify_password
 from chafan_core.app.schemas.user import UserCreate, UserUpdate
+from chafan_core.app.security import verify_password
 from chafan_core.tests.utils.utils import (
     random_email,
     random_password,
@@ -56,7 +56,9 @@ def test_check_if_user_is_active_inactive(db: Session) -> None:
     email = random_email()
     password = random_password()
     user_in = UserCreate(
-        handle=random_short_lower_string(), email=email, password=password,
+        handle=random_short_lower_string(),
+        email=email,
+        password=password,
     )
     user = crud.user.create(db, obj_in=user_in)
     is_active = crud.user.is_active(user)
