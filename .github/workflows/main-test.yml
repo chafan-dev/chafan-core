@@ -2,7 +2,7 @@ name: Main test
 
 on:
   push:
-    branches: [ stag ]
+    branches: [ stag, main ]
   pull_request:
     branches: [ stag ]
 
