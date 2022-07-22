@@ -209,8 +209,9 @@ def client_ip(request: Request) -> str:
     if "x-forwarded-for" in request.headers:
         r = request.headers["x-forwarded-for"].split(", ")[0]
         return r
-    else:
+    if request.client:
         return request.client.host or "127.0.0.1"
+    return "127.0.0.1"
 
 
 def report_msg(msg: str) -> None:
