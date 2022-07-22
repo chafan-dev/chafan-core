@@ -1,4 +1,5 @@
 from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from starlette.applications import Starlette
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
@@ -41,12 +42,12 @@ class SlowAPIMiddleware(BaseHTTPMiddleware):
         ):
             try:
                 limiter._check_request_limit(request, handler, True)
-            except Exception as e:
+            except RateLimitExceeded as e:
                 # handle the exception since the global exception handler won't pick it up if we call_next
                 exception_handler = app.exception_handlers.get(
                     type(e), _rate_limit_exceeded_handler
                 )
-                return exception_handler(request, e)
+                return exception_handler(request, e)  # type: ignore
             # request.state._rate_limiting_complete = True
             response = await call_next(request)
             response = limiter._inject_headers(response, request.state.view_rate_limit)
