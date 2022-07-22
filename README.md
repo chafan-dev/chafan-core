@@ -98,6 +98,30 @@ Or, if you don't want/need a background service you can just run:
 rabbitmq-server
 ```
 
+## Staging
+
+`stag` branch is automatically pushed to the following Heroku server for testing:
+
+```
+https://chafan-test.herokuapp.com/
+```
+
+# How to add a new event type
+
+- Core backend code changes
+  - Add event definition: `chafan_core/app/schemas/event.py`
+  - If the event goes to activity feed
+    - Feed distribution: `chafan_core/app/feed.py:get_activity_receivers`
+  - If the event goes to notifications
+    - `chafan_core/app/materialize.py`: `materialize_event` and `_KEYS` (if there is a new type of field)
+    - `chafan_core/app/common.py`: `EVENT_TEMPLATES`
+- PWA code changes
+  - Add event definition: `src/interfaces/index.ts`
+  - If the event goes to activity feed
+    - Update event card: `src/views/main/Home.vue`
+  - Update event field rendering: `src/components/Event.vue` (if there is a new type of field)
+  - Update event translation rendering: `src/main.ts`
+
 ## Copyright
 
 For all files within this repo, see below for default copyright unless otherwise declared in file:
