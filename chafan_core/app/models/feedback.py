@@ -17,7 +17,8 @@ class Feedback(Base):
     user: Optional["User"] = relationship("User", back_populates="feedbacks", foreign_keys=[user_id])  # type: ignore
     user_email = Column(String)  # User-provided email if not logged in
     created_at = Column(DateTime(timezone=True), nullable=False)
-    status: feedback_status_T = Column(String, server_default="sent", nullable=False)
+    status: feedback_status_T = Column(String, server_default="sent", nullable=False)  # type: ignore
+
     location_url = Column(String)
 
     description = Column(String, nullable=False)

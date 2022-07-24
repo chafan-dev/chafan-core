@@ -4,7 +4,7 @@ from typing import Callable, Generic, List, Type, TypeVar, Union
 
 from fastapi.encoders import jsonable_encoder
 from pydantic.tools import parse_raw_as
-from pymongo.database import Database as MongoDB
+from pymongo.database import Database as MongoDB  # type: ignore
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.cached_layer import CachedLayer

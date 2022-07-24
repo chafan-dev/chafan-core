@@ -103,7 +103,7 @@ class User(Base):
     full_name = Column(String)
     handle: "StrippedNonEmptyBasicStr" = Column(
         String, unique=True, index=True, nullable=False
-    )
+    )  # type: ignore
     email = Column(String, unique=True, index=True, nullable=False)
     secondary_emails = Column(JSON, server_default="[]", nullable=False)
 

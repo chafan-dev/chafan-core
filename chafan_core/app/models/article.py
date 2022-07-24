@@ -66,20 +66,21 @@ class Article(Base):
 
     # content fields
     title = Column(String, nullable=False)
-    title_draft: Optional[StrippedNonEmptyStr] = Column(String)
+    title_draft: Optional[StrippedNonEmptyStr] = Column(String)  # type: ignore
+
     body = Column(String, nullable=False)
     body_text = Column(String)
 
     # Not null only if is_published is `True`, in which case it might contain a working draft version.
     body_draft = Column(String)
 
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
+    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
 
     created_at = Column(DateTime(timezone=True), nullable=False)
     initial_published_at = Column(DateTime(timezone=True))
     updated_at = Column(DateTime(timezone=True))  # published_at
     draft_saved_at = Column(DateTime(timezone=True))
-    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
+    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
 
     is_published = Column(
         Boolean, default=False, server_default="false", nullable=False

@@ -33,5 +33,6 @@ class Report(Base):
 
     created_at = Column(DateTime(timezone=True), nullable=False)
 
-    reason: ReportReason = Column(Enum(ReportReason), nullable=False, index=True)
+    reason: ReportReason = Column(Enum(ReportReason), nullable=False, index=True)  # type: ignore
+
     reason_comment = Column(String, nullable=True)

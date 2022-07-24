@@ -5,7 +5,6 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
@@ -74,8 +73,7 @@ def update_application(
         db, owner_id=application.applicant.id, site_id=application.applied_site.id
     )
     if not existing_profile:
-        CachedSiteProfiles.create_site_profile(
-            cached_layer,
+        cached_layer.create_site_profile(
             owner=application.applicant,
             site_uuid=application.applied_site.uuid,
         )

@@ -4,8 +4,10 @@ from datetime import datetime
 from typing import Any, Mapping
 
 import sentry_sdk
-from influxdb_client import InfluxDBClient, Point, WritePrecision
-from influxdb_client.client.write_api import ASYNCHRONOUS, SYNCHRONOUS
+from influxdb_client import InfluxDBClient  # type: ignore
+from influxdb_client import Point, WritePrecision
+from influxdb_client.client.write_api import ASYNCHRONOUS  # type: ignore
+from influxdb_client.client.write_api import SYNCHRONOUS
 
 from chafan_core.app.common import is_dev
 from chafan_core.app.config import settings

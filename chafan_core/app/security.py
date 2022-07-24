@@ -2,10 +2,11 @@ from datetime import datetime, timedelta
 from typing import Any, Union
 
 from jose import jwt
-from passlib.context import CryptContext
+from passlib.context import CryptContext  # type: ignore
 from pydantic.types import SecretStr
 
 from chafan_core.app.config import settings
+from chafan_core.utils.base import unwrap
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -23,7 +24,9 @@ def create_access_token(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
     to_encode = {"exp": expire, "sub": str(subject)}
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        to_encode, unwrap(settings.SECRET_KEY), algorithm=ALGORITHM
+    )
     return encoded_jwt
 
 

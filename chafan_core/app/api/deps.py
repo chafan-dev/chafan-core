@@ -8,7 +8,7 @@ from chafan_core.app import schemas, security
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.utils.base import HTTPException_
+from chafan_core.utils.base import HTTPException_, unwrap
 
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/login/access-token"
@@ -22,7 +22,7 @@ try_reusable_oauth2 = OAuth2PasswordBearer(
 def get_current_user_id(token: str = Depends(reusable_oauth2)) -> int:
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token, unwrap(settings.SECRET_KEY), algorithms=[security.ALGORITHM]
         )
         token_data = schemas.TokenPayload(**payload)
     except Exception:

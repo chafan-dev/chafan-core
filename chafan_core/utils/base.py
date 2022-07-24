@@ -3,7 +3,7 @@ import enum
 from enum import Enum
 from typing import Callable, List, Literal, Optional, TypeVar, Union
 
-import shortuuid
+import shortuuid  # type: ignore
 from fastapi.exceptions import HTTPException
 from pytz import utc
 

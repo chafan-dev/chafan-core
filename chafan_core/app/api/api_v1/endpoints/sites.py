@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType, is_dev
 from chafan_core.app.config import settings
@@ -116,7 +115,7 @@ def create_site(
         category_topic_id = category_topic.id
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     super_user = crud.user.get_superuser(db)
-    site = cached_layer.create_site(
+    new_site = cached_layer.create_site(
         site_in=site_in, moderator=current_user, category_topic_id=category_topic_id
     )
     crud.coin_payment.make_payment(
@@ -128,18 +127,16 @@ def create_site(
                 created_at=utc_now,
                 content=CreateSiteInternal(
                     subject_id=current_user.id,
-                    site_id=site.id,
+                    site_id=new_site.id,
                 ),
             ).json(),
         ),
         payer=current_user,
         payee=super_user,
     )
-    CachedSiteProfiles.create_site_profile(
-        cached_layer, owner=site.moderator, site_uuid=site.uuid
-    )
+    cached_layer.create_site_profile(owner=new_site.moderator, site_uuid=new_site.uuid)
     return schemas.CreateSiteResponse(
-        created_site=cached_layer.site_schema_from_orm(site)
+        created_site=cached_layer.site_schema_from_orm(new_site)
     )
 
 
@@ -184,7 +181,7 @@ def config_site(
             )
         del site_in_dict["category_topic_uuid"]
         site_in_dict["category_topic_id"] = category_topic.id
-    site = cached_layer.update_site(old_site=site, update_dict=site_in_dict)
+    new_site = cached_layer.update_site(old_site=site, update_dict=site_in_dict)
     if site_in.topic_uuids is not None:
         new_topics = []
         for topic_uuid in site_in.topic_uuids:
@@ -195,10 +192,10 @@ def config_site(
                     detail="The topic doesn't exist.",
                 )
             new_topics.append(topic)
-        site.topics = new_topics
-        db.add(site)
+        new_site.topics = new_topics
+        db.add(new_site)
         db.commit()
-    return cached_layer.materializer.site_schema_from_orm(site)
+    return cached_layer.materializer.site_schema_from_orm(new_site)
 
 
 @router.get("/{subdomain}", response_model=schemas.Site)
@@ -373,9 +370,7 @@ def site_apply(
             db, owner_id=current_user.id, site_id=site.id
         )
         if not existing_profile:
-            CachedSiteProfiles.create_site_profile(
-                cached_layer, owner=current_user, site_uuid=site.uuid
-            )
+            cached_layer.create_site_profile(owner=current_user, site_uuid=site.uuid)
         return schemas.SiteApplicationResponse(auto_approved=True)
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     crud.notification.create_with_content(
@@ -412,8 +407,8 @@ def remove_my_site_membership(
     )
     if application is not None:
         application.pending = False
-    CachedSiteProfiles.remove_site_profile(
-        cached_layer, owner_id=cached_layer.unwrapped_principal_id(), site_id=site.id
+    cached_layer.remove_site_profile(
+        owner_id=cached_layer.unwrapped_principal_id(), site_id=site.id
     )
     db.commit()
     return schemas.GenericResponse()

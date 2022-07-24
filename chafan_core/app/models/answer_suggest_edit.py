@@ -24,7 +24,7 @@ class AnswerSuggestEdit(Base):
     # RichText content
     body = Column(String)
     body_text = Column(String)
-    body_editor: Optional[editor_T] = Column(String)
+    body_editor: Optional[editor_T] = Column(String)  # type: ignore
 
     created_at = Column(DateTime(timezone=True), nullable=False)
 

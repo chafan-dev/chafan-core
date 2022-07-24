@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 class Archive(Base):
     id = Column(Integer, primary_key=True, index=True)
     body = Column(String, nullable=False)
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
+    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+
     created_at = Column(DateTime(timezone=True), nullable=False)
     answer_id = Column(Integer, ForeignKey("answer.id"), nullable=False, index=True)
     answer = relationship("Answer", back_populates="archives")

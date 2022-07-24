@@ -2,8 +2,8 @@ from contextlib import contextmanager
 from typing import Iterator, Optional
 
 import pika
+from pika.adapters.blocking_connection import BlockingChannel
 from pika.adapters.utils.connection_workflow import AMQPConnectionWorkflowFailed
-from pika.channel import Channel
 from pika.exceptions import AMQPConnectionError, ChannelClosedByBroker
 
 from chafan_core.app import models
@@ -14,7 +14,7 @@ from chafan_core.app.schemas.mq import WsUserMsg
 
 
 @contextmanager
-def pika_chan(queue: str) -> Iterator[Optional[Channel]]:
+def pika_chan(queue: str) -> Iterator[Optional[BlockingChannel]]:
     try:
         conn = pika.BlockingConnection(pika.URLParameters(get_mq_url()))
         chan = conn.channel()

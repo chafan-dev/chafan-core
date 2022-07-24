@@ -67,7 +67,8 @@ class Question(Base):
     title = Column(String, nullable=False)
     description = Column(String)
     description_text = Column(String)
-    description_editor: editor_T = Column(String, nullable=False, default="tiptap")
+    description_editor: editor_T = Column(String, nullable=False, default="tiptap")  # type: ignore
+
     created_at = Column(DateTime(timezone=True), nullable=False)
     updated_at = Column(DateTime(timezone=True), nullable=False)
 

@@ -10,14 +10,13 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Form
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from parsel.selector import Selector
+from parsel.selector import Selector  # type: ignore
 from pydantic.tools import parse_obj_as, parse_raw_as
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, security
 from chafan_core.app.api import deps
-from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import (
     check_email,
@@ -319,8 +318,8 @@ def create_user_open(
             db, owner_id=user.id, site_id=invitation_link.invited_to_site.id
         )
         if not existing_profile:
-            CachedSiteProfiles.create_site_profile(
-                cached_layer, owner=user, site_uuid=invitation_link.invited_to_site.uuid
+            cached_layer.create_site_profile(
+                owner=user, site_uuid=invitation_link.invited_to_site.uuid
             )
     paid = pay_reward_for_invitation(
         db,

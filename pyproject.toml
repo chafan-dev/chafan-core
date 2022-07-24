@@ -60,6 +60,9 @@ types-requests = "^2.26.3"
 types-redis = "^4.1.2"
 types-pytz = "^2021.3.4"
 pytest-mock = "^3.8.2"
+types-boto3 = "^1.0.2"
+types-python-jose = "^3.3.4"
+types-pika = "^1.2.0-beta.1"
 
 [tool.isort]
 multi_line_output = 3

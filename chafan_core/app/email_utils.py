@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
-from emails.template import JinjaTemplate
+from emails.template import JinjaTemplate  # type: ignore
 
 from chafan_core.app import schemas
 from chafan_core.app.aws_ses import send_email_ses

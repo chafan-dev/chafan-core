@@ -85,7 +85,8 @@ class Submission(Base):
     # description XOR url -- see HackerNews
     description = Column(String)
     description_text = Column(String)
-    description_editor: editor_T = Column(String, nullable=False, default="tiptap")
+    description_editor: editor_T = Column(String, nullable=False, default="tiptap")  # type: ignore
+
     url = Column(String)
 
     keywords = Column(JSON)

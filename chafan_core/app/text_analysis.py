@@ -1,6 +1,6 @@
 from typing import List
 
-import jieba.analyse
+import jieba.analyse  # type: ignore
 from pydantic.tools import parse_obj_as
 from sqlalchemy.orm.session import Session
 

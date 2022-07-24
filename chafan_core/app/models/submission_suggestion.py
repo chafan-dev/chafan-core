@@ -22,10 +22,10 @@ class SubmissionSuggestion(Base):
         "User", back_populates="submission_suggestions", foreign_keys=[author_id]
     )  # type: ignore
 
-    title: StrippedNonEmptyStr = Column(String, nullable=False)
+    title: StrippedNonEmptyStr = Column(String, nullable=False)  # type: ignore
     description = Column(String)
     description_text = Column(String)
-    description_editor: editor_T = Column(String)
+    description_editor: editor_T = Column(String)  # type: ignore
     topic_uuids: Optional[List[str]] = Column(JSON)  # type: ignore
     created_at = Column(DateTime(timezone=True), nullable=False)
 
