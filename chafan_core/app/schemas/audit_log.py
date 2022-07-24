@@ -13,6 +13,9 @@ AUDIT_LOG_API_TYPE = Literal[
     "put question",
     "post article",
     "post submission",
+    "scheduled/run_deliver_notification_task",
+    "scheduled/cache_new_activity_to_feeds",
+    "scheduled/daily",
 ]
 
 # Properties to receive via API on creation
