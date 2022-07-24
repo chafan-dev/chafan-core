@@ -16,7 +16,7 @@ from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.metrics.metrics_client import metrics_client_serve
-from chafan_core.app.recs.ranking import rank_submissions
+from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.site import SiteCreate
@@ -40,6 +40,7 @@ MAX_SAMPLED_RELATED_FOLLOWED = 20
 
 T = TypeVar("T")
 
+USER_SITE_PROFILES = "chafan:{user_id}:site-profiles"
 ANSWER_CACHE_KEY = "chafan:answer:{uuid}"
 ANSWER_FOR_VISITOR_CACHE_KEY = "chafan:answer-for-visitor:{uuid}"
 SUBMISSIONS_FOR_USER_CACHE_KEY = "chafan:submissions-for-user:{user_id}"
@@ -816,3 +817,41 @@ class CachedLayer(object):
             fetch=f,
             hours=24,
         )
+
+    def get_site_profiles(self) -> List[schemas.Profile]:
+        user_id = self.unwrapped_principal_id()
+        db = self.get_db()
+
+        def f() -> List[schemas.Profile]:
+            current_user = crud.user.get(db, id=user_id)
+            assert current_user is not None
+            return [
+                self.materializer.profile_schema_from_orm(p)
+                for p in rank_site_profiles(current_user.profiles)
+            ]
+
+        return self._get_cached(
+            key=USER_SITE_PROFILES.format(user_id=user_id),
+            typeObj=List[schemas.Profile],
+            fetch=f,
+            hours=24,
+        )
+
+    def create_site_profile(
+        self, *, owner: models.User, site_uuid: str
+    ) -> schemas.Profile:
+        data = crud.profile.create_with_owner(
+            self.get_db(),
+            obj_in=schemas.ProfileCreate(
+                owner_uuid=owner.uuid,
+                site_uuid=site_uuid,
+            ),
+        )
+        self.get_redis().delete(USER_SITE_PROFILES.format(user_id=owner.id))
+        return self.materializer.profile_schema_from_orm(data)
+
+    def remove_site_profile(self, *, owner_id: int, site_id: int) -> None:
+        crud.profile.remove_by_user_and_site(
+            self.get_db(), owner_id=owner_id, site_id=site_id
+        )
+        self.get_redis().delete(USER_SITE_PROFILES.format(user_id=owner_id))

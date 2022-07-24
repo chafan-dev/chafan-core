@@ -16,7 +16,7 @@ class SubmissionArchive(Base):
     title = Column(String, nullable=False)
     description = Column(String)
     description_text = Column(String)
-    description_editor: editor_T = Column(String)
+    description_editor: editor_T = Column(String)  # type: ignore
     created_at = Column(DateTime(timezone=True), nullable=False)
     submission_id = Column(
         Integer, ForeignKey("submission.id"), nullable=False, index=True

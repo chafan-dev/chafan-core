@@ -3,20 +3,20 @@ import enum
 import re
 from typing import Any, Mapping, NamedTuple, Optional, Tuple
 
-import arrow
+import arrow  # type: ignore
 import redis
 import sentry_sdk
 from fastapi import Header, Request
 from html2text import HTML2Text
 from jinja2 import Template
 from jose import jwt
-from pymongo import MongoClient
-from pymongo.database import Database as MongoDB
+from pymongo import MongoClient  # type: ignore
+from pymongo.database import Database as MongoDB  # type: ignore
 
 from chafan_core.app import schemas
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.event import Event
-from chafan_core.utils.base import HTTPException_
+from chafan_core.utils.base import HTTPException_, unwrap
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 
@@ -93,7 +93,7 @@ def generate_password_reset_token(email: CaseInsensitiveEmailStr) -> str:
     expires = now + delta
     encoded_jwt = jwt.encode(
         {"exp": expires, "nbf": now, "email": str(email)},
-        settings.SECRET_KEY,
+        unwrap(settings.SECRET_KEY),
         algorithm="HS256",
     )
     return encoded_jwt
@@ -101,7 +101,7 @@ def generate_password_reset_token(email: CaseInsensitiveEmailStr) -> str:
 
 def check_token_validity_impl(token: str) -> bool:
     try:
-        jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        jwt.decode(token, unwrap(settings.SECRET_KEY), algorithms=["HS256"])
         return True
     except Exception:
         return False
@@ -109,7 +109,9 @@ def check_token_validity_impl(token: str) -> bool:
 
 def verify_password_reset_token(token: str) -> Optional[str]:
     try:
-        decoded_token = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        decoded_token = jwt.decode(
+            token, unwrap(settings.SECRET_KEY), algorithms=["HS256"]
+        )
         return decoded_token["email"]
     except Exception:
         return None

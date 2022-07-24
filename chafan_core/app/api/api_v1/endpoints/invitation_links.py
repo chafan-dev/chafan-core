@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
@@ -88,8 +87,7 @@ def join_site_with_invitation_link(
         db, owner_id=current_user.id, site_id=invitation_link.invited_to_site_id
     )
     if not existing_profile:
-        CachedSiteProfiles.create_site_profile(
-            cached_layer,
+        cached_layer.create_site_profile(
             owner=current_user,
             site_uuid=invitation_link.invited_to_site.uuid,
         )

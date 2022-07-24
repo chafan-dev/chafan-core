@@ -6,7 +6,6 @@ from typing import Any
 from chafan_core.app import crud
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.metrics.metrics_client import metrics_client_batch
 from chafan_core.app.recs.indexing import (
     interesting_questions_indexer,
     interesting_users_indexer,
@@ -33,20 +32,16 @@ def eval_retrive_user_data() -> None:
             print("Removing user data...")
             interesting_users_indexer.delete_user_data(u.id)
             with measure_duration("retrive_user_data_empty_users"):
-                interesting_users_indexer.retrive_user_data(
-                    CachedLayer(broker, u.id), metrics_client_batch
-                )
+                interesting_users_indexer.retrive_user_data(CachedLayer(broker, u.id))
             with measure_duration("retrive_user_data_empty_questions"):
                 interesting_questions_indexer.retrive_user_data(
-                    CachedLayer(broker, u.id), metrics_client_batch
+                    CachedLayer(broker, u.id)
                 )
             with measure_duration("retrive_user_data_existing_users"):
-                interesting_users_indexer.retrive_user_data(
-                    CachedLayer(broker, u.id), metrics_client_batch
-                )
+                interesting_users_indexer.retrive_user_data(CachedLayer(broker, u.id))
             with measure_duration("retrive_user_data_existing_questions"):
                 interesting_questions_indexer.retrive_user_data(
-                    CachedLayer(broker, u.id), metrics_client_batch
+                    CachedLayer(broker, u.id)
                 )
             with measure_duration("get_follers"):
                 CachedLayer(broker, u.id).get_followers(u, skip=0, limit=20)

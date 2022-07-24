@@ -1,6 +1,6 @@
 from typing import Dict, Generator
 
-import pytest
+import pytest  # type: ignore
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 

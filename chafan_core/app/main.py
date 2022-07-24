@@ -1,7 +1,8 @@
 from typing import Any, MutableMapping, Optional
 
 import sentry_sdk
-from elasticapm.contrib.starlette import ElasticAPM, make_apm_client
+from elasticapm.contrib.starlette import ElasticAPM  # type: ignore
+from elasticapm.contrib.starlette import make_apm_client
 from fastapi import FastAPI
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError

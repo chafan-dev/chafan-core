@@ -7,7 +7,6 @@ from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.materialize import user_schema_from_orm
@@ -906,7 +905,7 @@ def unsubscribe_article_column(
 def get_site_profiles(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
 ) -> Any:
-    return CachedSiteProfiles.get_site_profiles(cached_layer)
+    return cached_layer.get_site_profiles()
 
 
 @router.get(

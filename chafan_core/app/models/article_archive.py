@@ -14,7 +14,8 @@ class ArticleArchive(Base):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String, nullable=False)
     body = Column(String, nullable=False)
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")
+    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+
     created_at = Column(DateTime(timezone=True), nullable=False)
     article_id = Column(Integer, ForeignKey("article.id"), nullable=False, index=True)
     article = relationship("Article", back_populates="archives")

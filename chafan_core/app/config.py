@@ -2,7 +2,7 @@ import os
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import boto3
-import sentry_dramatiq
+import sentry_dramatiq  # type: ignore
 import sentry_sdk
 from dotenv import load_dotenv
 from pydantic import AnyHttpUrl, BaseSettings, validator
@@ -129,7 +129,7 @@ _ENV = os.environ.get("ENV")
 
 if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "prod":
     # Override some env vars from parameter store
-    ssm = boto3.Session(
+    ssm = boto3.Session(  # type: ignore
         aws_access_key_id=_AWS_ACCESS_KEY_ID,
         aws_secret_access_key=_AWS_SECRET_ACCESS_KEY,
         region_name=_AWS_REGION,

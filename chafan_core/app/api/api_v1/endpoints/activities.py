@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 import json
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
@@ -15,7 +15,7 @@ from chafan_core.app.common import get_redis_cli, is_dev, report_msg
 from chafan_core.app.event_logging import APIID, log_event
 from chafan_core.app.feed import get_activities, get_random_activities
 from chafan_core.app.schemas.activity import UserFeedSettings
-from chafan_core.app.schemas.answer import AnswerPreview
+from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.utils.base import unwrap
 
 router = APIRouter()
@@ -26,8 +26,10 @@ def _update_feed_seq(
 ) -> schemas.FeedSequence:
     for a in s.activities:
         if hasattr(a.event.content, "answer") and full_answers:
-            answer: AnswerPreview = getattr(a.event.content, "answer")
-            answer.full_answer = cached_layer.get_answer(answer.uuid)  # type: ignore
+            answer: Union[AnswerPreview, AnswerPreviewForVisitor] = getattr(
+                a.event.content, "answer"
+            )
+            answer.full_answer = cached_layer.get_answer(answer.uuid)
     return s
 
 
@@ -45,7 +47,7 @@ async def get_feed(
     """
     Get activity feed.
     """
-    current_user_id = unwrap(cached_layer.principal_id)
+    current_user_id: int = unwrap(cached_layer.principal_id)
     redis = get_redis_cli()
     key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
     value = redis.get(key)

@@ -1,8 +1,8 @@
 import datetime
 from typing import List, Optional
 
-import dramatiq
-from dramatiq.brokers.rabbitmq import RabbitmqBroker
+import dramatiq  # type: ignore
+from dramatiq.brokers.rabbitmq import RabbitmqBroker  # type: ignore
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas

@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cache_controllers.site_profiles import CachedSiteProfiles
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType, is_dev
 from chafan_core.app.endpoint_utils import get_site
@@ -87,9 +86,7 @@ def invite_new_user(
         db, owner_id=invited_user.id, site_id=site.id
     )
     if not existing_profile:
-        CachedSiteProfiles.create_site_profile(
-            cached_layer, owner=invited_user, site_uuid=site.uuid
-        )
+        cached_layer.create_site_profile(owner=invited_user, site_uuid=site.uuid)
         application = crud.application.get_by_applicant_and_site(
             db, applicant=invited_user, site=site
         )
