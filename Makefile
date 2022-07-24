@@ -32,5 +32,5 @@ reset-and-run-unit-tests:
 	bash scripts/reset_app_state.sh
 	bash scripts/run-unit-tests.sh
 
-pr-stag:
+staging-pr:
 	gh pr create -B stag
