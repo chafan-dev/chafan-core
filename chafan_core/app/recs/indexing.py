@@ -11,11 +11,6 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import get_mongo_db, is_dev
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import get_active_site_profile
-from chafan_core.app.metrics.metrics_client import (
-    MetricsClient,
-    metrics_client_batch,
-    metrics_client_serve,
-)
 from chafan_core.app.recs.ranking import rank_user_previews
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.utils.base import filter_not_none, unwrap
@@ -104,33 +99,24 @@ class Indexer(Generic[T]):
         self.key = key
         self.compute = compute
 
-    def index_user_data(
-        self, cached_layer: CachedLayer, mongo: MongoDB, metrics_client: MetricsClient
-    ) -> T:
-        with metrics_client.measure_duration(f"index_user_data_{self.key}_compute"):
-            data = self.compute(cached_layer)
-        with metrics_client.measure_duration(
-            f"index_user_data_{self.key}_mongo_update_one"
-        ):
-            mongo.user_data.update_one(
-                {"principal_id": cached_layer.principal_id},
-                {"$set": {self.key: json.dumps(jsonable_encoder(data))}},
-                upsert=True,
-            )
+    def index_user_data(self, cached_layer: CachedLayer, mongo: MongoDB) -> T:
+        data = self.compute(cached_layer)
+        mongo.user_data.update_one(
+            {"principal_id": cached_layer.principal_id},
+            {"$set": {self.key: json.dumps(jsonable_encoder(data))}},
+            upsert=True,
+        )
         return data
 
     def retrive_user_data(self, cached_layer: CachedLayer) -> T:
         if is_dev():
             return self.compute(cached_layer)
-        with metrics_client_serve.measure_duration(
-            f"index_user_data_{self.key}_get_mongo_and_find_one"
-        ):
-            mongo = get_mongo_db()
-            result = mongo.user_data.find_one(
-                {"principal_id": cached_layer.principal_id}, {self.key: 1, "_id": 0}
-            )
+        mongo = get_mongo_db()
+        result = mongo.user_data.find_one(
+            {"principal_id": cached_layer.principal_id}, {self.key: 1, "_id": 0}
+        )
         if not result:
-            return self.index_user_data(cached_layer, mongo, metrics_client_serve)
+            return self.index_user_data(cached_layer, mongo)
         return parse_raw_as(self.t, result[self.key])
 
     def delete_user_data(self, principal_id: int) -> None:
@@ -152,15 +138,11 @@ def index_all_interesting_users(broker: DataBroker) -> None:
     print("Indexing all interesting users..")
     mongo = get_mongo_db()
     for u in crud.user.get_all_active_users(broker.get_db()):
-        interesting_users_indexer.index_user_data(
-            CachedLayer(broker, u.id), mongo, metrics_client_batch
-        )
+        interesting_users_indexer.index_user_data(CachedLayer(broker, u.id), mongo)
 
 
 def index_all_interesting_questions(broker: DataBroker) -> None:
     print("Indexing all interesting questions..")
     mongo = get_mongo_db()
     for u in crud.user.get_all_active_users(broker.get_db()):
-        interesting_questions_indexer.index_user_data(
-            CachedLayer(broker, u.id), mongo, metrics_client_batch
-        )
+        interesting_questions_indexer.index_user_data(CachedLayer(broker, u.id), mongo)
