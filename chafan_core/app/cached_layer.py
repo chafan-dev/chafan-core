@@ -15,7 +15,6 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
-from chafan_core.app.metrics.metrics_client import metrics_client_serve
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.app.schemas.preview import UserPreview
@@ -591,8 +590,7 @@ class CachedLayer(object):
         self, user: models.User, skip: int, limit: int
     ) -> List[UserPreview]:
         def f() -> List[UserPreview]:
-            with metrics_client_serve.measure_duration("get_cached_followers"):
-                return [self.preview_of_user(u) for u in user.followers[skip : skip + limit]]  # type: ignore
+            return [self.preview_of_user(u) for u in user.followers[skip : skip + limit]]  # type: ignore
 
         return self._get_cached(
             key=USER_FOLLOWERS_CACHE_KEY.format(
@@ -607,10 +605,7 @@ class CachedLayer(object):
         self, user: models.User, skip: int, limit: int
     ) -> List[UserPreview]:
         def f() -> List[UserPreview]:
-            with metrics_client_serve.measure_duration("get_cached_followed"):
-                return [
-                    self.preview_of_user(u) for u in user.followed[skip : skip + limit]
-                ]
+            return [self.preview_of_user(u) for u in user.followed[skip : skip + limit]]
 
         return self._get_cached(
             key=USER_FOLLOWED_CACHE_KEY.format(user_id=user.id, skip=skip, limit=limit),

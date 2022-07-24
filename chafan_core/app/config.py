@@ -109,11 +109,6 @@ class Settings(BaseSettings):
 
     OFFICIAL_BOT_SECRET: Optional[str] = None
 
-    INFLUXDB_URL: Optional[str] = None
-    INFLUXDB_TOKEN: Optional[str] = None
-    INFLUXDB_ORG: Optional[str] = None
-    INFLUXDB_BUCKET: Optional[str] = None
-
     FORCE_RATE_LIMIT: bool = False
 
     class Config:
