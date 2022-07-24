@@ -23,10 +23,10 @@ dev-run:
 
 # npm install mjml -g
 compile-email-templates:
-	mjml app/email-templates/src/reset_password.mjml -o app/email-templates/build/reset_password.html
-	mjml app/email-templates/src/verification_code.mjml -o app/email-templates/build/verification_code.html
-	mjml app/email-templates/src/notifications.mjml -o app/email-templates/build/notifications.html
-	mjml app/email-templates/src/feedback_status_update.mjml -o app/email-templates/build/feedback_status_update.html
+	mjml chafan_core/app/email-templates/src/reset_password.mjml -o chafan_core/app/email-templates/build/reset_password.html
+	mjml chafan_core/app/email-templates/src/verification_code.mjml -o chafan_core/app/email-templates/build/verification_code.html
+	mjml chafan_core/app/email-templates/src/notifications.mjml -o chafan_core/app/email-templates/build/notifications.html
+	mjml chafan_core/app/email-templates/src/feedback_status_update.mjml -o chafan_core/app/email-templates/build/feedback_status_update.html
 
 reset-and-run-unit-tests:
 	bash scripts/reset_app_state.sh
