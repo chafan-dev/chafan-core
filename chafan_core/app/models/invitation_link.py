@@ -20,6 +20,6 @@ class InvitationLink(Base):
     inviter = relationship("User", foreign_keys=[inviter_id])
 
     invited_to_site_id = Column(Integer, ForeignKey("site.id"), nullable=True)
-    invited_to_site: Site = relationship("Site", foreign_keys=[invited_to_site_id])  # type: ignore
+    invited_to_site = relationship("Site", foreign_keys=[invited_to_site_id])
 
     remaining_quota = Column(Integer, nullable=False)
