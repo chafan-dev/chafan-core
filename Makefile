@@ -31,3 +31,6 @@ compile-email-templates:
 reset-and-run-unit-tests:
 	bash scripts/reset_app_state.sh
 	bash scripts/run-unit-tests.sh
+
+pr-stag:
+	gh pr create -B stag
