@@ -32,5 +32,12 @@ reset-and-run-unit-tests:
 	bash scripts/reset_app_state.sh
 	bash scripts/run-unit-tests.sh
 
-staging-pr:
-	gh pr create -B stag
+check-no-pending-change:
+	git diff --exit-code
+	git diff HEAD --exit-code
+
+staging-pr: requirements.txt dev-requirements.txt check-no-pending-change
+	git fetch origin
+	git rebase origin/stag
+	git push -f origin main
+	gh pr create --base stag --title "Update stag" --fill
