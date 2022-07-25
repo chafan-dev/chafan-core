@@ -1,3 +1,7 @@
+from dotenv import load_dotenv  # isort:skip
+
+load_dotenv()  # isort:skip
+
 from chafan_core.app.common import EVENT_TEMPLATES
 from chafan_core.app.schemas.event import Event
 
