@@ -1,5 +1,9 @@
 from typing import Any, MutableMapping, Optional
 
+from dotenv import load_dotenv  # isort:skip
+
+load_dotenv()  # isort:skip
+
 import sentry_sdk
 from elasticapm.contrib.starlette import ElasticAPM  # type: ignore
 from elasticapm.contrib.starlette import make_apm_client

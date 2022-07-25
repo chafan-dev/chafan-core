@@ -4,7 +4,6 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import boto3
 import sentry_dramatiq  # type: ignore
 import sentry_sdk
-from dotenv import load_dotenv
 from pydantic import AnyHttpUrl, BaseSettings, validator
 from pydantic.types import SecretStr
 from sentry_sdk.integrations.redis import RedisIntegration
@@ -12,20 +11,18 @@ from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
-load_dotenv()
-
 
 class Settings(BaseSettings):
     ############ Common ############
-    SERVER_NAME: str
+    SERVER_NAME: str = "dev.cha.fan"
     SERVER_HOST: AnyHttpUrl
-    ENV: Literal["dev", "stag", "prod"]
+    ENV: Literal["dev", "stag", "prod"] = "dev"
     DB_SESSION_POOL_SIZE: int = 60
     READ_DB_SESSION_POOL_SIZE: int = 60
     DB_SESSION_POOL_MAX_OVERFLOW_SIZE: int = 20
     READ_DB_SESSION_POOL_MAX_OVERFLOW_SIZE: int = 20
     DEFAULT_LOCALE: Literal["en", "zh"] = "zh"
-    PROJECT_NAME: str
+    PROJECT_NAME: str = "Chafan Dev"
     SENTRY_DSN: Optional[AnyHttpUrl] = None
 
     DATABASE_URL: str

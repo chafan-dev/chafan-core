@@ -4,6 +4,10 @@ import pytest  # type: ignore
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from dotenv import load_dotenv  # isort:skip
+
+load_dotenv()  # isort:skip
+
 from chafan_core.app import crud
 from chafan_core.app.config import settings
 from chafan_core.app.main import app
