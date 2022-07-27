@@ -1,13 +1,24 @@
+from typing import Any
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
 from chafan_core.app.config import settings
 
+malformed_request_stdout = """Validation error:
+http://testserver/api/v1/comments/
+1 validation error for Request
+body -> content -> editor
+  field required (type=value_error.missing)
+{'site_uuid': '%s', 'question_uuid': '%s', 'content': {'source': 'test comment', 'rendered_text': 'test comment'}}
+"""
+
 
 def test_comments(
     client: TestClient,
     db: Session,
+    capfd: Any,
     normal_user_token_headers: dict,
     normal_user_authored_question_uuid: str,
     example_site_uuid: str,
@@ -27,6 +38,27 @@ def test_comments(
         json=data,
     )
     assert r.status_code == 401
+
+    # Test malformed request
+    r = client.post(
+        f"{settings.API_V1_STR}/comments/",
+        headers=normal_user_token_headers,
+        json={
+            "site_uuid": example_site_uuid,
+            "question_uuid": normal_user_authored_question_uuid,
+            "content": {
+                "source": "test comment",
+                "rendered_text": "test comment",
+                # Missing editor field
+            },
+        },
+    )
+    assert r.status_code == 422, r.text
+    out, _ = capfd.readouterr()
+    assert out == malformed_request_stdout % (
+        example_site_uuid,
+        normal_user_authored_question_uuid,
+    ), out
 
     r = client.post(
         f"{settings.API_V1_STR}/comments/",
