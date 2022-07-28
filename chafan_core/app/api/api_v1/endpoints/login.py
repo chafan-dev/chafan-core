@@ -5,7 +5,7 @@ from typing import Any, List, Literal, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
 import requests
-from fastapi import APIRouter, Body, Depends, Request, Response
+from fastapi import APIRouter, Body, Depends, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Form
 from fastapi.responses import HTMLResponse
@@ -121,7 +121,10 @@ def login_access_token(
         db, email=email, password=SecretStr(form_data.password)
     )
     if not user:
-        raise HTTPException_(status_code=400, detail="Incorrect email or password")
+        raise HTTPException_(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
     return _login_user(db, request=request, user=user)
 
 
