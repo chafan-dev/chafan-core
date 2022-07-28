@@ -1,5 +1,8 @@
 import os
 
+from dotenv import load_dotenv  # isort:skip
+load_dotenv()  # isort:skip
+
 import sentry_sdk
 from chafan_core.app import crud
 from chafan_core.app.data_broker import DataBroker
