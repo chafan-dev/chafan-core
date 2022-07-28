@@ -124,8 +124,7 @@ class Indexer(Generic[T]):
     ) -> None:
         mongo_ops = []
         for idx, u in enumerate(all_users):
-            log = idx == len(all_users) // 10
-            if log:
+            if idx % (len(all_users) // 10) == 0:
                 print(f"Finished {idx}, total {len(all_users)}")
             cached_layer = CachedLayer(broker, u.id)
             data = self.compute(cached_layer, all_users)
