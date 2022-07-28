@@ -1,6 +1,7 @@
 import datetime
 import enum
 import re
+import traceback
 from typing import Any, Mapping, NamedTuple, Optional, Tuple
 
 import arrow  # type: ignore
@@ -46,13 +47,19 @@ def get_redis_cli() -> redis.Redis:
 _mongo_pool: Optional[MongoClient] = None
 
 
-def get_mongo_db() -> MongoDB:
-    from chafan_core.app.config import settings
-
+def get_mongo_pool() -> MongoClient:
     global _mongo_pool
     if not _mongo_pool:
         _mongo_pool = MongoClient(settings.MONGO_CONNECTION)
-    return _mongo_pool.get_database("chafan_" + settings.ENV)
+        _mongo_pool.admin.command("ping")
+    return _mongo_pool
+
+
+def get_mongo_db() -> MongoDB:
+    from chafan_core.app.config import settings
+
+    pool = get_mongo_pool()
+    return pool.get_database("chafan_" + settings.ENV)
 
 
 MAX_FILE_SIZE = 10_000_000
@@ -221,6 +228,14 @@ def report_msg(msg: str) -> None:
         sentry_sdk.capture_message(msg)
     else:
         raise Exception(msg)
+
+
+def handle_exception(e: Exception) -> None:
+    if not is_dev():
+        sentry_sdk.capture_exception(e)
+        traceback.print_exc()
+    else:
+        raise e
 
 
 def check_email(email: str) -> None:

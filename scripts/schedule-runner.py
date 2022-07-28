@@ -3,8 +3,8 @@ import os
 from dotenv import load_dotenv  # isort:skip
 load_dotenv()  # isort:skip
 
-import sentry_sdk
 from chafan_core.app import crud
+from chafan_core.app.common import handle_exception
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.feed import cache_new_activity_to_feeds
 from chafan_core.app.recs.indexing import (
@@ -53,4 +53,4 @@ if __name__ == "__main__":
         else:
             raise Exception(f"Uknown task to run: {TASK_TO_RUN}")
     except Exception as e:
-        sentry_sdk.capture_exception(e)
+        handle_exception(e)

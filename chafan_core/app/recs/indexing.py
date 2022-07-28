@@ -4,6 +4,7 @@ from typing import Callable, Generic, List, Type, TypeVar, Union
 
 from fastapi.encoders import jsonable_encoder
 from pydantic.tools import parse_raw_as
+from pymongo import UpdateOne  # type: ignore
 from pymongo.database import Database as MongoDB  # type: ignore
 
 from chafan_core.app import crud, models, schemas
@@ -31,6 +32,7 @@ _MAX_INTERESTING_QUESTION_PER_USER = 50
 
 def compute_interesting_questions(
     cached_layer: CachedLayer,
+    _: List[models.User],
 ) -> Union[List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]]:
     current_user_id = cached_layer.principal_id
     db = cached_layer.get_db()
@@ -74,19 +76,18 @@ def compute_interesting_questions(
         return questions_for_visitors
 
 
-def compute_interesting_users(cached_layer: CachedLayer) -> List[UserPreview]:
+def compute_interesting_users(
+    cached_layer: CachedLayer, all_users: List[models.User]
+) -> List[UserPreview]:
     current_user = cached_layer.try_get_current_user()
     if current_user:
         user_candidates = [
             cached_layer.preview_of_user(u)
-            for u in crud.user.get_all_active_users(cached_layer.get_db())
+            for u in all_users
             if u not in current_user.followed and u != current_user
         ]
     else:
-        user_candidates = [
-            cached_layer.preview_of_user(u)
-            for u in crud.user.get_all_active_users(cached_layer.get_db())
-        ]
+        user_candidates = [cached_layer.preview_of_user(u) for u in all_users]
     return rank_user_previews(user_candidates)[:50]
 
 
@@ -94,13 +95,23 @@ T = TypeVar("T")
 
 
 class Indexer(Generic[T]):
-    def __init__(self, t: Type[T], key: str, compute: Callable[[CachedLayer], T]):
+    def __init__(
+        self,
+        t: Type[T],
+        key: str,
+        compute: Callable[[CachedLayer, List[models.User]], T],
+    ):
         self.t = t
         self.key = key
         self.compute = compute
 
-    def index_user_data(self, cached_layer: CachedLayer, mongo: MongoDB) -> T:
-        data = self.compute(cached_layer)
+    def index_user_data(
+        self,
+        cached_layer: CachedLayer,
+        mongo: MongoDB,
+        all_users: List[models.User],
+    ) -> T:
+        data = self.compute(cached_layer, all_users)
         mongo.user_data.update_one(
             {"principal_id": cached_layer.principal_id},
             {"$set": {self.key: json.dumps(jsonable_encoder(data))}},
@@ -108,15 +119,36 @@ class Indexer(Generic[T]):
         )
         return data
 
+    def index_all_user_data(
+        self, broker: DataBroker, mongo: MongoDB, all_users: List[models.User]
+    ) -> None:
+        mongo_ops = []
+        for idx, u in enumerate(all_users):
+            log = idx == len(all_users) // 10
+            if log:
+                print(f"Finished {idx}, total {len(all_users)}")
+            cached_layer = CachedLayer(broker, u.id)
+            data = self.compute(cached_layer, all_users)
+            mongo_ops.append(
+                UpdateOne(
+                    {"principal_id": cached_layer.principal_id},
+                    {"$set": {self.key: json.dumps(jsonable_encoder(data))}},
+                    upsert=True,
+                )
+            )
+        mongo.user_data.bulk_write(mongo_ops)
+
     def retrive_user_data(self, cached_layer: CachedLayer) -> T:
         if is_dev():
-            return self.compute(cached_layer)
+            all_users = crud.user.get_all_active_users(cached_layer.get_db())
+            return self.compute(cached_layer, all_users)
         mongo = get_mongo_db()
         result = mongo.user_data.find_one(
             {"principal_id": cached_layer.principal_id}, {self.key: 1, "_id": 0}
         )
         if not result:
-            return self.index_user_data(cached_layer, mongo)
+            all_users = crud.user.get_all_active_users(cached_layer.get_db())
+            return self.index_user_data(cached_layer, mongo, all_users)
         return parse_raw_as(self.t, result[self.key])
 
     def delete_user_data(self, principal_id: int) -> None:
@@ -135,14 +167,17 @@ interesting_questions_indexer = Indexer(
 
 
 def index_all_interesting_users(broker: DataBroker) -> None:
-    print("Indexing all interesting users..")
+    print("Indexing all interesting users..", flush=True)
     mongo = get_mongo_db()
-    for u in crud.user.get_all_active_users(broker.get_db()):
-        interesting_users_indexer.index_user_data(CachedLayer(broker, u.id), mongo)
+    all_users = crud.user.get_all_active_users(broker.get_db())
+    interesting_users_indexer.index_all_user_data(broker, mongo, all_users)
 
 
 def index_all_interesting_questions(broker: DataBroker) -> None:
-    print("Indexing all interesting questions..")
+    print("Indexing all interesting questions..", flush=True)
     mongo = get_mongo_db()
-    for u in crud.user.get_all_active_users(broker.get_db()):
-        interesting_questions_indexer.index_user_data(CachedLayer(broker, u.id), mongo)
+    all_users = crud.user.get_all_active_users(broker.get_db())
+    for u in all_users:
+        interesting_questions_indexer.index_user_data(
+            CachedLayer(broker, u.id), mongo, all_users
+        )
