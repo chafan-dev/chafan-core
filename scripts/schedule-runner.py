@@ -41,10 +41,12 @@ if __name__ == "__main__":
         elif TASK_TO_RUN == "daily":
             fill_missing_keywords_task()
             refresh_karmas()
-            refresh_search_index()
             execute_with_broker(index_all_interesting_users)
             execute_with_broker(index_all_interesting_questions)
             log_task_done("scheduled/daily")
+        elif TASK_TO_RUN == "refresh_search_index":
+            refresh_search_index()
+            log_task_done("scheduled/refresh_search_index")
         else:
             raise Exception(f"Uknown task to run: {TASK_TO_RUN}")
     except Exception as e:
