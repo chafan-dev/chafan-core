@@ -7,11 +7,12 @@ from chafan_core.app import crud
 from chafan_core.app.config import settings
 
 malformed_request_stdout = """Validation error:
-http://testserver/api/v1/comments/
-1 validation error for Request
+request.url: http://testserver/api/v1/comments/
+request.method: POST
+exc: 1 validation error for Request
 body -> content -> editor
   field required (type=value_error.missing)
-{'site_uuid': '%s', 'question_uuid': '%s', 'content': {'source': 'test comment', 'rendered_text': 'test comment'}}
+exc.body: {'site_uuid': '%s', 'question_uuid': '%s', 'content': {'source': 'test comment', 'rendered_text': 'test comment'}}
 """
 
 
