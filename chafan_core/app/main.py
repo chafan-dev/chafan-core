@@ -53,7 +53,8 @@ if not is_dev() and settings.ES_APM_SECRET_TOKEN and settings.ES_APM_SERVER_URL:
 async def custom_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> Any:
-    err_msg = f"Validation error:\n{request.url}\n{exc}\n{exc.body}"
+    request_str = f"request.url: {request.url}\nrequest.method: {request.method}"
+    err_msg = f"Validation error:\n{request_str}\nexc: {exc}\nexc.body: {exc.body}"
     if is_dev():
         print(err_msg)
     else:
