@@ -17,6 +17,7 @@ AUDIT_LOG_API_TYPE = Literal[
     "scheduled/cache_new_activity_to_feeds",
     "scheduled/daily",
     "scheduled/refresh_search_index",
+    "scheduled/force_refresh_all_index",
 ]
 
 # Properties to receive via API on creation

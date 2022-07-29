@@ -12,8 +12,17 @@ def get_user_score(u: schemas.UserPreview) -> float:
     return score
 
 
+def get_user_model_score(u: models.User) -> float:
+    score = u.karma + u.followers.count() * 5  # type: ignore
+    return score
+
+
 def rank_user_previews(users: List[schemas.UserPreview]) -> List[schemas.UserPreview]:
     return sorted(users, key=get_user_score, reverse=True)
+
+
+def rank_users(users: List[models.User]) -> List[models.User]:
+    return sorted(users, key=get_user_model_score, reverse=True)
 
 
 # Return a freshness score between 0 and 1

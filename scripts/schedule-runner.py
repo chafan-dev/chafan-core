@@ -7,9 +7,9 @@ from chafan_core.app import crud
 from chafan_core.app.common import handle_exception
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.feed import cache_new_activity_to_feeds
-from chafan_core.app.recs.indexing import (
-    index_all_interesting_questions,
-    index_all_interesting_users,
+from chafan_core.app.recs.indexed_layer import (
+    force_refresh_all_interesting_users,
+    force_refresh_all_interesting_questions
 )
 from chafan_core.app.schemas.audit_log import AUDIT_LOG_API_TYPE
 from chafan_core.app.task_utils import execute_with_broker
@@ -44,12 +44,13 @@ if __name__ == "__main__":
         elif TASK_TO_RUN == "daily":
             fill_missing_keywords_task()
             refresh_karmas()
-            execute_with_broker(index_all_interesting_users)
-            execute_with_broker(index_all_interesting_questions)
             log_task_done("scheduled/daily")
         elif TASK_TO_RUN == "refresh_search_index":
             refresh_search_index()
             log_task_done("scheduled/refresh_search_index")
+        elif TASK_TO_RUN == "force_refresh_all_index":
+            execute_with_broker(force_refresh_all_interesting_users)
+            execute_with_broker(force_refresh_all_interesting_questions)
         else:
             raise Exception(f"Uknown task to run: {TASK_TO_RUN}")
     except Exception as e:

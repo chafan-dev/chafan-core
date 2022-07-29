@@ -97,6 +97,7 @@ class Settings(BaseSettings):
 
     FIRST_SUPERUSER: Optional[CaseInsensitiveEmailStr] = None
     FIRST_SUPERUSER_PASSWORD: Optional[SecretStr] = None
+    VISITOR_USER_ID: Optional[int] = None
     USERS_OPEN_REGISTRATION: bool = True
 
     MONGO_CONNECTION: Optional[str] = None

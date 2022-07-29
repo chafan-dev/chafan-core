@@ -336,4 +336,13 @@ class User(Base):
 
     feed_settings = Column(JSON, nullable=True)
 
-    keywords: Optional[List[str]] = Column(JSON)  # type: ignore
+    ######### Derived fields #########
+    keywords: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore
+
+    # top-N interesting questions
+    interesting_question_ids: Optional[List[int]] = Column(JSON, nullable=True)  # type: ignore
+    interesting_question_ids_updated_at = Column(DateTime(timezone=True), nullable=True)
+
+    # top-N interesting users
+    interesting_user_ids: Optional[List[int]] = Column(JSON, nullable=True)  # type: ignore
+    interesting_user_ids_updated_at = Column(DateTime(timezone=True), nullable=True)
