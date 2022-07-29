@@ -1,12 +1,14 @@
 from __future__ import with_statement
 
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # isort:skip
+load_dotenv()  # isort:skip
+
 import os
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from logging.config import fileConfig
 
-load_dotenv()
+from chafan_core.app.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -32,7 +34,7 @@ target_metadata = Base.metadata
 # ... etc.
 
 
-def get_url(): return os.getenv("DATABASE_URL")
+def get_url(): return settings.DATABASE_URL
 
 
 def run_migrations_offline():
