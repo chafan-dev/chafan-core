@@ -67,8 +67,8 @@ class CachedLayer(object):
     def __init__(self, broker: DataBroker, principal_id: Optional[int] = None) -> None:
         self.broker = broker
         self.principal_id = principal_id
-        self.principal: Optional[models.User] = None
         self.materializer = Materializer(self.broker, self.principal_id)
+        self._principal: Optional[models.User] = None
         self._user_contributions_map: Dict[int, UserContributions] = {}
         self._follow_follow_fanout: Optional[WeightedMatrixType] = None
         self._entity_similarity_matrices: Dict[EntityType, MatrixType] = {}
@@ -508,12 +508,12 @@ class CachedLayer(object):
         return unwrap(self.try_get_current_user())
 
     def try_get_current_user(self) -> Optional[models.User]:
-        if self.principal:
-            return self.principal
+        if self._principal:
+            return self._principal
         if not self.principal_id:
             return None
-        self.principal = crud.user.get(self.get_db(), id=self.principal_id)
-        return self.principal
+        self._principal = crud.user.get(self.get_db(), id=self.principal_id)
+        return self._principal
 
     def get_current_active_user(self) -> models.User:
         u = self.get_current_user()

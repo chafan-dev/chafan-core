@@ -14,6 +14,12 @@ from chafan_core.app.crud.crud_activity import (
     create_article_activity,
 )
 from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.recs.indexing import (
+    compute_interesting_questions_ids_for_normal_user,
+    compute_interesting_questions_ids_for_visitor_user,
+    compute_interesting_users_ids_for_normal_user,
+    compute_interesting_users_ids_for_visitor_user,
+)
 from chafan_core.app.schemas.article import ArticleDoc
 from chafan_core.app.schemas.event import (
     AcceptAnswerSuggestEditInternal,
@@ -655,5 +661,43 @@ def postprocess_new_feedback(feedback_id: int) -> None:
             subject="New feedback",
             body_html=f"ID: {feedback.id}\n{feedback.description}",
         )
+
+    execute_with_db(SessionLocal(), runnable)
+
+
+@dramatiq.actor
+def refresh_interesting_question_ids_for_user(user_id: int) -> None:
+    def runnable(db: Session) -> None:
+        user = crud.user.get(db, user_id)
+        if user is None:
+            return
+        if user_id == settings.VISITOR_USER_ID:
+            user.interesting_question_ids = (
+                compute_interesting_questions_ids_for_visitor_user(db)
+            )
+        else:
+            user.interesting_question_ids = (
+                compute_interesting_questions_ids_for_normal_user(db, user)
+            )
+        user.interesting_question_ids_updated_at = get_utc_now()
+
+    execute_with_db(SessionLocal(), runnable)
+
+
+@dramatiq.actor
+def refresh_interesting_user_ids_for_user(user_id: int) -> None:
+    def runnable(db: Session) -> None:
+        user = crud.user.get(db, user_id)
+        if user is None:
+            return
+        if user_id == settings.VISITOR_USER_ID:
+            user.interesting_user_ids = compute_interesting_users_ids_for_visitor_user(
+                db
+            )
+        else:
+            user.interesting_user_ids = compute_interesting_users_ids_for_normal_user(
+                db, user
+            )
+        user.interesting_user_ids_updated_at = get_utc_now()
 
     execute_with_db(SessionLocal(), runnable)

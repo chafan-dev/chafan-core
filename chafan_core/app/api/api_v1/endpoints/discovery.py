@@ -12,10 +12,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import get_redis_cli, is_dev
 from chafan_core.app.model_utils import get_live_answers_of_question
-from chafan_core.app.recs.indexing import (
-    interesting_questions_indexer,
-    interesting_users_indexer,
-)
+from chafan_core.app.recs import indexed_layer
 from chafan_core.app.task_utils import execute_with_db
 from chafan_core.db.session import ReadSessionLocal
 from chafan_core.utils.base import filter_not_none
@@ -115,14 +112,14 @@ def get_pending_questions(
 def get_interesting_questions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    return interesting_questions_indexer.retrive_user_data(cached_layer)
+    return indexed_layer.get_interesting_questions(cached_layer)
 
 
 @router.get("/interesting-users/", response_model=List[schemas.UserPreview])
 def get_interesting_users(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    return interesting_users_indexer.retrive_user_data(cached_layer)
+    return indexed_layer.get_interesting_users(cached_layer)
 
 
 @router.get("/featured-answers/", response_model=Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]])  # type: ignore

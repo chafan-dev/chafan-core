@@ -5,6 +5,7 @@ from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
 from chafan_core.app.common import is_dev
+from chafan_core.app.config import settings
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.crud.crud_activity import (
     follow_user_activity,
@@ -118,6 +119,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         user = db.query(User).filter_by(is_superuser=True).first()
         assert user is not None
         return user
+
+    def try_get_visitor_user(self, db: Session) -> Optional[User]:
+        if not settings.VISITOR_USER_ID:
+            return None
+        return db.query(User).filter_by(id=settings.VISITOR_USER_ID).first()
 
     def add_follower(self, db: Session, *, db_obj: User, follower: User) -> User:
         if follower not in db_obj.followers:  # type: ignore
