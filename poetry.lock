@@ -694,27 +694,6 @@ gmpy = ["gmpy"]
 gmpy2 = ["gmpy2"]
 
 [[package]]
-name = "elastic-apm"
-version = "6.10.1"
-description = "The official Python module for Elastic APM"
-category = "main"
-optional = false
-python-versions = "<4,>=3.6"
-
-[package.dependencies]
-certifi = "*"
-urllib3 = "*"
-
-[package.extras]
-aiohttp = ["aiohttp"]
-flask = ["blinker"]
-opentelemetry = ["opentelemetry-api", "opentelemetry-sdk"]
-opentracing = ["opentracing (>=2.0.0)"]
-sanic = ["sanic"]
-starlette = ["starlette"]
-tornado = ["tornado"]
-
-[[package]]
 name = "elasticsearch"
 version = "7.17.4"
 description = "Python client for Elasticsearch"
@@ -1910,7 +1889,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "3232189e9692be44facccef04cf7254ca4d4fe4795c5c8c73b9d495e8d21c6b1"
+content-hash = "89ff9aa03d6e944b7f44be1d51e58e3c6a6ca5545278270db7d4ca34beec2e6a"
 
 [metadata.files]
 aiofiles = [
@@ -1964,7 +1943,6 @@ decorator = [
 dnspython = []
 dramatiq = []
 ecdsa = []
-elastic-apm = []
 elasticsearch = []
 email-validator = []
 emails = [
