@@ -102,9 +102,6 @@ class Settings(BaseSettings):
 
     MONGO_CONNECTION: Optional[str] = None
 
-    ES_APM_SECRET_TOKEN: Optional[str] = None
-    ES_APM_SERVER_URL: Optional[str] = None
-
     OFFICIAL_BOT_SECRET: Optional[str] = None
 
     FORCE_RATE_LIMIT: bool = False

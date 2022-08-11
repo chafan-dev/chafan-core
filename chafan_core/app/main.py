@@ -5,8 +5,6 @@ from dotenv import load_dotenv  # isort:skip
 load_dotenv()  # isort:skip
 
 import sentry_sdk
-from elasticapm.contrib.starlette import ElasticAPM  # type: ignore
-from elasticapm.contrib.starlette import make_apm_client
 from fastapi import FastAPI
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -35,18 +33,6 @@ if enable_rate_limit():
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
     app.add_middleware(SlowAPIMiddleware)
-
-if not is_dev() and settings.ES_APM_SECRET_TOKEN and settings.ES_APM_SERVER_URL:
-    app.add_middleware(
-        ElasticAPM,
-        client=make_apm_client(
-            {
-                "SERVICE_NAME": f"chafan-api-{settings.ENV}",
-                "SECRET_TOKEN": settings.ES_APM_SECRET_TOKEN,
-                "SERVER_URL": settings.ES_APM_SERVER_URL,
-            }
-        ),
-    )
 
 
 @app.exception_handler(RequestValidationError)
