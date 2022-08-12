@@ -12,7 +12,7 @@ from chafan_core.app.crud.crud_activity import (
 )
 from chafan_core.app.models.article import Article, ArticleUpvotes
 from chafan_core.app.schemas.article import ArticleCreate, ArticleUpdate
-from chafan_core.app.search import es_search
+from chafan_core.app.search import do_search
 
 
 class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
@@ -55,7 +55,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
         return db_obj
 
     def search(self, db: Session, *, q: str) -> List[Article]:
-        ids = es_search("article", query=q)
+        ids = do_search("article", query=q)
         if not ids:
             return []
         ret = []

@@ -83,6 +83,8 @@ class Settings(BaseSettings):
 
     WELCOME_TEST_FORM_UUID: str = "4CGv4iReMxuWjs3T2PEY"
 
+    SEARCH_INDEX_FILESYSTEM_PATH: str = "/tmp/chafan/search_index"
+
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):
