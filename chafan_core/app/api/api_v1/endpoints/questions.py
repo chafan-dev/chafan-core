@@ -10,7 +10,6 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType, client_ip, run_dramatiq_task
 from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.event_logging import APIID, log_event
 from chafan_core.app.limiter import limiter
 from chafan_core.app.materialize import check_user_in_site, user_in_site
 from chafan_core.app.recs.ranking import rank_answers
@@ -514,7 +513,7 @@ async def get_question_page(
         asyncio.create_task(
             view_counters.add_view_async(uuid, "question", cached_layer.principal_id)
         )
-    ret = schemas.QuestionPage(
+    return schemas.QuestionPage(
         question=question_data,
         # TODO: continuation
         # TODO: rethink the internal caching
@@ -537,13 +536,3 @@ async def get_question_page(
         question_subscription=cached_layer.get_question_subscription(question),
         flags=flags,
     )
-    asyncio.create_task(
-        log_event(
-            api_id=APIID.question_page,
-            user_id=cached_layer.principal_id,
-            request=request,
-            request_info={},
-            response=ret,
-        )
-    )
-    return ret

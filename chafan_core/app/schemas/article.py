@@ -103,19 +103,6 @@ class ArticleUpvotes(BaseModel):
     upvoted: bool
 
 
-class ArticleDoc(BaseModel):
-    """
-    Used for creating ES index
-    """
-
-    id: int
-    title: StrippedNonEmptyStr
-    body_prerendered_text: Optional[str]
-
-    class Config:
-        orm_mode = True
-
-
 class ArticleDraft(BaseModel):
     title_draft: Optional[StrippedNonEmptyStr]
     draft_saved_at: Optional[datetime.datetime]

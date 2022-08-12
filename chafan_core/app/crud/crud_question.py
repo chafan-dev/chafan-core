@@ -11,7 +11,7 @@ from chafan_core.app.crud.crud_activity import upvote_question_activity
 from chafan_core.app.models.question import Question, QuestionUpvotes
 from chafan_core.app.models.topic import Topic
 from chafan_core.app.schemas.question import QuestionCreate, QuestionUpdate
-from chafan_core.app.search import es_search
+from chafan_core.app.search import do_search
 
 
 class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
@@ -53,7 +53,7 @@ class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
     def search(self, db: Session, *, q: str) -> List[Question]:
         if is_dev():
             return self.get_all_valid(db)
-        ids = es_search("question", query=q)
+        ids = do_search("question", query=q)
         if not ids:
             return []
         ret = []

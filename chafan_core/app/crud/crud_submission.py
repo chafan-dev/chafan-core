@@ -13,7 +13,7 @@ from chafan_core.app.crud.crud_activity import (
 from chafan_core.app.models.submission import Submission, SubmissionUpvotes
 from chafan_core.app.models.topic import Topic
 from chafan_core.app.schemas.submission import SubmissionCreate, SubmissionUpdate
-from chafan_core.app.search import es_search
+from chafan_core.app.search import do_search
 
 
 class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
@@ -57,7 +57,7 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
         return db_obj
 
     def search(self, db: Session, *, q: str) -> List[Submission]:
-        ids = es_search("submission", query=q)
+        ids = do_search("submission", query=q)
         if not ids:
             return []
         ret = []

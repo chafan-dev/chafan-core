@@ -8,7 +8,7 @@ from chafan_core.app import models
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.site import Site
 from chafan_core.app.schemas.site import SiteCreate, SiteUpdate
-from chafan_core.app.search import es_search
+from chafan_core.app.search import do_search
 
 
 class CRUDSite(CRUDBase[Site, SiteCreate, SiteUpdate]):
@@ -38,7 +38,7 @@ class CRUDSite(CRUDBase[Site, SiteCreate, SiteUpdate]):
         return db.query(models.Site).all()
 
     def search(self, db: Session, *, fragment: str) -> List[Site]:
-        ids = es_search("site", query=fragment)
+        ids = do_search("site", query=fragment)
         if not ids:
             return []
         ret = []

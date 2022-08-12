@@ -11,7 +11,7 @@ from chafan_core.app.crud.crud_activity import upvote_answer_activity
 from chafan_core.app.models.answer import Answer, Answer_Upvotes
 from chafan_core.app.models.user import User
 from chafan_core.app.schemas.answer import AnswerCreate, AnswerUpdate
-from chafan_core.app.search import es_search
+from chafan_core.app.search import do_search
 
 
 class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
@@ -96,7 +96,7 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
     def search(self, db: Session, *, q: str) -> List[Answer]:
         if is_dev():
             return self.get_all_published(db)
-        ids = es_search("answer", query=q)
+        ids = do_search("answer", query=q)
         if not ids:
             return []
         ret = []

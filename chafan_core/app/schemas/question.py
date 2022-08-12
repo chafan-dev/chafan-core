@@ -87,19 +87,6 @@ class QuestionInDB(QuestionInDBBase):
     pass
 
 
-class QuestionDoc(BaseModel):
-    """
-    Used for creating ES index
-    """
-
-    id: int
-    title: StrippedNonEmptyStr
-    description_text: Optional[str]
-
-    class Config:
-        orm_mode = True
-
-
 class QuestionPreviewForVisitor(BaseModel):
     uuid: str
     title: str

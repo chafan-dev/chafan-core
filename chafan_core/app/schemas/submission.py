@@ -80,16 +80,3 @@ class SubmissionUpvotes(BaseModel):
     submission_uuid: str
     count: int
     upvoted: bool
-
-
-class SubmissionDoc(BaseModel):
-    """
-    Used for creating ES index
-    """
-
-    id: int
-    title: str
-    description_text: Optional[str]
-
-    class Config:
-        orm_mode = True
