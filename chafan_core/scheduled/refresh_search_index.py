@@ -1,96 +1,74 @@
-import time
-from typing import Any, Iterator, Mapping
+import os
+from contextlib import contextmanager
+from typing import Iterator
 
-from elasticsearch.client import Elasticsearch
-from elasticsearch.helpers import bulk as es_bulk
 from sqlalchemy.orm.session import Session
+from whoosh import writing  # type: ignore
+from whoosh.index import create_in  # type: ignore
+from whoosh.index import open_dir
 
 from chafan_core.app import crud
 from chafan_core.app.config import settings
-from chafan_core.app.es import execute_with_es
-from chafan_core.app.schemas.answer import AnswerDoc
-from chafan_core.app.schemas.article import ArticleDoc
-from chafan_core.app.schemas.question import QuestionDoc
-from chafan_core.app.schemas.site import SiteDoc
-from chafan_core.app.schemas.submission import SubmissionDoc
+from chafan_core.app.search import schemas
 from chafan_core.app.task_utils import execute_with_db
 from chafan_core.db.session import ReadSessionLocal
+from chafan_core.utils.constants import indexed_object_T
 
 
-# This is really expensive
+@contextmanager
+def _index_rewriter(index_type: indexed_object_T) -> Iterator[writing.IndexWriter]:
+    index_dir = settings.SEARCH_INDEX_FILESYSTEM_PATH + "/" + index_type
+    schema = schemas[index_type]
+    if os.path.exists(index_dir):
+        ix = open_dir(index_dir)
+    else:
+        # Initialize search index
+        os.makedirs(index_dir)
+        ix = create_in(index_dir, schema)
+    writer = ix.writer()
+
+    try:
+        yield writer
+    finally:
+        writer.commit(mergetype=writing.CLEAR)
+
+
 def refresh_search_index() -> None:
     def runnable(db: Session) -> None:
-        def question_actions() -> Iterator[Mapping[str, Any]]:
-            for question in crud.question.get_all_valid(db):
-                doc = QuestionDoc.from_orm(question)
-                yield {
-                    "_id": doc.id,
-                    "_index": f"chafan.{settings.ENV}.question",
-                    "_op_type": "index",
-                    "_type": "_doc",
-                    "doc": doc.dict(),
-                }
-
-        def site_actions() -> Iterator[Mapping[str, Any]]:
-            for site in crud.site.get_all(db):
-                doc = SiteDoc.from_orm(site)
-                yield {
-                    "_id": doc.id,
-                    "_index": f"chafan.{settings.ENV}.site",
-                    "_op_type": "index",
-                    "_type": "_doc",
-                    "doc": doc.dict(),
-                }
-
-        def submission_actions() -> Iterator[Mapping[str, Any]]:
-            for submission in crud.submission.get_all_valid(db):
-                doc = SubmissionDoc.from_orm(submission)
-                yield {
-                    "_id": doc.id,
-                    "_index": f"chafan.{settings.ENV}.submission",
-                    "_op_type": "index",
-                    "_type": "_doc",
-                    "doc": doc.dict(),
-                }
-
-        def answer_actions() -> Iterator[Mapping[str, Any]]:
-            for answer in crud.answer.get_all_published(db):
-                doc = AnswerDoc(
-                    id=answer.id,
-                    body_prerendered_text=answer.body_prerendered_text,
-                    question=QuestionDoc.from_orm(answer.question),
+        with _index_rewriter("question") as writer:
+            for q in crud.question.get_all_valid(db):
+                writer.add_document(
+                    id=str(q.id), title=q.title, description_text=q.description_text
                 )
-                yield {
-                    "_id": doc.id,
-                    "_index": f"chafan.{settings.ENV}.answer",
-                    "_op_type": "index",
-                    "_type": "_doc",
-                    "doc": doc.dict(),
-                }
-
-        def article_actions() -> Iterator[Mapping[str, Any]]:
+        with _index_rewriter("site") as writer:
+            for s in crud.site.get_all(db):
+                writer.add_document(
+                    id=str(s.id),
+                    name=s.name,
+                    description=s.description,
+                    subdomain=s.subdomain,
+                )
+        with _index_rewriter("submission") as writer:
+            for submission in crud.submission.get_all_valid(db):
+                writer.add_document(
+                    id=str(submission.id),
+                    title=submission.title,
+                    description_text=submission.description_text,
+                )
+        with _index_rewriter("answer") as writer:
+            for a in crud.answer.get_all_published(db):
+                writer.add_document(
+                    id=str(a.id),
+                    body_prerendered_text=a.body_prerendered_text,
+                    question_title=a.question.title,
+                    question_description_text=a.question.description_text,
+                )
+        with _index_rewriter("article") as writer:
             for article in crud.article.get_all_published(db):
-                doc = ArticleDoc.from_orm(article)
-                yield {
-                    "_id": doc.id,
-                    "_index": f"chafan.{settings.ENV}.article",
-                    "_op_type": "index",
-                    "_type": "_doc",
-                    "doc": doc.dict(),
-                }
-
-        def f(es: Elasticsearch) -> None:
-            print("refresh_search_index", flush=True)
-            print(es_bulk(es, question_actions(), request_timeout=30))
-            time.sleep(5)
-            print(es_bulk(es, site_actions(), request_timeout=30))
-            time.sleep(5)
-            print(es_bulk(es, submission_actions(), request_timeout=30))
-            time.sleep(5)
-            print(es_bulk(es, answer_actions(), request_timeout=30))
-            time.sleep(5)
-            print(es_bulk(es, article_actions(), request_timeout=30))
-
-        execute_with_es(f)
+                writer.add_document(
+                    id=str(article.id),
+                    title=article.title,
+                    body_text=article.body_text,
+                )
 
     execute_with_db(ReadSessionLocal(), runnable)

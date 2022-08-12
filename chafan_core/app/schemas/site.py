@@ -98,20 +98,6 @@ class SiteMaps(BaseModel):
     sites_without_topics: List[Site]
 
 
-class SiteDoc(BaseModel):
-    """
-    Used for creating ES index
-    """
-
-    id: int
-    name: str
-    description: Optional[str]
-    subdomain: str
-
-    class Config:
-        orm_mode = True
-
-
 class CreateSiteResponse(BaseModel):
     from chafan_core.app.schemas.channel import Channel
 

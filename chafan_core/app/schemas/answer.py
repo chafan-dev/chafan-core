@@ -85,18 +85,6 @@ class AnswerForVisitor(AnswerInDBBase):
     suggest_editable: bool = False
 
 
-class AnswerDoc(BaseModel):
-    """
-    Used for creating ES index
-    """
-
-    from chafan_core.app.schemas.question import QuestionDoc
-
-    id: int
-    question: QuestionDoc
-    body_prerendered_text: str
-
-
 class AnswerDraft(BaseModel):
     content_draft: Optional[RichText]
     draft_saved_at: Optional[datetime.datetime]

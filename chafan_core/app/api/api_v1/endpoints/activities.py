@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import json
 from typing import Any, Optional, Union
@@ -12,7 +11,6 @@ from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import get_redis_cli, is_dev, report_msg
-from chafan_core.app.event_logging import APIID, log_event
 from chafan_core.app.feed import get_activities, get_random_activities
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
@@ -84,20 +82,6 @@ async def get_feed(
             json.dumps(jsonable_encoder(data)),
             ex=datetime.timedelta(minutes=cache_minutes),
         )
-    asyncio.create_task(
-        log_event(
-            user_id=current_user_id,
-            api_id=APIID.activities,
-            request=request,
-            request_info={
-                "before_activity_id": before_activity_id,
-                "limit": limit,
-                "random": random,
-                "subject_user_uuid": subject_user_uuid,
-            },
-            response=data,
-        )
-    )
     return _update_feed_seq(cached_layer, data, full_answers=full_answers)
 
 

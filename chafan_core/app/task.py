@@ -20,7 +20,6 @@ from chafan_core.app.recs.indexing import (
     compute_interesting_users_ids_for_normal_user,
     compute_interesting_users_ids_for_visitor_user,
 )
-from chafan_core.app.schemas.article import ArticleDoc
 from chafan_core.app.schemas.event import (
     AcceptAnswerSuggestEditInternal,
     AcceptSubmissionSuggestionInternal,
@@ -42,9 +41,6 @@ from chafan_core.app.schemas.event import (
     SiteBroadcastInternal,
     SystemBroadcast,
 )
-from chafan_core.app.schemas.question import QuestionDoc
-from chafan_core.app.schemas.submission import SubmissionDoc
-from chafan_core.app.search import es_index_doc
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.app.text_analysis import (
     update_answer_keywords,
@@ -327,7 +323,6 @@ def postprocess_new_question(question_id: int) -> None:
                 event_json=event_json,
             )
         )
-        es_index_doc(QuestionDoc.from_orm(question))
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
             call_webhook(
@@ -393,7 +388,6 @@ def postprocess_new_submission(submission_id: int) -> None:
             payer=submission.author,
             payee=submission.site.moderator,
         )
-        es_index_doc(SubmissionDoc.from_orm(submission))
         postprocess_submission_common(submission)
         for webhook in submission.site.webhooks:
             call_webhook(
@@ -591,10 +585,6 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
     execute_with_broker(runnable)
 
 
-def postprocess_article_common(article: models.Article) -> None:
-    es_index_doc(ArticleDoc.from_orm(article))
-
-
 @dramatiq.actor
 def postprocess_new_article(article_id: int) -> None:
     def runnable(broker: DataBroker) -> None:
@@ -629,7 +619,6 @@ def postprocess_new_article(article_id: int) -> None:
         broker.get_db().add(
             create_article_activity(article=article, created_at=utc_now)
         )
-        postprocess_article_common(article)
 
     execute_with_broker(runnable)
 
@@ -644,7 +633,6 @@ def postprocess_updated_article(article_id: int, was_published: bool) -> None:
             # NOTE: Since is_published will not be reverted, thus this should only be delivered once
             # TODO: Implement the update subscription logic
             db.add(create_article_activity(article=article, created_at=utc_now))
-        postprocess_article_common(article)
 
     execute_with_db(SessionLocal(), runnable)
 

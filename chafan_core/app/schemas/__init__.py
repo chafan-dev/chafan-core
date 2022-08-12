@@ -102,7 +102,6 @@ from .site import (
     CreateSiteResponse,
     Site,
     SiteCreate,
-    SiteDoc,
     SiteInDB,
     SiteInDBBase,
     SiteUpdate,
