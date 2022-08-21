@@ -5,7 +5,7 @@ import boto3
 from chafan_core.app.config import settings
 
 
-def get_boto3_client() -> boto3.Session:  # type: ignore
+def get_boto3_client() -> boto3.Session:
     assert settings.AWS_ACCESS_KEY_ID is not None
     assert settings.AWS_SECRET_ACCESS_KEY is not None
     assert settings.AWS_REGION is not None

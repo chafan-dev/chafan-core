@@ -121,7 +121,7 @@ _ENV = os.environ.get("ENV")
 
 if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "prod":
     # Override some env vars from parameter store
-    ssm = boto3.Session(  # type: ignore
+    ssm = boto3.Session(
         aws_access_key_id=_AWS_ACCESS_KEY_ID,
         aws_secret_access_key=_AWS_SECRET_ACCESS_KEY,
         region_name=_AWS_REGION,
