@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import load_dotenv  # isort:skip
 load_dotenv()  # isort:skip
@@ -20,7 +21,8 @@ from chafan_core.scheduled.lib import cache_matrices, refresh_karmas
 from chafan_core.scheduled.refresh_search_index import refresh_search_index
 
 TASK_TO_RUN = os.getenv("TASK_TO_RUN")
-
+if not TASK_TO_RUN and sys.argv[1:]:
+    TASK_TO_RUN = sys.argv[1]
 
 def log_task_done(api: AUDIT_LOG_API_TYPE) -> None:
     def f(broker: DataBroker) -> None:

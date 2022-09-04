@@ -1,0 +1,20 @@
+{
+    "cron": [
+        {
+            "command": "python scripts/schedule-runner.py cache_new_activity_to_feeds",
+            "schedule": "@hourly"
+        },
+        {
+            "command": "python scripts/schedule-runner.py daily",
+            "schedule": "@daily"
+        },
+        {
+            "command": "python scripts/schedule-runner.py refresh_search_index",
+            "schedule": "@weekly"
+        },
+        {
+            "command": "python scripts/schedule-runner.py run_deliver_notification_task",
+            "schedule": "@weekly"
+        }
+    ]
+}
