@@ -126,8 +126,4 @@ https://chafan-test.herokuapp.com/
 
 ## Copyright
 
-For all files within this repo, see below for default copyright unless otherwise declared in file:
-
-```
-Copyright (C) 2022 Zhen Zhang - All Rights Reserved
-```
+For all files within this repo, see `LICENSE` for default copyright unless otherwise declared in file:
