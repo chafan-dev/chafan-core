@@ -39,10 +39,6 @@ class Settings(BaseSettings):
     CREATE_SITE_COIN_DEDUCTION: int = 10
     CREATE_SITE_FORCE_NEED_APPROVAL: bool = True
 
-    ES_ENDPOINT: Optional[AnyHttpUrl] = None
-    ES_HTTP_USERNAME: Optional[str] = None
-    ES_HTTP_PASSWORD: Optional[str] = None
-
     EMAILS_FROM_NAME: Optional[str] = None
 
     @validator("EMAILS_FROM_NAME")
@@ -65,7 +61,7 @@ class Settings(BaseSettings):
     MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
 
     MQ_URL: Optional[str] = None
-    CLOUDAMQP_URL: Optional[str] = None
+    RABBITMQ_URL: Optional[str] = None
 
     ############ Web server only ############
     API_V1_STR: str = "/api/v1"
@@ -148,7 +144,7 @@ if settings.AWS_CLOUDFRONT_HOST is None:
 
 
 def get_mq_url() -> str:
-    url = settings.MQ_URL or settings.CLOUDAMQP_URL
+    url = settings.MQ_URL or settings.RABBITMQ_URL
     assert url is not None
     return url
 
