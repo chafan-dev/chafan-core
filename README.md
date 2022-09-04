@@ -102,10 +102,10 @@ rabbitmq-server
 
 ## Staging
 
-`stag` branch is automatically pushed to the following Heroku server for testing:
+`stag` branch is automatically pushed to the following endpoint for testing:
 
 ```
-https://chafan-test.herokuapp.com/
+https://chafan-test.dokku.cha.fan/
 ```
 
 # How to add a new event type
