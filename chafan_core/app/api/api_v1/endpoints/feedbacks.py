@@ -11,7 +11,6 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import run_dramatiq_task, valid_content_length
 from chafan_core.app.limiter import limiter
-from chafan_core.app.materialize import schema_of_feedback
 from chafan_core.app.models.feedback import Feedback
 from chafan_core.app.task import postprocess_new_feedback
 from chafan_core.utils.base import HTTPException_
@@ -25,7 +24,10 @@ def get_my_feedbacks(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
 ) -> Any:
     current_user = cached_layer.get_current_active_user()
-    return [schema_of_feedback(f) for f in current_user.feedbacks]
+    return [
+        cached_layer.materializer.feedback_schema_from_orm(f)
+        for f in current_user.feedbacks
+    ]
 
 
 @router.get("/{feedback_id}/screenshot", response_class=Response)

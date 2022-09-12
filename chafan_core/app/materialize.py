@@ -39,16 +39,6 @@ from chafan_core.utils.base import (
 )
 
 
-def schema_of_feedback(f: models.Feedback) -> schemas.Feedback:
-    return schemas.Feedback(
-        id=f.id,
-        created_at=f.created_at,
-        description=f.description,
-        status=f.status,
-        has_screenshot=f.screenshot_blob is not None,
-    )
-
-
 def get_active_site_profile(
     db: Session, *, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
@@ -1087,7 +1077,9 @@ class Materializer(object):
             d["private_with_user"] = self.preview_of_user(channel.private_with_user)
         d["admin"] = self.preview_of_user(channel.admin)
         if channel.feedback_subject:
-            d["feedback_subject"] = schema_of_feedback(channel.feedback_subject)
+            d["feedback_subject"] = self.feedback_schema_from_orm(
+                channel.feedback_subject
+            )
         return schemas.Channel(**d)
 
     def report_schema_from_orm(self, report: models.Report) -> schemas.Report:
@@ -1095,3 +1087,17 @@ class Materializer(object):
         d = base.dict()
         d["author"] = self.preview_of_user(report.author)
         return schemas.Report(**d)
+
+    def feedback_schema_from_orm(self, f: models.Feedback) -> schemas.Feedback:
+        ret = schemas.Feedback(
+            id=f.id,
+            created_at=f.created_at,
+            description=f.description,
+            status=f.status,
+            has_screenshot=f.screenshot_blob is not None,
+        )
+        if f.user:
+            ret.user = self.preview_of_user(f.user)
+        elif f.user_email:
+            ret.user_email = f.user_email
+        return ret
