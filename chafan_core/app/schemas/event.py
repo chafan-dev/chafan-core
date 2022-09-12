@@ -3,7 +3,6 @@ from typing import Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel
 
-from chafan_core.app.config import settings
 from chafan_core.app.schemas.answer import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.answer_suggest_edit import AnswerSuggestEdit
 from chafan_core.app.schemas.article import ArticlePreview
@@ -28,6 +27,8 @@ def display_name(user: UserPreview) -> str:
 
 
 def server_host_link(path: str, text: str) -> str:
+    from chafan_core.app.config import settings
+
     return f'<a style="color: #1976d2; text-decoration: none" href="{settings.SERVER_HOST}{path}">{text}</a>'
 
 
