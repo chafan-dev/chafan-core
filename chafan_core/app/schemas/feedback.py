@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.utils.constants import feedback_status_T
 
 
@@ -19,6 +20,8 @@ class FeedbackInDBBase(BaseModel):
 
 class Feedback(FeedbackInDBBase):
     has_screenshot: bool
+    user: Optional[UserPreview] = None
+    user_email: Optional[str] = None
 
 
 class FeedbackCreate(BaseModel):
