@@ -13,6 +13,9 @@ class FeedbackInDBBase(BaseModel):
     status: feedback_status_T
     location_url: Optional[str]
 
+    class Config:
+        orm_mode = True
+
 
 class Feedback(FeedbackInDBBase):
     has_screenshot: bool
