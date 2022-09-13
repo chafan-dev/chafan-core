@@ -40,3 +40,6 @@ staging-pr: requirements.txt dev-requirements.txt check-no-pending-change
 	git rebase origin/stag
 	git push -f origin main
 	gh pr create --base stag --title "Update stag" --fill
+
+deploy:
+	git push dokku-prod stag:master
