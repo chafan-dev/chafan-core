@@ -2,6 +2,7 @@ import os
 from typing import List, Mapping, Optional
 
 from jieba.analyse.analyzer import ChineseAnalyzer  # type: ignore
+from whoosh.analysis.analyzers import StemmingAnalyzer
 from whoosh.fields import ID  # type: ignore
 from whoosh.fields import TEXT, Schema
 from whoosh.index import open_dir  # type: ignore
@@ -11,6 +12,7 @@ from chafan_core.app.config import settings
 from chafan_core.utils.constants import indexed_object_T
 
 _analyzer = ChineseAnalyzer()
+_stemming_analyzer = StemmingAnalyzer()
 
 QUESTION_SCHEMA = Schema(
     id=ID(stored=True, unique=True),
@@ -22,7 +24,7 @@ SITE_SCHEMA = Schema(
     id=ID(stored=True, unique=True),
     name=TEXT(analyzer=_analyzer, field_boost=2.0),
     description=TEXT(analyzer=_analyzer),
-    subdomain=TEXT(field_boost=2.0),
+    subdomain=TEXT(field_boost=2.0, analyzer=_stemming_analyzer),
 )
 
 SUBMISSION_SCHEMA = Schema(
@@ -56,8 +58,11 @@ schemas: Mapping[indexed_object_T, Schema] = {
 def do_search(
     index_type: indexed_object_T,
     query: str,
+    index_dir_prefix: Optional[str] = None,
 ) -> Optional[List[int]]:
-    index_dir = settings.SEARCH_INDEX_FILESYSTEM_PATH + "/" + index_type
+    if index_dir_prefix is None:
+        index_dir_prefix = settings.SEARCH_INDEX_FILESYSTEM_PATH + "/"
+    index_dir = index_dir_prefix + index_type
     if not os.path.exists(index_dir):
         return None
     ix = open_dir(index_dir)
