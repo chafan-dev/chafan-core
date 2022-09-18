@@ -2,7 +2,7 @@ import os
 from typing import List, Mapping, Optional
 
 from jieba.analyse.analyzer import ChineseAnalyzer  # type: ignore
-from whoosh.analysis.analyzers import StemmingAnalyzer
+from whoosh.analysis.analyzers import StemmingAnalyzer  # type: ignore
 from whoosh.fields import ID  # type: ignore
 from whoosh.fields import TEXT, Schema
 from whoosh.index import open_dir  # type: ignore
