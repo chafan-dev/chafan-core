@@ -10,7 +10,7 @@ from chafan_core.utils.base import filter_not_none
 
 router = APIRouter()
 
-_SEARCH_RATE_LIMIT = "30/minute"
+_SEARCH_RATE_LIMIT = "60/minute"
 
 
 @router.get("/users/", response_model=List[schemas.UserPreview])
