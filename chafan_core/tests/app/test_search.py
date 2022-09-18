@@ -4,7 +4,8 @@ from contextlib import contextmanager
 from typing import Iterator
 
 from whoosh import writing  # type: ignore
-from whoosh.analysis.analyzers import FancyAnalyzer, LanguageAnalyzer, StemmingAnalyzer
+from whoosh.analysis.analyzers import FancyAnalyzer  # type: ignore
+from whoosh.analysis.analyzers import LanguageAnalyzer, StemmingAnalyzer
 from whoosh.index import create_in  # type: ignore
 
 from chafan_core.app.search import do_search, schemas
@@ -31,7 +32,7 @@ def _index_writer(index_type: indexed_object_T) -> Iterator[writing.IndexWriter]
         writer.commit(mergetype=writing.CLEAR)
 
 
-def test_search_sites():
+def test_search_sites() -> None:
     with _index_writer("site") as writer:
         writer.add_document(
             id="1", name="投资", description="test", subdomain="investment"
@@ -47,19 +48,19 @@ def test_search_sites():
     assert ids == [1], ids
 
 
-def test_stemming_anlayzer():
+def test_stemming_anlayzer() -> None:
     ana = StemmingAnalyzer()
     parsed = [token.text for token in ana("investment")]
     assert parsed == ["invest"], parsed
 
 
-def test_fancy_anlayzer():
+def test_fancy_anlayzer() -> None:
     ana = FancyAnalyzer()
     parsed = [token.text for token in ana("investment")]
     assert parsed == ["investment"], parsed
 
 
-def test_lang_en_anlayzer():
+def test_lang_en_anlayzer() -> None:
     ana = LanguageAnalyzer("en")
     parsed = [token.text for token in ana("investment")]
     assert parsed == ["invest"], parsed
