@@ -10,9 +10,11 @@ from chafan_core.utils.base import filter_not_none
 
 router = APIRouter()
 
+_SEARCH_RATE_LIMIT = "30/minute"
+
 
 @router.get("/users/", response_model=List[schemas.UserPreview])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_users(
     response: Response,
     request: Request,
@@ -27,7 +29,7 @@ def search_users(
 
 
 @router.get("/sites/", response_model=List[schemas.Site])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_sites(
     response: Response,
     request: Request,
@@ -42,7 +44,7 @@ def search_sites(
 
 
 @router.get("/topics/", response_model=List[schemas.Topic])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_topics(
     response: Response,
     request: Request,
@@ -58,7 +60,7 @@ def search_topics(
 
 
 @router.get("/questions/", response_model=List[schemas.QuestionPreview])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_questions(
     response: Response,
     request: Request,
@@ -75,7 +77,7 @@ def search_questions(
 
 
 @router.get("/articles/", response_model=List[schemas.ArticlePreview])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_articles(
     response: Response,
     request: Request,
@@ -92,7 +94,7 @@ def search_articles(
 
 
 @router.get("/submissions/", response_model=List[schemas.Submission])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_submissions(
     response: Response,
     request: Request,
@@ -109,7 +111,7 @@ def search_submissions(
 
 
 @router.get("/answers/", response_model=List[schemas.AnswerPreview])
-@limiter.limit("30/minute")
+@limiter.limit(_SEARCH_RATE_LIMIT)
 def search_answers(
     response: Response,
     request: Request,
