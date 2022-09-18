@@ -42,4 +42,5 @@ staging-pr: requirements.txt dev-requirements.txt check-no-pending-change
 	gh pr create --base stag --title "Update stag" --fill
 
 deploy:
+	git fetch origin stag
 	git push dokku-prod stag:master
