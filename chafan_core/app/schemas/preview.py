@@ -22,6 +22,6 @@ class UserPreview(BaseModel):
     full_name: Optional[str]
     avatar_url: Optional[str]
     personal_introduction: Optional[str]
-    karma: int
+    karma: int = 0
     social_annotations: SocialAnnotations = SocialAnnotations()
     follows: Optional[UserFollows] = None

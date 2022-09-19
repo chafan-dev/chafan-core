@@ -34,3 +34,7 @@ feedback_status_in_zhCN: Mapping[feedback_status_T, str] = {
     "closed": "已解决",
     "wontfix": "暂不解决",
 }
+
+unknown_user_uuid = "00000000-0000-0000-0000-000000000000"
+unknown_user_handle = "unknown"
+unknown_user_full_name = "茶饭用户"

@@ -107,7 +107,7 @@ def get_user_public(
 ) -> Any:
     db = cached_layer.get_db()
     user = crud.user.get_by_handle(db, handle=handle)
-    if user is None:
+    if user is None or not user.is_active:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exists in the system.",

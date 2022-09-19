@@ -37,6 +37,18 @@ from chafan_core.utils.base import (
     map_,
     unwrap,
 )
+from chafan_core.utils.constants import (
+    unknown_user_full_name,
+    unknown_user_handle,
+    unknown_user_uuid,
+)
+from chafan_core.utils.validators import StrippedNonEmptyBasicStr
+
+_ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
+    uuid=unknown_user_uuid,
+    handle=StrippedNonEmptyBasicStr(unknown_user_handle),
+    full_name=unknown_user_full_name,
+)
 
 
 def get_active_site_profile(
@@ -251,6 +263,8 @@ class Materializer(object):
             self.principal = None
 
     def preview_of_user(self, user: models.User) -> schemas.UserPreview:
+        if not user.is_active:
+            return _ANONYMOUS_USER_PREVIEW
         return schemas.UserPreview(
             uuid=user.uuid,
             karma=user.karma,
