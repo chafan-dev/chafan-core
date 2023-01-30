@@ -14,7 +14,7 @@ def get_boto3_client() -> boto3.Session:
         "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
         "region_name": settings.AWS_REGION,
     }
-    return boto3.Session(**boto_kwargs)  # type: ignore
+    return boto3.Session(**boto_kwargs)
 
 
 def get_s3_client() -> Any:

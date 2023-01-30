@@ -10,7 +10,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Form
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from parsel.selector import Selector  # type: ignore
+from parsel.selector import Selector
 from pydantic.tools import parse_obj_as, parse_raw_as
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
