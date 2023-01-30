@@ -124,6 +124,10 @@ https://chafan-test.dokku.cha.fan/
   - Update event field rendering: `src/components/Event.vue` (if there is a new type of field)
   - Update event translation rendering: `src/main.ts`
 
+## Dependency
+
+Run `poetry update` to update all dependencies.
+
 ## Copyright
 
 For all files within this repo, see `LICENSE` for default copyright unless otherwise declared in file:
