@@ -19,7 +19,7 @@
     ],
     "formation": {
         "web": {
-          "quantity": 3
+          "quantity": 2
         },
         "worker": {
           "quantity": 1
