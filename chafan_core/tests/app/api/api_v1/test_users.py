@@ -1,5 +1,6 @@
 from typing import Dict
 
+import requests
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -46,7 +47,7 @@ def create_invitation_uuid(client: TestClient) -> str:
 
 def get_open_user_account_response(
     client: TestClient, username: str, password: str, invitation_uuid: str
-) -> None:
+) -> requests.Response:
     data = {
         "email": username,
         "password": password,
