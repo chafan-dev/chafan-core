@@ -149,6 +149,7 @@ class YearContributions(BaseModel):
 
 class UserPublic(UserPublicForVisitor):
     about_content: Optional[RichText]
+    # deprecated
     profiles: List[Profile]
     residency_topics: List[Topic]
     profession_topics: List[Topic]

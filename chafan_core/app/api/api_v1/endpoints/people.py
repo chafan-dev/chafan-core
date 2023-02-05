@@ -115,16 +115,6 @@ def get_user_public(
     view_times = view_counters.get_views(user.uuid, "profile")
     if current_user_id is None:
         return _get_user_public_visitor(cached_layer, user, view_times)
-    selected_profiles = [
-        cached_layer.materializer.profile_schema_from_orm(profile)
-        for profile in user.profiles
-        if user_in_site(
-            db,
-            site=profile.site,
-            user_id=current_user_id,
-            op_type=OperationType.ReadSite,
-        )
-    ]
     view_counters.add_view(user.uuid, "profile", current_user_id)
     db.commit()
     about_content = None
@@ -138,7 +128,7 @@ def get_user_public(
     return schemas.UserPublic(
         **u.dict(),
         about_content=about_content,
-        profiles=selected_profiles,
+        profiles=[],
         residency_topics=[schemas.Topic.from_orm(t) for t in user.residency_topics],
         profession_topics=[schemas.Topic.from_orm(t) for t in user.profession_topics],
         github_username=user.github_username,
@@ -151,6 +141,33 @@ def get_user_public(
         edu_exps=_get_edu_exps(db, user),
         contributions=contributions,
     )
+
+
+@router.get("/{uuid}/site-profiles/", response_model=List[schemas.Profile])
+def get_user_site_profiles(
+    *,
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    uuid: str,
+    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+) -> Any:
+    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    if user is None or not user.is_active:
+        raise HTTPException_(
+            status_code=400,
+            detail="The user doesn't exists in the system.",
+        )
+    if current_user_id:
+        return [
+            cached_layer.materializer.profile_schema_from_orm(profile)
+            for profile in user.profiles
+            if user_in_site(
+                cached_layer.get_db(),
+                site=profile.site,
+                user_id=current_user_id,
+                op_type=OperationType.ReadSite,
+            )
+        ]
+    return []
 
 
 @router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
