@@ -109,7 +109,7 @@ def example_site_uuid(
 def normal_user_authored_question_uuid(
     client: TestClient,
     db: Session,
-    moderator_user_token_headers: dict,
+    superuser_token_headers: dict,
     normal_user_token_headers: dict,
     example_site_uuid: str,
     normal_user_id: int,
@@ -124,9 +124,9 @@ def normal_user_authored_question_uuid(
     ).json()["uuid"]
     if not profile:
         r = client.post(
-            f"{settings.API_V1_STR}/profiles/",
-            headers=moderator_user_token_headers,
-            json={"site_uuid": example_site_uuid, "owner_uuid": normal_user_uuid},
+            f"{settings.API_V1_STR}/users/invite",
+            headers=superuser_token_headers,
+            json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
         )
         assert r.ok, r.text
 
