@@ -266,7 +266,7 @@ def create_user_open(
     code: str = Body(...),
     invitation_link_uuid: str = Body(...),
 ) -> Any:
-    if not settings.USERS_OPEN_REGISTRATION:
+    if (not is_dev()) and (not settings.USERS_OPEN_REGISTRATION):
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Open user registration is forbidden on this server",
@@ -299,20 +299,21 @@ def create_user_open(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="The user with this username already exists in the system",
         )
-    redis_cli = get_redis_cli()
-    key = f"chafan:verification-code:{email}"
-    value = redis_cli.get(key)
-    if value is None:
-        raise HTTPException_(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="The verification code is not present in the system.",
-        )
-    redis_cli.delete(key)
-    if not is_dev() and value != code:
-        raise HTTPException_(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid verification code.",
-        )
+    if not is_dev():
+        redis_cli = get_redis_cli()
+        key = f"chafan:verification-code:{email}"
+        value = redis_cli.get(key)
+        if value is None:
+            raise HTTPException_(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="The verification code is not present in the system.",
+            )
+        redis_cli.delete(key)
+        if value != code:
+            raise HTTPException_(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid verification code.",
+            )
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
     user = crud.user.create(db, obj_in=user_in)
 
