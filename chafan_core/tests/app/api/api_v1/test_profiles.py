@@ -8,7 +8,7 @@ from chafan_core.app.config import settings
 def test_profiles(
     client: TestClient,
     db: Session,
-    moderator_user_token_headers: dict,
+    superuser_token_headers: dict,
     normal_user_token_headers: dict,
     example_site_uuid: str,
     normal_user_id: int,
@@ -19,20 +19,14 @@ def test_profiles(
     normal_user_uuid = client.get(
         f"{settings.API_V1_STR}/me", headers=normal_user_token_headers
     ).json()["uuid"]
-    data = {"site_uuid": example_site_uuid, "owner_uuid": normal_user_uuid}
-    r = client.post(f"{settings.API_V1_STR}/profiles/", json=data)
-    assert r.status_code == 401
+    data = {"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid}
 
     r = client.post(
-        f"{settings.API_V1_STR}/profiles/",
-        headers=moderator_user_token_headers,
+        f"{settings.API_V1_STR}/users/invite",
+        headers=superuser_token_headers,
         json=data,
     )
     assert 200 <= r.status_code < 300, r.text
-    assert (
-        r.json()["site"]["uuid"] == example_site_uuid
-        and r.json()["owner"]["uuid"] == normal_user_uuid
-    )
 
     r = client.get(
         f"{settings.API_V1_STR}/profiles/members/{example_site_uuid}/{normal_user_uuid}",

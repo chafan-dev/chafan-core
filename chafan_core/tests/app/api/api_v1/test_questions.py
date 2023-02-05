@@ -9,7 +9,7 @@ from chafan_core.tests.utils.utils import random_lower_string
 def test_questions(
     client: TestClient,
     db: Session,
-    moderator_user_token_headers: dict,
+    superuser_token_headers: dict,
     normal_user_token_headers: dict,
     normal_user_id: int,
     example_site_uuid: str,
@@ -56,9 +56,9 @@ def test_questions(
     )
     if not profile:
         r = client.post(
-            f"{settings.API_V1_STR}/profiles/",
-            headers=moderator_user_token_headers,
-            json={"site_uuid": example_site_uuid, "owner_uuid": normal_user_uuid},
+            f"{settings.API_V1_STR}/users/invite",
+            headers=superuser_token_headers,
+            json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
         )
         r.raise_for_status()
 
