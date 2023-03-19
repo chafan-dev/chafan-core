@@ -64,4 +64,12 @@ if settings.BACKEND_CORS_ORIGINS:
 app.include_router(health.router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
-print(app.exception_handlers)
+# log settings
+def log_settings() -> None:
+    print("settings:")
+    for k, v in settings.__dict__.items():
+        if not k.startswith("__"):
+            print(f"{k}: {v}")
+
+
+log_settings()
