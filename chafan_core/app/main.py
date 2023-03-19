@@ -4,6 +4,8 @@ from dotenv import load_dotenv  # isort:skip
 
 load_dotenv()  # isort:skip
 
+import logging
+
 import sentry_sdk
 from fastapi import FastAPI
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -29,6 +31,16 @@ else:
     args["redoc_url"] = None
 
 app = FastAPI(title=settings.PROJECT_NAME, **args)
+
+# Create a logger object
+logger = logging.getLogger(__name__)
+
+# Configure the logger to log level of INFO or higher
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
 if enable_rate_limit():
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -42,6 +54,7 @@ async def custom_validation_exception_handler(
     request_str = f"request.url: {request.url}\nrequest.method: {request.method}"
     err_msg = f"Validation error:\n{request_str}\nexc: {exc}\nexc.body: {exc.body}"
     if is_dev():
+        # NOTE: need to print in order to capture by pytest
         print(err_msg)
     else:
         sentry_sdk.capture_message(err_msg)
@@ -66,10 +79,10 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 # log settings
 def log_settings() -> None:
-    print("settings:")
+    logger.info("settings:")
     for k, v in settings.__dict__.items():
         if not k.startswith("__"):
-            print(f"{k}: {v}")
+            logger.info(f"{k}: {v}")
 
 
 log_settings()
