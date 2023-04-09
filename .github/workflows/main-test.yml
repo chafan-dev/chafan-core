@@ -77,7 +77,7 @@ jobs:
         FIRST_SUPERUSER: admin@cha.fan
         FIRST_SUPERUSER_PASSWORD: superuser
         USERS_OPEN_REGISTRATION: True
-        MQ_URL: amqp://guest:guest@localhost:5672/%2f
+        RABBITMQ_URL: amqp://guest:guest@localhost:5672/%2f
         EMAILS_FROM_EMAIL: contact@cha.fan
         EMAILS_ENABLED: True
         CREATE_SITE_FORCE_NEED_APPROVAL: False

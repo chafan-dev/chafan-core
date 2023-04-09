@@ -60,7 +60,6 @@ class Settings(BaseSettings):
     MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
     MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
 
-    MQ_URL: Optional[str] = None
     RABBITMQ_URL: Optional[str] = None
 
     ############ Web server only ############
@@ -144,7 +143,7 @@ if settings.AWS_CLOUDFRONT_HOST is None:
 
 
 def get_mq_url() -> str:
-    url = settings.MQ_URL or settings.RABBITMQ_URL
+    url = settings.RABBITMQ_URL
     assert url is not None
     return url
 
