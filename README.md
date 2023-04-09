@@ -28,7 +28,7 @@ Under active construction!! 🚧
 
 ## Develop server locally
 
-Example `.env` for basic development (update `DATABASE_URL`, `REDIS_URL`, `MQ_URL` if necessary):
+Example `.env` for basic development (update `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL` if necessary):
 
 ```
 SERVER_NAME=dev.cha.fan
@@ -42,7 +42,7 @@ USERS_OPEN_REGISTRATION=False
 DATABASE_URL=postgresql://chafan@localhost:5432/chafan_dev
 ENV=dev
 REDIS_URL=redis://127.0.0.1:6379
-MQ_URL=amqp://guest:guest@localhost:5672/%2f
+RABBITMQ_URL=amqp://guest:guest@localhost:5672/%2f
 ```
 
 Run following commands to create database and initialize `chafan_dev` table.
