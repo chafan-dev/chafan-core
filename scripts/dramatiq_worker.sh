@@ -8,4 +8,4 @@ export dramatiq_prom_db=$prometheus_multiproc_dir
 
 mkdir -p $prometheus_multiproc_dir
 
-dramatiq chafan_core.app.task
+dramatiq --threads 2 chafan_core.app.task
