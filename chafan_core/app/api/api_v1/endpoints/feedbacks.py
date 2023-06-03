@@ -12,7 +12,6 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import run_dramatiq_task, valid_content_length
 from chafan_core.app.limiter import limiter
 from chafan_core.app.models.feedback import Feedback
-from chafan_core.app.task import postprocess_new_feedback
 from chafan_core.utils.base import HTTPException_
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
@@ -93,5 +92,7 @@ def post_feedback(
     )
     db.add(feedback)
     db.commit()
+    from chafan_core.app.task import postprocess_new_feedback
+
     run_dramatiq_task(postprocess_new_feedback, feedback.id)
     return schemas.GenericResponse()

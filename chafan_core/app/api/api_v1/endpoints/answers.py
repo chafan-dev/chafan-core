@@ -17,7 +17,6 @@ from chafan_core.app.materialize import (
 from chafan_core.app.schemas.answer import AnswerModUpdate
 from chafan_core.app.schemas.event import EventInternal, UpvoteAnswerInternal
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.task import postprocess_new_answer
 from chafan_core.utils.base import HTTPException_, filter_not_none, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 
@@ -219,6 +218,8 @@ def create_answer(
         site_id=question.site_id,
     )
     if answer.is_published:
+        from chafan_core.app.task import postprocess_new_answer
+
         run_dramatiq_task(postprocess_new_answer, answer.id, False)
     return cached_layer.materializer.answer_schema_from_orm(answer)
 
@@ -267,6 +268,8 @@ def _update_answer(
     if answer.is_published:
         # NOTE: Since is_published will not be reverted, thus this should only be delivered once
         # TODO: Implement the update subscription logic
+        from chafan_core.app.task import postprocess_new_answer
+
         run_dramatiq_task(postprocess_new_answer, answer.id, was_published)
 
     cached_layer.invalidate_answer_cache(answer.uuid)
