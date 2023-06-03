@@ -15,7 +15,6 @@ from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.materialize import article_archive_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.task import postprocess_new_article, postprocess_updated_article
 from chafan_core.utils.base import ContentVisibility, HTTPException_
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 
@@ -201,6 +200,8 @@ def create_article(
         cached_layer.get_db(), obj_in=article_in, author_id=current_user.id
     )
     if new_article.is_published:
+        from chafan_core.app.task import postprocess_new_article
+
         run_dramatiq_task(postprocess_new_article, new_article.id)
     data = cached_layer.materializer.article_schema_from_orm(new_article)
     assert data is not None
@@ -276,6 +277,8 @@ def update_article(
     )
 
     if article.is_published:
+        from chafan_core.app.task import postprocess_updated_article
+
         run_dramatiq_task(postprocess_updated_article, article.id, was_published)
     data = cached_layer.materializer.article_schema_from_orm(article)
     assert data is not None

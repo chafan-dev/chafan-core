@@ -10,7 +10,6 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import run_dramatiq_task
 from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.task import site_broadcast, super_broadcast
 from chafan_core.utils.base import HTTPException_, TaskStatus
 
 router = APIRouter()
@@ -49,6 +48,8 @@ def create_task(
         task = _create_task(
             db, current_user=current_user, task_definition=task_definition
         )
+        from chafan_core.app.task import super_broadcast
+
         run_dramatiq_task(super_broadcast, task.id, task_definition.message)
         return cached_layer.materializer.task_schema_from_orm(task)
     elif task_definition.task_type == "site_broadcast":
@@ -74,6 +75,8 @@ def create_task(
         task = _create_task(
             db, current_user=current_user, task_definition=task_definition
         )
+        from chafan_core.app.task import site_broadcast
+
         run_dramatiq_task(site_broadcast, task.id, submission.id, site.id)
         return cached_layer.materializer.task_schema_from_orm(task)
     else:

@@ -18,10 +18,6 @@ from chafan_core.app.schemas.submission_suggestion import (
     SubmissionSuggestionCreate,
     SubmissionSuggestionUpdate,
 )
-from chafan_core.app.task import (
-    postprocess_accept_submission_suggestion,
-    postprocess_new_submission_suggestion,
-)
 from chafan_core.utils.base import HTTPException_, unwrap
 
 router = APIRouter()
@@ -59,6 +55,8 @@ def post_submission_suggestions(
         author_id=current_user.id,
         submission=submission,
     )
+    from chafan_core.app.task import postprocess_new_submission_suggestion
+
     run_dramatiq_task(postprocess_new_submission_suggestion, s.id)
     return unwrap(cached_layer.materializer.submission_suggestion_schema_from_orm(s))
 
@@ -104,6 +102,8 @@ def _accept_submission_suggestion(
         ),
     )
     # Rebate the suggestion author
+    from chafan_core.app.task import postprocess_accept_submission_suggestion
+
     run_dramatiq_task(
         postprocess_accept_submission_suggestion, submission_suggestion.id
     )

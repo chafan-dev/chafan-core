@@ -16,10 +16,6 @@ from chafan_core.app.schemas.answer_suggest_edit import (
     AnswerSuggestEditUpdate,
 )
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.task import (
-    postprocess_accept_answer_suggest_edit,
-    postprocess_new_answer_suggest_edit,
-)
 from chafan_core.utils.base import HTTPException_, get_utc_now, unwrap
 
 router = APIRouter()
@@ -60,6 +56,8 @@ def post_answer_suggest_edits(
         author_id=current_user.id,
         answer=answer,
     )
+    from chafan_core.app.task import postprocess_new_answer_suggest_edit
+
     run_dramatiq_task(postprocess_new_answer_suggest_edit, s.id)
     return unwrap(cached_layer.materializer.answer_suggest_edit_schema_from_orm(s))
 
@@ -104,6 +102,8 @@ def _accept_answer_suggest_edit(
         ),
     )
     # Rebate the suggestion author
+    from chafan_core.app.task import postprocess_accept_answer_suggest_edit
+
     run_dramatiq_task(postprocess_accept_answer_suggest_edit, answer_suggest_edit.id)
 
 
