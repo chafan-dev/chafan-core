@@ -24,14 +24,19 @@ from chafan_core.utils.base import HTTPException_, filter_not_none
 router = APIRouter()
 
 # TODO: paging
-@router.get("/", response_model=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]])  # type: ignore
+@router.get(
+    "/",
+    response_model=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+)
 def get_submissions_for_user(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
     return cached_layer.get_submissions_for_user()
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Submission, schemas.SubmissionForVisitor])  # type: ignore
+@router.get(
+    "/{uuid}", response_model=Union[schemas.Submission, schemas.SubmissionForVisitor]
+)
 def get_submission(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

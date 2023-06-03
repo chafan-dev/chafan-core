@@ -1,7 +1,7 @@
 from typing import Dict
 
-import requests
 from fastapi.testclient import TestClient
+from httpx._models import Response
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
@@ -47,7 +47,7 @@ def create_invitation_uuid(client: TestClient) -> str:
 
 def get_open_user_account_response(
     client: TestClient, username: str, password: str, invitation_uuid: str
-) -> requests.Response:
+) -> Response:
     data = {
         "email": username,
         "password": password,

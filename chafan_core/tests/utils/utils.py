@@ -2,7 +2,7 @@ import random
 import string
 from typing import Dict
 
-import requests
+from fastapi.testclient import TestClient
 from pydantic.types import SecretStr
 
 from chafan_core.app.config import settings
@@ -36,13 +36,13 @@ def random_email() -> CaseInsensitiveEmailStr:
     )
 
 
-def get_superuser_token_headers(client: requests.Session) -> Dict[str, str]:
+def get_superuser_token_headers(client: TestClient) -> Dict[str, str]:
     login_data = {
-        "username": settings.FIRST_SUPERUSER,
+        "username": unwrap(settings.FIRST_SUPERUSER),
         "password": unwrap(settings.FIRST_SUPERUSER_PASSWORD).get_secret_value(),
     }
     r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)
-    assert r.ok, r.json()
+    assert r.status_code == 200, (r.status_code, r.json())
     tokens = r.json()
     a_token = tokens["access_token"]
     headers = {"Authorization": f"Bearer {a_token}"}

@@ -75,7 +75,7 @@ def test_questions(
     r = client.get(
         f"{settings.API_V1_STR}/questions/{question_uuid}",
         headers=normal_user_token_headers,
-        json=data,
+        params=data,
     )
     assert r.status_code == 200
 
@@ -84,4 +84,4 @@ def test_questions(
         headers=normal_user_token_headers,
         json={"site_uuid": example_site_uuid, "description": "new intro"},
     )
-    assert r.status_code == 200
+    assert r.status_code == 200, r.json()

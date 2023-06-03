@@ -17,7 +17,9 @@ from chafan_core.utils.base import HTTPException_
 router = APIRouter()
 
 
-@router.get("/members/{site_uuid}/{owner_uuid}", response_model=Optional[schemas.Profile])  # type: ignore
+@router.get(
+    "/members/{site_uuid}/{owner_uuid}", response_model=Optional[schemas.Profile]
+)
 def view_profile(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),

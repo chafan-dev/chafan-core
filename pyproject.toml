@@ -8,7 +8,7 @@ packages = [{ include = "chafan_core" }]
 [tool.poetry.dependencies]
 python = "^3.8"
 uvicorn = {extras = ["standard"], version = "^0.14.0"}
-fastapi = "^0.79.0"
+fastapi = "^0.96.0"
 python-multipart = "^0.0.5"
 email-validator = "^1.0.5"
 requests = "^2.23.0"
@@ -45,6 +45,7 @@ influxdb-client = "^1.20.0"
 pytz = "^2022.1"
 Whoosh = "^2.7.4"
 setuptools = "^67.0.0"
+httpx = "^0.24.1"
 
 [tool.poetry.dev-dependencies]
 mypy = "^0.910"

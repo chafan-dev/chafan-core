@@ -101,7 +101,7 @@ def example_site_uuid(
         },
         headers=superuser_token_headers,
     )
-    assert r.ok, r.json()
+    assert r.status_code == 200, (r.status_code, r.json())
     return site_uuid
 
 
@@ -128,7 +128,7 @@ def normal_user_authored_question_uuid(
             headers=superuser_token_headers,
             json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
         )
-        assert r.ok, r.text
+        assert r.status_code == 200, (r.status_code, r.json())
 
     r = client.post(
         f"{settings.API_V1_STR}/questions/",

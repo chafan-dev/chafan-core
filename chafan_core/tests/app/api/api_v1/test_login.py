@@ -10,7 +10,7 @@ from chafan_core.utils.base import unwrap
 
 def test_get_access_token(client: TestClient) -> None:
     login_data = {
-        "username": settings.FIRST_SUPERUSER,
+        "username": unwrap(settings.FIRST_SUPERUSER),
         "password": unwrap(settings.FIRST_SUPERUSER_PASSWORD).get_secret_value(),
     }
     r = client.post(f"{settings.API_V1_STR}/login/access-token", data=login_data)

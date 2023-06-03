@@ -77,10 +77,14 @@ def test_comments(
     site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
     assert site is not None
 
+    params = {
+        "site_uuid": example_site_uuid,
+        "question_uuid": normal_user_authored_question_uuid,
+    }
     r = client.get(
         f"{settings.API_V1_STR}/comments/{comment_id}",
         headers=normal_user_token_headers,
-        json=data,
+        params=params,
     )
     assert r.status_code == 200
 

@@ -32,4 +32,4 @@ def test_profiles(
         f"{settings.API_V1_STR}/profiles/members/{example_site_uuid}/{normal_user_uuid}",
         headers=normal_user_token_headers,
     )
-    assert r.ok
+    assert r.status_code == 200, (r.status_code, r.json())

@@ -11,7 +11,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.aws import get_s3_client
 from chafan_core.app.common import is_dev, valid_content_length
 from chafan_core.app.config import settings
-from chafan_core.utils.base import HTTPException_
+from chafan_core.utils.base import HTTPException_, unwrap
 
 router = APIRouter()
 
@@ -99,7 +99,7 @@ def upload_files_from_vditor(
             key,
             ExtraArgs={"CacheControl": "max-age=360000"},
         )
-        succMap[file.filename] = parse_obj_as(
+        succMap[unwrap(file.filename)] = parse_obj_as(
             AnyHttpUrl, f"{settings.AWS_CLOUDFRONT_HOST}/{key}"
         )
     return schemas.msg.UploadResults(data=schemas.msg.UploadResultData(succMap=succMap))

@@ -58,7 +58,7 @@ def test_sites(
     assert r.json()["description"] == "Demo Site 2"
 
     r = client.get(f"{settings.API_V1_STR}/sites", headers=normal_user_token_headers)
-    assert r.ok, r.json()
+    assert r.status_code == 200, (r.status_code, r.json())
     sites = r.json()
     assert sites == existing_sites + [
         {

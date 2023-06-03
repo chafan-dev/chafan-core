@@ -3,7 +3,7 @@ from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
 import sentry_sdk
 from pydantic.tools import parse_obj_as
-from sqlalchemy.orm import Query, Session
+from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.common import OperationType, is_dev
