@@ -338,7 +338,7 @@ class CachedLayer(object):
         )
         if not is_dev():
             redis_cli.set(
-                SITEMAPS_CACHE_KEY, data.json(), ex=datetime.timedelta(hours=12)
+                SITEMAPS_CACHE_KEY, data.json(), ex=datetime.timedelta(hours=24)
             )
         return data
 

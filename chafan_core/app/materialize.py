@@ -1,9 +1,9 @@
 import datetime
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
 import sentry_sdk
 from pydantic.tools import parse_obj_as
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Query, Session
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.common import OperationType, is_dev
@@ -55,6 +55,23 @@ def get_active_site_profile(
     db: Session, *, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
     return crud.profile.get_by_user_and_site(db, owner_id=user_id, site_id=site.id)
+
+
+_VISIBLE_QUESTION_CONDITIONS = {
+    "is_hidden": False,
+}
+
+_VISIBLE_SUBMISSION_CONDITIONS = {
+    "is_hidden": False,
+}
+
+
+def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
+    return questions.filter_by(**conditions)
+
+
+def is_eligible_item(question: models.Question, conditions: Mapping[str, Any]) -> bool:
+    return all(getattr(question, k) == v for k, v in conditions.items())
 
 
 def user_in_site(
@@ -278,12 +295,12 @@ class Materializer(object):
         base = schemas.SiteInDBBase.from_orm(site)
         site_dict = base.dict()
         site_dict["moderator"] = self.preview_of_user(site.moderator)
-        site_dict["questions_count"] = len(
-            [q for q in site.questions if not q.is_hidden]
-        )
-        site_dict["submissions_count"] = len(
-            [s for s in site.submissions if not s.is_hidden]
-        )
+        site_dict["questions_count"] = keep_items(
+            site.questions, _VISIBLE_QUESTION_CONDITIONS
+        ).count()
+        site_dict["submissions_count"] = keep_items(
+            site.submissions, _VISIBLE_SUBMISSION_CONDITIONS
+        ).count()
         site_dict["members_count"] = len(site.profiles)
         if site.category_topic:
             site_dict["category_topic"] = schemas.Topic.from_orm(site.category_topic)
@@ -343,7 +360,7 @@ class Materializer(object):
     ) -> Optional[schemas.QuestionPreviewForVisitor]:
         if not question.site.public_readable:
             return None
-        if question.is_hidden:
+        if not is_eligible_item(question, _VISIBLE_QUESTION_CONDITIONS):
             return None
         return self.get_question_preview_for_visitor(question)
 
