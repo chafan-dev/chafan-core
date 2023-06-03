@@ -1,3 +1,4 @@
+import logging
 from contextlib import contextmanager
 from typing import Iterator, Optional
 
@@ -12,6 +13,8 @@ from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.mq import WsUserMsg
 
+logger = logging.getLogger(__name__)
+
 
 @contextmanager
 def pika_chan(queue: str) -> Iterator[Optional[BlockingChannel]]:
@@ -20,6 +23,7 @@ def pika_chan(queue: str) -> Iterator[Optional[BlockingChannel]]:
         chan = conn.channel()
         chan.queue_declare(queue=queue)
         yield chan
+        logger.info("Closing pika channel")
         chan.close()
         conn.close()
     except (
