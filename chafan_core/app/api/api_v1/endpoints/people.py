@@ -97,7 +97,7 @@ def _get_user_public_visitor(
 
 
 @router.get(
-    "/{handle}", response_model=Union[schemas.UserPublic, schemas.UserPublicForVisitor]  # type: ignore
+    "/{handle}", response_model=Union[schemas.UserPublic, schemas.UserPublicForVisitor]
 )
 def get_user_public(
     *,
@@ -261,7 +261,7 @@ def get_user_articles(
     "/{uuid}/answers/",
     response_model=Union[
         List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-    ],  # type: ignore
+    ],
 )
 def get_user_answers(
     *,

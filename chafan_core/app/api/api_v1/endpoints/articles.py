@@ -22,7 +22,7 @@ from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 router = APIRouter()
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])  # type: ignore
+@router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
 def get_article(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

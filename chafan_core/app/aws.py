@@ -9,12 +9,11 @@ def get_boto3_client() -> boto3.Session:
     assert settings.AWS_ACCESS_KEY_ID is not None
     assert settings.AWS_SECRET_ACCESS_KEY is not None
     assert settings.AWS_REGION is not None
-    boto_kwargs = {
-        "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
-        "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
-        "region_name": settings.AWS_REGION,
-    }
-    return boto3.Session(**boto_kwargs)
+    return boto3.Session(
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_REGION,
+    )
 
 
 def get_s3_client() -> Any:

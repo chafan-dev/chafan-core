@@ -88,7 +88,12 @@ def _get_pending_questions(
         return questions_for_visitors
 
 
-@router.get("/pending-questions/", response_model=Union[List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]])  # type: ignore
+@router.get(
+    "/pending-questions/",
+    response_model=Union[
+        List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]
+    ],
+)
 def get_pending_questions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
@@ -108,7 +113,12 @@ def get_pending_questions(
     return data
 
 
-@router.get("/interesting-questions/", response_model=Union[List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]])  # type: ignore
+@router.get(
+    "/interesting-questions/",
+    response_model=Union[
+        List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]
+    ],
+)
 def get_interesting_questions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
@@ -122,7 +132,12 @@ def get_interesting_users(
     return indexed_layer.get_interesting_users(cached_layer)
 
 
-@router.get("/featured-answers/", response_model=Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]])  # type: ignore
+@router.get(
+    "/featured-answers/",
+    response_model=Union[
+        List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
+    ],
+)
 def get_featured_answers(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     skip: int = Query(default=0, ge=0),

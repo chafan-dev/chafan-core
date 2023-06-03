@@ -72,7 +72,9 @@ def _get_question_data(
     return question_data
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Question, schemas.QuestionForVisitor])  # type: ignore
+@router.get(
+    "/{uuid}", response_model=Union[schemas.Question, schemas.QuestionForVisitor]
+)
 @limiter.limit("60/minute")
 def get_question(
     response: Response,
@@ -99,7 +101,12 @@ def bump_views_counter(
     return schemas.GenericResponse()
 
 
-@router.get("/{uuid}/answers/", response_model=Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]])  # type: ignore
+@router.get(
+    "/{uuid}/answers/",
+    response_model=Union[
+        List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
+    ],
+)
 def get_question_answers(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

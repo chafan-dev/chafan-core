@@ -219,7 +219,7 @@ site_questions_T = Union[
 ]
 
 
-@router.get("/{uuid}/questions/", response_model=site_questions_T)  # type: ignore
+@router.get("/{uuid}/questions/", response_model=site_questions_T)
 def get_site_questions(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -262,7 +262,10 @@ def get_site_questions(
         )
 
 
-@router.get("/{uuid}/submissions/", response_model=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]])  # type: ignore
+@router.get(
+    "/{uuid}/submissions/",
+    response_model=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+)
 def get_site_submissions(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
