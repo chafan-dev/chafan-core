@@ -18,15 +18,12 @@ class Settings(BaseSettings):
     SERVER_HOST: AnyHttpUrl
     ENV: Literal["dev", "stag", "prod"] = "dev"
     DB_SESSION_POOL_SIZE: int = 60
-    READ_DB_SESSION_POOL_SIZE: int = 60
     DB_SESSION_POOL_MAX_OVERFLOW_SIZE: int = 20
-    READ_DB_SESSION_POOL_MAX_OVERFLOW_SIZE: int = 20
     DEFAULT_LOCALE: Literal["en", "zh"] = "zh"
     PROJECT_NAME: str = "Chafan Dev"
     SENTRY_DSN: Optional[AnyHttpUrl] = None
 
     DATABASE_URL: str
-    DATABASE_READ_REPLICA_URL: Optional[str] = None
     REDIS_URL: str
 
     ENABLE_CAPTCHA: bool = False
