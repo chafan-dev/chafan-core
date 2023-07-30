@@ -16,6 +16,7 @@ router = APIRouter()
 @router.get("/pending/{site_uuid}/", response_model=List[schemas.Application])
 @limiter.limit("10/minute")
 def get_pending_applications(
+    request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     site_uuid: str,
