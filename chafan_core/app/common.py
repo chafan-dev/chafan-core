@@ -1,5 +1,6 @@
 import datetime
 import enum
+import logging
 import re
 import traceback
 from typing import Any, Mapping, NamedTuple, Optional, Tuple
@@ -244,3 +245,8 @@ def check_email(email: str) -> None:
             status_code=404,
             detail="Invalid email.",
         )
+
+
+def get_logger(name: str, level: int = logging.INFO) -> logging.Logger:
+    logging.basicConfig(level=level)
+    return logging.getLogger(name)

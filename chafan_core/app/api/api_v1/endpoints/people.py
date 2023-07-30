@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType
+from chafan_core.app.common import OperationType, get_logger
 from chafan_core.app.materialize import user_in_site
 from chafan_core.app.model_utils import is_live_answer, is_live_article
 from chafan_core.app.schemas.richtext import RichText
@@ -28,6 +28,7 @@ from chafan_core.utils.constants import (
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr
 
 router = APIRouter()
+logger = get_logger(__name__)
 
 
 def _get_work_exps(db: Session, user: models.User) -> List[schemas.UserWorkExperience]:
@@ -105,6 +106,7 @@ def get_user_public(
     handle: StrippedNonEmptyBasicStr,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
+    logger.debug("Call get_user_public")
     db = cached_layer.get_db()
     user = crud.user.get_by_handle(db, handle=handle)
     if user is None or not user.is_active:
