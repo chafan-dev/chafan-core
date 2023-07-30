@@ -6,36 +6,27 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
 
 
-@router.get("/pending/{site_uuid}/", response_model=List[schemas.Application])
+@router.get("/pending/", response_model=List[schemas.Application])
 @limiter.limit("10/minute")
 def get_pending_applications(
     request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
-    site_uuid: str,
 ) -> Any:
-    site = get_site(cached_layer.get_db(), site_uuid)
-    if site is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The site doesn't exists in the system.",
-        )
-    if (
-        not cached_layer.get_current_user().is_superuser
-    ) and site.moderator_id != cached_layer.principal_id:
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
+    current_user = cached_layer.get_current_active_user()
+    if current_user.is_superuser:
+        sites = crud.site.get_all(cached_layer.get_db())
+    else:
+        sites = current_user.moderated_sites
     return [
         cached_layer.materializer.application_schema_from_orm(application)
+        for site in sites
         for application in crud.application.get_pending_applications(
             cached_layer.get_db(), site_id=site.id
         )
