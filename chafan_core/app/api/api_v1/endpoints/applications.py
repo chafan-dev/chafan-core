@@ -15,6 +15,7 @@ router = APIRouter()
 @router.get("/pending/", response_model=List[schemas.Application])
 @limiter.limit("10/minute")
 def get_pending_applications(
+    response: Response,
     request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
