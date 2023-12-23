@@ -2,8 +2,9 @@
 name = "chafan-core"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Zhen Zhang <git@zhen-zhang.com>"]
 readme = "README.md"
+packages = [{ include = "chafan_core" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
