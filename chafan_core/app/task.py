@@ -259,7 +259,7 @@ def postprocess_new_comment(
 def postprocess_comment_update(
     comment_id: int,
     was_shared_to_timeline: bool,
-    shared_to_timeline: bool = None,
+    shared_to_timeline: bool = False,
     mentioned: Optional[List[str]] = None,
 ) -> None:
     print("postprocess_comment_update")
@@ -563,7 +563,7 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
                 )
             )
             broker.get_db().commit()
-        for user in answer.bookmarkers:  # type: ignore
+        for user in answer.bookmarkers:
             crud.notification.create_with_content(
                 broker,
                 event=EventInternal(
@@ -610,7 +610,7 @@ def postprocess_new_article(article_id: int) -> None:
             payer=article.author,
             payee=superuser,
         )
-        for subscriber in article.article_column.subscribers:  # type: ignore
+        for subscriber in article.article_column.subscribers:
             crud.notification.create_with_content(
                 broker,
                 event=event_internal,

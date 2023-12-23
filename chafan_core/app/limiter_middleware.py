@@ -21,7 +21,7 @@ class SlowAPIMiddleware(BaseHTTPMiddleware):
         for route in app.routes:
             match, _ = route.matches(request.scope)
             if match == Match.FULL and hasattr(route, "endpoint"):
-                handler = route.endpoint  # type: ignore
+                handler = route.endpoint
                 break
         # if we can't find the route handler
         if handler is None:
@@ -47,7 +47,7 @@ class SlowAPIMiddleware(BaseHTTPMiddleware):
                 exception_handler = app.exception_handlers.get(
                     type(e), _rate_limit_exceeded_handler
                 )
-                return exception_handler(request, e)  # type: ignore
+                return exception_handler(request, e)
             # request.state._rate_limiting_complete = True
             response = await call_next(request)
             response = limiter._inject_headers(response, request.state.view_rate_limit)

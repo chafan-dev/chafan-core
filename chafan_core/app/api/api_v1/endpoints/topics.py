@@ -59,7 +59,7 @@ def get_topic_questions(
             detail="The topic doesn't exists in the system.",
         )
     # FIXME: expensive
-    questions: List[models.Question] = topic.questions[skip : (skip + limit)]  # type: ignore
+    questions: List[models.Question] = topic.questions[skip : (skip + limit)]
     return filter_not_none(
         [
             cached_layer.materializer.preview_of_question(question)

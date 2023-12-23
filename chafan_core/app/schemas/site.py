@@ -49,17 +49,17 @@ class SiteInDBBase(SiteBase):
     email_domain_suffix_for_application: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Additional properties to return via API
 class Site(SiteInDBBase):
     moderator: UserPreview
-    permission_type: Optional[Literal["public", "private"]]
+    permission_type: Optional[Literal["public", "private"]] = None
     questions_count: int
     submissions_count: int
     members_count: int
-    category_topic: Optional[Topic]
+    category_topic: Optional[Topic] = None
 
     @validator("permission_type")
     def get_permission_type(cls, v: Optional[str], values: Dict[str, Any]) -> str:
@@ -96,10 +96,3 @@ class SiteMap(BaseModel):
 class SiteMaps(BaseModel):
     site_maps: List[SiteMap]
     sites_without_topics: List[Site]
-
-
-class CreateSiteResponse(BaseModel):
-    from chafan_core.app.schemas.channel import Channel
-
-    created_site: Optional[Site] = None
-    application_channel: Optional[Channel] = None

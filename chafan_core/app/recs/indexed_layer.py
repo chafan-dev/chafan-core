@@ -45,7 +45,7 @@ def get_interesting_questions(
     if not current_user:
         visitor = crud.user.try_get_visitor_user(cached_layer.get_db())
         if not visitor:
-            return []  # type: ignore
+            return []
         return filter_not_none(
             [
                 cached_layer.materializer.preview_of_question_for_visitor(

@@ -39,7 +39,6 @@ def get_ws_queue_for_user(user_id: int) -> str:
 
 
 def push_notification(data_broker: DataBroker, *, notif: models.Notification) -> None:
-
     n = Materializer(data_broker, notif.receiver_id).notification_schema_from_orm(
         notif,
     )

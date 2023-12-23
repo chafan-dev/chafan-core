@@ -41,7 +41,7 @@ def send_reset_password_email(email: str, token: str) -> None:
     subject = f"{project_name} - 密码重置 {email}"
     with open(Path(settings.EMAIL_TEMPLATES_DIR) / "reset_password.html") as f:
         template_str = f.read()
-    server_host = settings.SERVER_HOST.strip("/")
+    server_host = str(settings.SERVER_HOST).strip("/")
     link = f"{server_host}/reset-password?token={token}"
     send_email(
         email_to=email,
@@ -129,7 +129,7 @@ def send_verification_code_email(email: str, code: str) -> None:
     subject = f"{project_name} - 验证码 {code}"
     with open(Path(settings.EMAIL_TEMPLATES_DIR) / "verification_code.html") as f:
         template_str = f.read()
-    server_host = settings.SERVER_HOST.strip("/")
+    server_host = str(settings.SERVER_HOST).strip("/")
     params = {"email": email, "code": code}
     link = f"{server_host}/signup?{urlencode(params)}"
     send_email(

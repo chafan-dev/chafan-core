@@ -13,7 +13,7 @@ def get_user_score(u: schemas.UserPreview) -> float:
 
 
 def get_user_model_score(u: models.User) -> float:
-    score = u.karma + u.followers.count() * 5  # type: ignore
+    score = u.karma + u.followers.count() * 5
     return score
 
 

@@ -8,7 +8,7 @@ import redis
 import requests
 import sentry_sdk
 from fastapi.encoders import jsonable_encoder
-from pydantic.tools import parse_raw_as
+from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
@@ -87,7 +87,7 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(key)
         if value is not None:
-            return parse_raw_as(typeObj, value)
+            TypeAdapter(typeObj).validate_json(value)
         data = fallable_fetch()
         if data and not is_dev():
             redis_cli.set(
@@ -109,7 +109,7 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(key)
         if value is not None:
-            return parse_raw_as(typeObj, value)
+            return TypeAdapter(typeObj).validate_json(value)
         data = fetch()
         if data and (not is_dev() or cache_if_dev):
             redis_cli.set(
@@ -130,7 +130,7 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(key)
         if value is not None:
-            return parse_raw_as(typeObj, value)
+            return TypeAdapter(typeObj).validate_json(value)
         data = fallable_fetch()
         if data and not is_dev():
             redis_cli.set(
@@ -177,7 +177,7 @@ class CachedLayer(object):
         key = f"chafan:cached-recent-k-submissions-of-site:{site.id}:{k}"
         value = redis.get(key)
         if value is not None:
-            return parse_raw_as(List[schemas.Submission], value)
+            return TypeAdapter(List[schemas.Submission]).validate_json(value)
         data = filter_not_none(
             [self.materializer.submission_schema_from_orm(s) for s in site.submissions]
         )[:k]
@@ -227,7 +227,7 @@ class CachedLayer(object):
         key = ANSWER_FOR_VISITOR_CACHE_KEY.format(uuid=uuid)
         value = redis_cli.get(key)
         if value is not None:
-            return schemas.AnswerForVisitor.parse_raw(value)
+            return schemas.AnswerForVisitor.model_validate_json(value)
         db = self.get_db()
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
@@ -246,7 +246,7 @@ class CachedLayer(object):
         key = SITE_INFO_CACHE_KEY.format(subdomain=subdomain)
         value = redis_cli.get(key)
         if value is not None:
-            return schemas.Site.parse_raw(value)
+            return schemas.Site.model_validate_json(value)
         site = crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
         if site is None:
             return None
@@ -265,13 +265,13 @@ class CachedLayer(object):
         value = redis.get(key)
         if value is not None:
             if user_id:
-                return parse_raw_as(List[schemas.Submission], value)[
+                return TypeAdapter(List[schemas.Submission]).validate_json(value)[
                     skip : skip + limit
                 ]
             else:
-                return parse_raw_as(List[schemas.SubmissionForVisitor], value)[
-                    skip : skip + limit
-                ]
+                return TypeAdapter(List[schemas.SubmissionForVisitor]).validate_json(
+                    value
+                )[skip : skip + limit]
         submissions: List[Any] = []
         if user_id:
             # FIXME: compute rank async
@@ -315,7 +315,7 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(SITEMAPS_CACHE_KEY)
         if value is not None:
-            return schemas.site.SiteMaps.parse_raw(value)
+            return schemas.site.SiteMaps.model_validate_json(value)
         read_db = self.get_db()
         sites = crud.site.get_all(read_db)
         site_maps: Dict[str, schemas.site.SiteMap] = {}
@@ -386,7 +386,7 @@ class CachedLayer(object):
         key = ANSWER_UPVOTES_CACHE_KEY.format(uuid=uuid, user_id=self.principal_id)
         value = redis_cli.get(key)
         if value is not None:
-            return schemas.AnswerUpvotes.parse_raw(value)
+            return schemas.AnswerUpvotes.model_validate_json(value)
         db = self.get_db()
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
@@ -559,7 +559,7 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(key)
         if value is not None:
-            return schemas.Notification.parse_raw(value)
+            return schemas.Notification.model_validate_json(value)
         data = self.materializer.notification_schema_from_orm(notif)
         if data and not is_dev():
             redis_cli.set(key, data.json(), ex=datetime.timedelta(hours=24))
@@ -582,7 +582,7 @@ class CachedLayer(object):
             return None
         return schemas.UserQuestionSubscription(
             question_uuid=question.uuid,
-            subscription_count=question.subscribers.count(),  # type: ignore
+            subscription_count=question.subscribers.count(),
             subscribed_by_me=(question in current_user.subscribed_questions),
         )
 
@@ -590,7 +590,9 @@ class CachedLayer(object):
         self, user: models.User, skip: int, limit: int
     ) -> List[UserPreview]:
         def f() -> List[UserPreview]:
-            return [self.preview_of_user(u) for u in user.followers[skip : skip + limit]]  # type: ignore
+            return [
+                self.preview_of_user(u) for u in user.followers[skip : skip + limit]
+            ]
 
         return self._get_cached(
             key=USER_FOLLOWERS_CACHE_KEY.format(
@@ -629,9 +631,9 @@ class CachedLayer(object):
             author_id=author.id, user_id=self.principal_id
         )
 
-        def f() -> Union[
-            List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-        ]:
+        def f() -> (
+            Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]
+        ):
             if self.principal_id:
                 return filter_not_none(
                     [
@@ -664,7 +666,7 @@ class CachedLayer(object):
             followed_by_me = False
         return schemas.UserFollows(
             user_uuid=followed.uuid,
-            followers_count=followed.followers.count(),  # type: ignore
+            followers_count=followed.followers.count(),
             followed_count=followed.followed.count(),  # type: ignore
             followed_by_me=followed_by_me,
         )

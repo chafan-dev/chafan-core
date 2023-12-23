@@ -84,7 +84,7 @@ def test_sites(
             },
             "addable_member": True,
             "topics": [],
-            "permission_type": "private",
+            "permission_type": None,
             "auto_approval": True,
             "min_karma_for_application": None,
             "email_domain_suffix_for_application": None,

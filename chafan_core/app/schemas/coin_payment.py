@@ -17,7 +17,7 @@ class CoinPaymentCreate(CoinPaymentBase):
     payee_id: int
     amount: int
     event_json: str
-    comment: Optional[str]
+    comment: Optional[str] = None
 
 
 # Properties to receive via API on update
@@ -32,7 +32,7 @@ class CoinPaymentInDBBase(CoinPaymentBase):
     comment: Optional[str]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Additional properties to return via API

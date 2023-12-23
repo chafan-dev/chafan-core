@@ -4,8 +4,9 @@ from typing import Any, Dict, List, Literal, Optional, Union
 import boto3
 import sentry_dramatiq  # type: ignore
 import sentry_sdk
-from pydantic import AnyHttpUrl, BaseSettings, validator
+from pydantic import AnyHttpUrl, validator
 from pydantic.types import SecretStr
+from pydantic_settings import BaseSettings
 from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
@@ -147,7 +148,7 @@ def get_mq_url() -> str:
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(
-        settings.SENTRY_DSN,
+        settings.SENTRY_DSN,  # type: ignore
         traces_sample_rate=0.2,
         integrations=[
             RedisIntegration(),

@@ -30,7 +30,7 @@ else:
     args["docs_url"] = None
     args["redoc_url"] = None
 
-app = FastAPI(title=settings.PROJECT_NAME, **args)
+app = FastAPI(title=settings.PROJECT_NAME, **args)  # type: ignore
 
 # Create a logger object
 logger = logging.getLogger(__name__)
@@ -65,7 +65,7 @@ async def custom_validation_exception_handler(
 if settings.BACKEND_CORS_ORIGINS:
     origins = settings.BACKEND_CORS_ORIGINS
     if settings.AWS_CLOUDFRONT_HOST:
-        origins.append(settings.AWS_CLOUDFRONT_HOST)
+        origins.append(settings.AWS_CLOUDFRONT_HOST)  # type: ignore
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[str(origin) for origin in origins],
@@ -76,6 +76,7 @@ if settings.BACKEND_CORS_ORIGINS:
 
 app.include_router(health.router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
+
 
 # log settings
 def log_settings() -> None:

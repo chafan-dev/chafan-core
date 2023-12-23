@@ -20,8 +20,8 @@ class UserPreview(BaseModel):
     uuid: str
     handle: StrippedNonEmptyBasicStr
     full_name: Optional[str]
-    avatar_url: Optional[str]
-    personal_introduction: Optional[str]
+    avatar_url: Optional[str] = None
+    personal_introduction: Optional[str] = None
     karma: int = 0
     social_annotations: SocialAnnotations = SocialAnnotations()
     follows: Optional[UserFollows] = None

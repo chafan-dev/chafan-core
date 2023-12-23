@@ -4,7 +4,6 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.encoders import jsonable_encoder
-from pydantic.tools import parse_raw_as
 
 from chafan_core.app import schemas
 from chafan_core.app.api import deps
@@ -26,7 +25,7 @@ def get_object_reactions(
     key = f"chafan:reactions:{object_type}:{object_uuid}:{current_user_id}"
     value = redis.get(key)
     if value is not None:
-        return parse_raw_as(schemas.Reactions, value)
+        return schemas.Reactions.model_validate_json(value)
     data = _get_object_reactions(
         object_type, object_uuid, current_user_id=current_user_id
     )

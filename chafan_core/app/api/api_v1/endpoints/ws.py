@@ -45,10 +45,8 @@ async def ws(websocket: WebSocket, token: str = Query(...)) -> Any:
             try:
                 while True:
                     method_frame, _, body = chan.basic_get(queue)
-                    if method_frame and body:
-                        await ws_connections.manager.send_message(
-                            body.decode(), user_id
-                        )
+                    if method_frame and body and method_frame.delivery_tag:
+                        await ws_connections.manager.send_message(body, user_id)
                         chan.basic_ack(method_frame.delivery_tag)
                     else:
                         await asyncio.sleep(10)

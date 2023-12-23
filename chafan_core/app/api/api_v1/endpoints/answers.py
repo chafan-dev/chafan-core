@@ -240,7 +240,7 @@ def _update_answer(
     else:
         if answer.is_published:
             archive = models.Archive(
-                editor=answer.editor,  # type: ignore
+                editor=answer.editor,
                 answer_id=answer.id,
                 body=answer.body,
                 created_at=answer.updated_at,

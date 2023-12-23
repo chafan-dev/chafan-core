@@ -164,8 +164,8 @@ def cache_matrices() -> None:
     def f(broker: DataBroker) -> None:
         l = CachedLayer(broker)
         l.get_follow_follow_fanout()
-        for t in EntityType._member_map_.values():  # type: ignore
-            l.get_entity_similarity_matrix(t)
+        for t in EntityType._member_map_.values():
+            l.get_entity_similarity_matrix(t)  # type: ignore
         for u in crud.user.get_all_active_users(l.get_db()):
             l.get_user_contributions(u)
 

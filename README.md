@@ -13,6 +13,8 @@ Under active construction!! 🚧
 - VS Code
 - Postgre DB for development, with a new user
   - macOS: https://postgresapp.com
+  - Remember to add the command line utils to `$PATH`.
+  - Run `create database chafan_dev;`.
 - Redis for developement
   - macOS: https://redis.io/docs/getting-started/installation/install-redis-on-mac-os/
 - RabbitMQ for development:
@@ -81,7 +83,13 @@ bash scripts/reset_app_state.sh
 Test a single file:
 
 ```
-pytest chafan_core/tests/api/api_v1/test_sites.py
+scripts/run-unit-tests.sh
+```
+
+Test all:
+
+```
+pytest
 ```
 
 ## RabbitMQ dev setup in macOS

@@ -254,7 +254,7 @@ def update_article(
                 article_id=article.id,
                 title=article.title,
                 body=article.body,
-                editor=article.editor,  # type: ignore
+                editor=article.editor,
                 created_at=article.updated_at,
             )
             cached_layer.get_db().add(archive)

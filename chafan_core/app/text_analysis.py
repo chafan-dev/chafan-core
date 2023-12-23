@@ -92,7 +92,7 @@ def update_user_keywords(db: Session, user: models.User) -> None:
         user.article_columns,
     ]
     for cluster in keyword_clusters:
-        for entity in cluster:  # type: ignore
+        for entity in cluster:
             if entity.keywords:
                 keywords.extend(entity.keywords)
     if user.profession_topics:

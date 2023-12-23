@@ -19,7 +19,7 @@ class AnswerSuggestEditInDB(BaseModel):
     accepted_diff_base: Optional[RichText]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class AnswerSuggestEdit(AnswerSuggestEditInDB):
