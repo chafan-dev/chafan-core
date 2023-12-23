@@ -20,6 +20,7 @@ AUDIT_LOG_API_TYPE = Literal[
     "scheduled/force_refresh_all_index",
 ]
 
+
 # Properties to receive via API on creation
 class AuditLogCreate(BaseModel):
     pass
@@ -36,7 +37,7 @@ class AuditLogInDBBase(BaseModel):
     ipaddr: str
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class AuditLog(AuditLogInDBBase):

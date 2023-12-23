@@ -76,7 +76,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             email=obj_in.email,
             hashed_password=get_password_hash(obj_in.password),
             full_name=obj_in.full_name,
-            handle=handle,  # type: ignore
+            handle=handle,
             is_superuser=obj_in.is_superuser,
             remaining_coins=initial_coins,
             created_at=utc_now,
@@ -126,8 +126,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return db.query(User).filter_by(id=settings.VISITOR_USER_ID).first()
 
     def add_follower(self, db: Session, *, db_obj: User, follower: User) -> User:
-        if follower not in db_obj.followers:  # type: ignore
-            db_obj.followers.append(follower)  # type: ignore
+        if follower not in db_obj.followers:
+            db_obj.followers.append(follower)
             db.commit()
             db.refresh(db_obj)
             db.add(
@@ -141,8 +141,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return db_obj
 
     def remove_follower(self, db: Session, *, db_obj: User, follower: User) -> User:
-        if follower in db_obj.followers:  # type: ignore
-            db_obj.followers.remove(follower)  # type: ignore
+        if follower in db_obj.followers:
+            db_obj.followers.remove(follower)
             db.commit()
             db.refresh(db_obj)
             assert db_obj not in follower.followed

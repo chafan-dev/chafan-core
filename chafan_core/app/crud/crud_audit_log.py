@@ -49,7 +49,7 @@ class CRUDAuditLog(CRUDBase[AuditLog, AuditLogCreate, AuditLogUpdate]):
             user_id=user_id,
             created_at=datetime.datetime.now(tz=datetime.timezone.utc),
             request_info=request_info,
-        )  # type: ignore
+        )
         db.add(db_obj)
         db.commit()
 

@@ -19,7 +19,7 @@ class ArticleArchiveInDB(BaseModel):
     editor: editor_T
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ArticleArchive(ArticleArchiveInDB):

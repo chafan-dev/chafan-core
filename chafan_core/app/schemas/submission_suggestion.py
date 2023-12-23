@@ -23,7 +23,7 @@ class SubmissionSuggestionInDB(BaseModel):
     topics: Optional[List[Topic]] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class SubmissionSuggestion(SubmissionSuggestionInDB):

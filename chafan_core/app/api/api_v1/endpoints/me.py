@@ -315,7 +315,7 @@ def follow_user(
     )
     data = schemas.UserFollows(
         user_uuid=uuid,
-        followers_count=followed_user.followers.count(),  # type: ignore
+        followers_count=followed_user.followers.count(),
         followed_count=followed_user.followed.count(),  # type: ignore
         followed_by_me=True,
     )
@@ -344,7 +344,7 @@ def cancel_follow_user(
     )
     data = schemas.UserFollows(
         user_uuid=uuid,
-        followers_count=followed_user.followers.count(),  # type: ignore
+        followers_count=followed_user.followers.count(),
         followed_count=followed_user.followed.count(),  # type: ignore
         followed_by_me=False,
     )
@@ -359,7 +359,7 @@ def get_user_channels(
     Get a user's all channels.
     """
     current_user = cached_layer.get_current_active_user()
-    return [cached_layer.channel_schema_from_orm(ch) for ch in current_user.channels]  # type: ignore
+    return [cached_layer.channel_schema_from_orm(ch) for ch in current_user.channels]
 
 
 @router.get("/article-columns/", response_model=List[schemas.ArticleColumn])
@@ -441,7 +441,7 @@ def subscribe_question(
     )
     return schemas.UserQuestionSubscription(
         question_uuid=question.uuid,
-        subscription_count=question.subscribers.count(),  # type: ignore
+        subscription_count=question.subscribers.count(),
         subscribed_by_me=(question in current_user.subscribed_questions),
     )
 
@@ -470,7 +470,7 @@ def unsubscribe_question(
     )
     return schemas.UserQuestionSubscription(
         question_uuid=question.uuid,
-        subscription_count=question.subscribers.count(),  # type: ignore
+        subscription_count=question.subscribers.count(),
         subscribed_by_me=(question in current_user.subscribed_questions),
     )
 
@@ -500,7 +500,7 @@ def get_user_submission_subscription(
         )
     return schemas.UserSubmissionSubscription(
         submission_uuid=submission.uuid,
-        subscription_count=submission.subscribers.count(),  # type: ignore
+        subscription_count=submission.subscribers.count(),
         subscribed_by_me=(submission in current_user.subscribed_submissions),
     )
 
@@ -553,7 +553,7 @@ def subscribe_submission(
     )
     return schemas.UserSubmissionSubscription(
         submission_uuid=submission.uuid,
-        subscription_count=submission.subscribers.count(),  # type: ignore
+        subscription_count=submission.subscribers.count(),
         subscribed_by_me=(submission in current_user.subscribed_submissions),
     )
 
@@ -583,7 +583,7 @@ def unsubscribe_submission(
     )
     return schemas.UserSubmissionSubscription(
         submission_uuid=submission.uuid,
-        subscription_count=submission.subscribers.count(),  # type: ignore
+        subscription_count=submission.subscribers.count(),
         subscribed_by_me=(submission in current_user.subscribed_submissions),
     )
 
@@ -626,7 +626,7 @@ def bookmark_answer(
     current_user = crud.user.bookmark_answer(db, db_obj=current_user, answer=answer)
     return schemas.UserAnswerBookmark(
         answer_uuid=answer.uuid,
-        bookmarkers_count=answer.bookmarkers.count(),  # type: ignore
+        bookmarkers_count=answer.bookmarkers.count(),
         bookmarked_by_me=(answer in current_user.bookmarked_answers),
     )
 
@@ -648,7 +648,7 @@ def unbookmark_answer(
     current_user = crud.user.unbookmark_answer(db, db_obj=current_user, answer=answer)
     return schemas.UserAnswerBookmark(
         answer_uuid=answer.uuid,
-        bookmarkers_count=answer.bookmarkers.count(),  # type: ignore
+        bookmarkers_count=answer.bookmarkers.count(),
         bookmarked_by_me=(answer in current_user.bookmarked_answers),
     )
 
@@ -690,7 +690,7 @@ def bookmark_article(
     current_user = crud.user.bookmark_article(db, db_obj=current_user, article=article)
     return schemas.UserArticleBookmark(
         article_uuid=article.uuid,
-        bookmarkers_count=article.bookmarkers.count(),  # type: ignore
+        bookmarkers_count=article.bookmarkers.count(),
         bookmarked_by_me=(article in current_user.bookmarked_articles),
     )
 
@@ -714,7 +714,7 @@ def unbookmark_article(
     )
     return schemas.UserArticleBookmark(
         article_uuid=article.uuid,
-        bookmarkers_count=article.bookmarkers.count(),  # type: ignore
+        bookmarkers_count=article.bookmarkers.count(),
         bookmarked_by_me=(article in current_user.bookmarked_articles),
     )
 
@@ -741,7 +741,7 @@ def get_user_topic_subscription(
         )
     return schemas.UserTopicSubscription(
         topic_uuid=topic.uuid,
-        subscription_count=topic.subscribers.count(),  # type: ignore
+        subscription_count=topic.subscribers.count(),
         subscribed_by_me=(topic in current_user.subscribed_topics),
     )
 
@@ -768,7 +768,7 @@ def subscribe_topic(
     current_user = crud.user.subscribe_topic(db, db_obj=current_user, topic=topic)
     return schemas.UserTopicSubscription(
         topic_uuid=topic.uuid,
-        subscription_count=topic.subscribers.count(),  # type: ignore
+        subscription_count=topic.subscribers.count(),
         subscribed_by_me=(topic in current_user.subscribed_topics),
     )
 
@@ -795,7 +795,7 @@ def unsubscribe_topic(
     current_user = crud.user.unsubscribe_topic(db, db_obj=current_user, topic=topic)
     return schemas.UserTopicSubscription(
         topic_uuid=topic.uuid,
-        subscription_count=topic.subscribers.count(),  # type: ignore
+        subscription_count=topic.subscribers.count(),
         subscribed_by_me=(topic in current_user.subscribed_topics),
     )
 
@@ -825,7 +825,7 @@ def get_user_article_column_subscription(
         )
     return schemas.UserArticleColumnSubscription(
         article_column_uuid=article_column.uuid,
-        subscription_count=article_column.subscribers.count(),  # type: ignore
+        subscription_count=article_column.subscribers.count(),
         subscribed_by_me=(article_column in current_user.subscribed_article_columns),
     )
 
@@ -872,7 +872,7 @@ def subscribe_article_column(
     )
     return schemas.UserArticleColumnSubscription(
         article_column_uuid=article_column.uuid,
-        subscription_count=article_column.subscribers.count(),  # type: ignore
+        subscription_count=article_column.subscribers.count(),
         subscribed_by_me=(article_column in current_user.subscribed_article_columns),
     )
 

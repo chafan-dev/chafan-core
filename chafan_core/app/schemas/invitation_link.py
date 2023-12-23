@@ -18,7 +18,7 @@ class InvitationLinkInDB(BaseModel):
     remaining_quota: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class InvitationLink(InvitationLinkInDB):

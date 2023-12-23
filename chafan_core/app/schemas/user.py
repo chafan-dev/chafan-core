@@ -25,7 +25,7 @@ from chafan_core.utils.validators import (
 class UserBase(BaseModel):
     is_active: bool = True
     is_superuser: bool = False
-    full_name: Optional[StrippedNonEmptyStr]
+    full_name: Optional[StrippedNonEmptyStr] = None
 
 
 # Properties to receive via API on creation
@@ -110,26 +110,26 @@ class UserInDBBase(UserBase):
     karma: int
     email: CaseInsensitiveEmailStr
     secondary_emails: List[CaseInsensitiveEmailStr] = []
-    avatar_url: Optional[AnyHttpUrl]
+    avatar_url: Optional[AnyHttpUrl] = None
     handle: StrippedNonEmptyBasicStr
-    about: Optional[str]
+    about: Optional[str] = None
     created_at: datetime.datetime
     residency_topics: List[Topic]
-    profession_topic: Optional[Topic]
+    profession_topic: Optional[Topic] = None
     remaining_coins: int
-    personal_introduction: Optional[str]
-    github_username: Optional[str]
-    twitter_username: Optional[str]
-    linkedin_url: Optional[AnyHttpUrl]
-    zhihu_url: Optional[AnyHttpUrl]
-    homepage_url: Optional[AnyHttpUrl]
-    locale_preference: Optional[str]
+    personal_introduction: Optional[str] = None
+    github_username: Optional[str] = None
+    twitter_username: Optional[str] = None
+    linkedin_url: Optional[AnyHttpUrl] = None
+    zhihu_url: Optional[AnyHttpUrl] = None
+    homepage_url: Optional[AnyHttpUrl] = None
+    locale_preference: Optional[str] = None
     enable_deliver_unread_notifications: bool
-    feed_settings: Optional[UserFeedSettings]
+    feed_settings: Optional[UserFeedSettings] = None
     default_editor_mode: editor_T
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserPublicForVisitor(UserPreview):
@@ -159,7 +159,6 @@ class UserPublic(UserPublicForVisitor):
     homepage_url: Optional[AnyHttpUrl] = None
     zhihu_url: Optional[AnyHttpUrl] = None
     subscribed_topics: List[Topic]
-    follows: Optional[UserFollows] = None
     work_exps: List[UserWorkExperience] = []
     edu_exps: List[UserEducationExperience] = []
     contributions: Optional[List[YearContributions]] = None
@@ -170,7 +169,7 @@ class User(UserInDBBase):
     flag_list: List[str]
     can_create_public_site: bool
     can_create_private_site: bool
-    phone_number: Optional[IntlPhoneNumber]
+    phone_number: Optional[IntlPhoneNumber] = None
 
 
 class UserQuestionSubscription(BaseModel):

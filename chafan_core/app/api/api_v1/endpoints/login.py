@@ -11,7 +11,7 @@ from fastapi.param_functions import Form
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from parsel.selector import Selector
-from pydantic.tools import parse_obj_as, parse_raw_as
+from pydantic import TypeAdapter
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
@@ -116,7 +116,7 @@ def login_access_token(
         if hcaptcha_token is None:
             raise HTTPException_(status_code=400, detail="Missing hCaptcha token")
         _verify_hcaptcha(hcaptcha_token)
-    email = CaseInsensitiveEmailStr.validate(form_data.username)
+    email = CaseInsensitiveEmailStr._validate(form_data.username)  # type: ignore
     user = crud.user.authenticate(
         db, email=email, password=SecretStr(form_data.password)
     )
@@ -429,9 +429,13 @@ def compute_score_of_form_response(
     full_score = 0
     indexed_response_fields = {
         f.unique_name: f
-        for f in parse_obj_as(List[FormResponseField], form_response.response_fields)
+        for f in TypeAdapter(List[FormResponseField]).validate_python(
+            form_response.response_fields
+        )
     }
-    for form_field in parse_obj_as(List[FormField], form_response.form.form_fields):
+    for form_field in TypeAdapter(List[FormField]).validate_python(
+        form_response.form.form_fields
+    ):
         assert form_field.unique_name in indexed_response_fields
         response_field = indexed_response_fields[form_field.unique_name]
         if isinstance(form_field.field_type, TextField):
@@ -525,7 +529,7 @@ def get_category_topics() -> Any:
     key = "chafan:category-topics"
     value = redis.get(key)
     if value is not None:
-        return parse_raw_as(List[schemas.Topic], value)
+        return TypeAdapter(List[schemas.Topic]).validate_json(value)
 
     def runnable(db: Session) -> List[schemas.Topic]:
         data = [schemas.Topic.from_orm(t) for t in crud.topic.get_category_topics(db)]

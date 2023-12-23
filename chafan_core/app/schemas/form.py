@@ -81,7 +81,7 @@ class FormInDBBase(FormBase):
     updated_at: datetime.datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Form(FormInDBBase):

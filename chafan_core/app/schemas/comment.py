@@ -15,20 +15,20 @@ class CommentBase(BaseModel):
 # Properties to receive via API on creation
 class CommentCreate(CommentBase):
     content: RichText
-    question_uuid: Optional[str]
-    submission_uuid: Optional[str]
-    answer_uuid: Optional[str]
-    article_uuid: Optional[str]
-    parent_comment_uuid: Optional[str]
-    mentioned: Optional[List[str]]
+    question_uuid: Optional[str] = None
+    submission_uuid: Optional[str] = None
+    answer_uuid: Optional[str] = None
+    article_uuid: Optional[str] = None
+    parent_comment_uuid: Optional[str] = None
+    mentioned: Optional[List[str]] = None
     shared_to_timeline: bool = False
 
 
 # Properties to receive via API on update
 class CommentUpdate(CommentBase):
-    content: Optional[RichText]
+    content: Optional[RichText] = None
     shared_to_timeline: Optional[Literal[True]] = None
-    mentioned: Optional[List[str]]
+    mentioned: Optional[List[str]] = None
 
 
 class CommentInDBBase(CommentBase):
@@ -39,7 +39,7 @@ class CommentInDBBase(CommentBase):
     upvotes_count: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Additional properties to return via API

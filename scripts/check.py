@@ -7,7 +7,7 @@ from chafan_core.app.schemas.event import Event
 
 _event_verbs = []
 
-for k, v in Event.schema()["definitions"].items():
+for k, v in Event.model_json_schema()["$defs"].items():
     if k == "ContentVisibility":
         continue
     if "properties" not in v:

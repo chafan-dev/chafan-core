@@ -30,7 +30,7 @@ class TaskInDB(BaseModel):
     status: TaskStatus
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Task(TaskInDB):

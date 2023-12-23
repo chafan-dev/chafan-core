@@ -317,7 +317,7 @@ class Materializer(object):
             subscribed = False
         return schemas.UserArticleColumnSubscription(
             article_column_uuid=article_column.uuid,
-            subscription_count=article_column.subscribers.count(),  # type: ignore
+            subscription_count=article_column.subscribers.count(),
             subscribed_by_me=subscribed,
         )
 
@@ -555,7 +555,7 @@ class Materializer(object):
         d["comments"] = filter_not_none(
             [self.comment_schema_from_orm(c) for c in article.comments]
         )
-        d["bookmark_count"] = article.bookmarkers.count()  # type: ignore
+        d["bookmark_count"] = article.bookmarkers.count()
         principal = crud.user.get(self.broker.get_db(), id=self.principal_id)
         assert principal is not None
         d["bookmarked"] = article in principal.bookmarked_articles
@@ -807,7 +807,7 @@ class Materializer(object):
         d["question"] = self.preview_of_question(answer.question)
         d["upvoted"] = upvoted
         d["comment_writable"] = comment_writable
-        d["bookmark_count"] = answer.bookmarkers.count()  # type: ignore
+        d["bookmark_count"] = answer.bookmarkers.count()
         d["archives_count"] = len(answer.archives)
         principal = crud.user.get(db, id=self.principal_id)
         assert principal is not None

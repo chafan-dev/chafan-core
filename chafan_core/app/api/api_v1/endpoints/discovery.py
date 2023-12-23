@@ -4,7 +4,7 @@ from typing import Any, List, Union
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.encoders import jsonable_encoder
-from pydantic.tools import parse_raw_as
+from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
@@ -34,7 +34,7 @@ def pinned_questions(
     key = f"chafan:api:/discovery/pinned-questions"
     value = redis.get(key)
     if value:
-        return parse_raw_as(List[schemas.QuestionPreviewForVisitor], value)
+        return TypeAdapter(List[schemas.QuestionPreviewForVisitor]).validate_json(value)
 
     def runnable(db: Session) -> List[schemas.QuestionPreviewForVisitor]:
         questions = crud.question.get_placed_at_home(db)
@@ -102,9 +102,11 @@ def get_pending_questions(
     value = redis.get(key)
     if value is not None:
         if cached_layer.principal_id:
-            return parse_raw_as(List[schemas.QuestionPreview], value)
+            return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
         else:
-            return parse_raw_as(List[schemas.QuestionPreviewForVisitor], value)
+            return TypeAdapter(List[schemas.QuestionPreviewForVisitor]).validate_json(
+                value
+            )
     data = _get_pending_questions(cached_layer)
     if not is_dev():
         redis.set(

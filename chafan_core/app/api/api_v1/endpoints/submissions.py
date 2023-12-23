@@ -23,6 +23,7 @@ from chafan_core.utils.base import HTTPException_, filter_not_none
 
 router = APIRouter()
 
+
 # TODO: paging
 @router.get(
     "/",
@@ -172,7 +173,7 @@ def _update_submission(
         submission_id=submission.id,
         title=submission.title,
         description=submission.description,
-        description_editor=submission.description_editor,  # type: ignore
+        description_editor=submission.description_editor,
         description_text=submission.description_text,
         topic_uuids=[t.uuid for t in submission.topics],
         created_at=submission.updated_at,

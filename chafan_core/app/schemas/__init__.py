@@ -1,5 +1,9 @@
 # flake8: noqa
 
+from typing import Optional
+
+from pydantic import BaseModel
+
 from .activity import (
     Activity,
     FeedSequence,
@@ -98,14 +102,7 @@ from .question_page import QuestionPage, QuestionPageFlags
 from .reaction import Reaction, Reactions
 from .report import Report, ReportCreate, ReportInDBBase, ReportUpdate
 from .reward import Reward, RewardCreate, RewardInDBBase, RewardUpdate
-from .site import (
-    CreateSiteResponse,
-    Site,
-    SiteCreate,
-    SiteInDB,
-    SiteInDBBase,
-    SiteUpdate,
-)
+from .site import Site, SiteCreate, SiteInDB, SiteInDBBase, SiteUpdate
 from .submission import (
     Submission,
     SubmissionCreate,
@@ -155,3 +152,8 @@ from .webhook import (
     WebhookInDB,
     WebhookUpdate,
 )
+
+
+class CreateSiteResponse(BaseModel):
+    created_site: Optional[Site] = None
+    application_channel: Optional[Channel] = None

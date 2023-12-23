@@ -12,10 +12,10 @@ class FeedbackInDBBase(BaseModel):
     created_at: datetime.datetime
     description: str
     status: feedback_status_T
-    location_url: Optional[str]
+    location_url: Optional[str] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Feedback(FeedbackInDBBase):

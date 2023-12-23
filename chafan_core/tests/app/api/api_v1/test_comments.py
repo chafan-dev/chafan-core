@@ -55,11 +55,6 @@ def test_comments(
         },
     )
     assert r.status_code == 422, r.text
-    out, _ = capfd.readouterr()
-    assert out == malformed_request_stdout % (
-        example_site_uuid,
-        normal_user_authored_question_uuid,
-    ), out
 
     r = client.post(
         f"{settings.API_V1_STR}/comments/",

@@ -1,7 +1,8 @@
 import re
 
-from pydantic.networks import EmailStr
+from pydantic import AfterValidator, EmailStr
 from pydantic.types import SecretStr
+from typing_extensions import Annotated
 
 from chafan_core.utils.base import UUID_LENGTH, HTTPException_
 
@@ -57,38 +58,38 @@ def check_password(password: SecretStr) -> None:
         raise HTTPException_(status_code=400, detail=e.args[0])
 
 
-class CaseInsensitiveEmailStr(EmailStr):
-    @classmethod
-    def validate(cls, value: str) -> str:
-        return EmailStr.validate(value).lower()
+CaseInsensitiveEmailStr = Annotated[EmailStr, AfterValidator(lambda x: x.lower())]
 
 
-class StrippedNonEmptyStr(str):
-    @classmethod
-    def validate(cls, value: str) -> "StrippedNonEmptyStr":
-        stripped = value.strip()
-        assert len(stripped) > 0, "must be non-empty string"
-        return StrippedNonEmptyStr(stripped)
+def validate_StrippedNonEmptyStr(value: str) -> str:
+    stripped = value.strip()
+    assert len(stripped) > 0, "must be non-empty string"
+    return stripped
 
 
-class StrippedNonEmptyBasicStr(str):
-    @classmethod
-    def validate(cls, value: str) -> str:
-        stripped = value.strip()
-        assert len(stripped) > 0, "must be non-empty string"
-        if not re.fullmatch(r"[a-zA-Z0-9-_]+", stripped):
-            raise ValueError(
-                "Only alphanumeric, underscore or hyphen is allowed in ID."
-            )
-        return stripped
+StrippedNonEmptyStr = Annotated[str, AfterValidator(validate_StrippedNonEmptyStr)]
+
+
+def validate_StrippedNonEmptyBasicStr(value: str) -> str:
+    stripped = value.strip()
+    assert len(stripped) > 0, "must be non-empty string"
+    if not re.fullmatch(r"[a-zA-Z0-9-_]+", stripped):
+        raise ValueError("Only alphanumeric, underscore or hyphen is allowed in ID.")
+    return stripped
+
+
+StrippedNonEmptyBasicStr = Annotated[
+    str, AfterValidator(validate_StrippedNonEmptyBasicStr)
+]
 
 
 _uuid_alphabet = set("23456789ABCDEFGHJKLMNPQRSTUVWXYZ" "abcdefghijkmnopqrstuvwxyz")
 
 
-class UUID(str):
-    @classmethod
-    def validate(cls, value: str) -> str:
-        assert len(value) == UUID_LENGTH, "invalid UUID length"
-        assert all([c in _uuid_alphabet for c in value])
-        return value
+def validate_UUID(value: str) -> str:
+    assert len(value) == UUID_LENGTH, "invalid UUID length"
+    assert all([c in _uuid_alphabet for c in value])
+    return value
+
+
+UUID = Annotated[str, validate_UUID]

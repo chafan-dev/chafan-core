@@ -5,15 +5,15 @@ import re
 import traceback
 from typing import Any, Mapping, NamedTuple, Optional, Tuple
 
-import arrow  # type: ignore
+import arrow
 import redis
 import sentry_sdk
 from fastapi import Header, Request
 from html2text import HTML2Text
 from jinja2 import Template
 from jose import jwt
-from pymongo import MongoClient  # type: ignore
-from pymongo.database import Database as MongoDB  # type: ignore
+from pymongo import MongoClient
+from pymongo.database import Database as MongoDB
 
 from chafan_core.app import schemas
 from chafan_core.app.config import settings
@@ -32,6 +32,7 @@ class OperationType(enum.Enum):
 
 
 _redis_pool: Optional[redis.Redis] = None
+
 
 # NOTE: try sharing the redis connections
 def get_redis_cli() -> redis.Redis:

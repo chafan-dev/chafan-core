@@ -25,7 +25,7 @@ class ProfileInDBBase(ProfileBase):
     karma: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # Additional properties to return via API

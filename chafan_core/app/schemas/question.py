@@ -52,7 +52,7 @@ class QuestionInDBBase(QuestionBase):
     keywords: Optional[List[str]]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class QuestionUpvotes(BaseModel):
@@ -99,8 +99,6 @@ class QuestionPreviewForVisitor(BaseModel):
 
 
 class QuestionPreview(QuestionPreviewForVisitor):
-    from chafan_core.app.schemas.site import Site
-
     site: Site
     upvotes_count: int
     comments_count: int

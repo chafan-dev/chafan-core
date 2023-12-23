@@ -5,7 +5,6 @@ from typing import Any, Optional, Union
 from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
-from pydantic import parse_raw_as
 
 from chafan_core.app import schemas
 from chafan_core.app.api import deps
@@ -52,7 +51,7 @@ async def get_feed(
     if value:
         return _update_feed_seq(
             cached_layer,
-            parse_raw_as(schemas.FeedSequence, value),
+            schemas.FeedSequence.model_validate_json(value),
             full_answers=full_answers,
         )
     activities = get_activities(

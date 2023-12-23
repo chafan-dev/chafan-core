@@ -223,7 +223,7 @@ def update_question(
         title=question.title,
         description=question.description,
         description_text=question.description_text,
-        description_editor=question.description_editor,  # type: ignore
+        description_editor=question.description_editor,
         created_at=question.updated_at,
         editor_id=editor_id,
     )

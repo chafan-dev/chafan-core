@@ -52,10 +52,10 @@ def get_activity_dist_info(
         return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
 
     if hasattr(event.content, "subject_id"):
-        subject = crud.user.get(read_db, id=event.content.subject_id)  # type: ignore
+        subject = crud.user.get(read_db, id=event.content.subject_id)
         assert subject is not None
         subject_user_uuid = subject.uuid
-        for follower in subject.followers:  # type: ignore
+        for follower in subject.followers:
             receivers[follower.id] = follower
     if isinstance(event.content, CreateQuestionInternal):
         question = crud.question.get(read_db, id=event.content.question_id)
@@ -72,13 +72,13 @@ def get_activity_dist_info(
     elif isinstance(event.content, CreateArticleInternal):
         article = crud.article.get(read_db, id=event.content.article_id)
         assert article is not None
-        for user in article.article_column.subscribers:  # type: ignore
+        for user in article.article_column.subscribers:
             if user.id != event.content.subject_id:
                 receivers[user.id] = user
     elif isinstance(event.content, AnswerQuestionInternal):
         answer = crud.answer.get(read_db, id=event.content.answer_id)
         assert answer is not None
-        for user in answer.question.subscribers:  # type: ignore
+        for user in answer.question.subscribers:
             if user.id != event.content.subject_id:
                 receivers[user.id] = user
     elif isinstance(event.content, UpvoteAnswerInternal):
@@ -116,7 +116,7 @@ def get_activity_dist_info(
             read_db, id=event.content.article_column_id
         )
         assert article_column is not None
-        for user in article_column.subscribers:  # type: ignore
+        for user in article_column.subscribers:
             if user.id in receivers:
                 del receivers[user.id]
         if article_column.owner_id in receivers:

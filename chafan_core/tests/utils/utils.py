@@ -12,8 +12,8 @@ from chafan_core.utils.validators import (
     StrippedNonEmptyBasicStr,
 )
 
-EMAIL_TEST_USER = CaseInsensitiveEmailStr("test@example.com")
-EMAIL_TEST_MODERATOR = CaseInsensitiveEmailStr("mod@example.com")
+EMAIL_TEST_USER = "test@example.com"
+EMAIL_TEST_MODERATOR = "mod@example.com"
 
 
 def random_short_lower_string() -> StrippedNonEmptyBasicStr:
@@ -31,9 +31,7 @@ def random_password() -> SecretStr:
 
 
 def random_email() -> CaseInsensitiveEmailStr:
-    return CaseInsensitiveEmailStr(
-        f"{random_lower_string()}@{random_lower_string()}.com"
-    )
+    return f"{random_lower_string()}@{random_lower_string()}.com"
 
 
 def get_superuser_token_headers(client: TestClient) -> Dict[str, str]:
