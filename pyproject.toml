@@ -36,7 +36,7 @@ pydantic = {extras = ["email"], version = "^2.5.3"}
 psycopg2 = "^2.9.9"
 passlib = {extras = ["bcrypt"], version = "^1.7.4"}
 requests = "^2.31.0"
-python-multipart = "^0.0.6"
+python-multipart = "^0.0.7"
 emails = "^0.6"
 sqlalchemy = {extras = ["mypy"], version = "^2.0.23"}
 httpx = "^0.26.0"
