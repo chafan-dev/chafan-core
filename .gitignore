@@ -1,3 +1,6 @@
+# Nix related
+flake.lock
+
 # Project specific
 .env
 
