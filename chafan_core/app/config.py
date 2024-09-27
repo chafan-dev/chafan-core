@@ -2,8 +2,8 @@ import os
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import boto3
-import sentry_dramatiq  # type: ignore
 import sentry_sdk
+from sentry_sdk.integrations.dramatiq import DramatiqIntegration
 from pydantic import AnyHttpUrl, validator
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings
@@ -153,6 +153,6 @@ if settings.SENTRY_DSN:
         integrations=[
             RedisIntegration(),
             SqlalchemyIntegration(),
-            sentry_dramatiq.DramatiqIntegration(),
+            DramatiqIntegration(),
         ],
     )
