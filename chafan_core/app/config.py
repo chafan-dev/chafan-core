@@ -112,10 +112,13 @@ class Settings(BaseSettings):
 
 setting_keys = set(Settings.schema()["properties"].keys())
 
+
+_ENV = os.environ.get("ENV")
+
+'''
 _AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 _AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 _AWS_REGION = os.environ.get("AWS_REGION")
-_ENV = os.environ.get("ENV")
 
 if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "prod":
     # Override some env vars from parameter store
@@ -136,13 +139,16 @@ if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "pr
             if "ParameterNotFound" in str(e):
                 continue
             print(setting_key, type(e))
+'''
 
 
 settings = Settings()
 
+'''
 # TODO: migrate
 if settings.AWS_CLOUDFRONT_HOST is None:
     settings.AWS_CLOUDFRONT_HOST = settings.CLOUDFRONT_HOST
+'''
 
 
 def get_mq_url() -> str:
