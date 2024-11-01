@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
-from emails.template import JinjaTemplate  # type: ignore
+#from emails.template import JinjaTemplate  # type: ignore
 
 from chafan_core.app import schemas
 from chafan_core.app.aws_ses import send_email_ses
@@ -20,7 +20,8 @@ def send_email(
     environment: Dict[str, Any] = {},
 ) -> None:
     assert settings.EMAILS_ENABLED, "no provided configuration for email variables"
-    body_html = JinjaTemplate(html_template).render(**environment)
+    body_html = html_template
+    #body_html = JinjaTemplate(html_template).render(**environment)
     if is_dev():
         mailbox_dir = f"/tmp/chafan/mailbox/{email_to}/"
         os.makedirs(mailbox_dir, exist_ok=True)
