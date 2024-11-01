@@ -1,15 +1,17 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    nixpkgs-23.url = "github:nixos/nixpkgs/nixos-22.05";
+    nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
+    #nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
+    #nixpkgs-23.url = "github:nixos/nixpkgs/nixos-22.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
-  outputs = { self, nixpkgs, flake-utils , nixpkgs-23}: {
+  outputs = { self, nixpkgs, nixpkgs-unstable, flake-utils}: {
     devShell.x86_64-linux =
         let
-            pkgs = nixpkgs.legacyPackages.x86_64-linux;
-            pkgs-old = nixpkgs-23.legacyPackages.x86_64-linux;
+            pkgs = nixpkgs-unstable.legacyPackages.x86_64-linux;
+            #pkgs_unstable = nixpkgs-unstable.legacyPackages.x86_64-linux;
         in pkgs.mkShell {
+            LOCALE_ARCHIVE = if pkgs.stdenv.isLinux then "${pkgs.glibcLocales}/lib/locale/locale-archive" else "";
             buildInputs = [
             pkgs.python312
 #            pkgs.poetry
@@ -19,7 +21,6 @@
             pkgs.python312Packages.slowapi
             pkgs.python312Packages.shortuuid
             pkgs.python312Packages.starlette
-            pkgs.python312Packages.sqlalchemy
             pkgs.python312Packages.pytz
             pkgs.python312Packages.python-jose
             pkgs.python312Packages.passlib
@@ -32,10 +33,32 @@
             pkgs.python312Packages.pydantic
             pkgs.python312Packages.pydantic-settings
             pkgs.python312Packages.email-validator
-#            pkgs.python312Packages.alembic
+
+            pkgs.python312Packages.requests
+            pkgs.python312Packages.arrow
+            pkgs.python312Packages.redis
+            pkgs.python312Packages.html2text
+            pkgs.python312Packages.jinja2
+            pkgs.python312Packages.pymongo
+            pkgs.python312Packages.alembic
+            pkgs.redis
+
+            pkgs.python312Packages.jieba
+            pkgs.python312Packages.whoosh
+
+            pkgs.python312Packages.sqlalchemy
+            pkgs.python312Packages.psycopg2
+
+            pkgs.python312Packages.pika
+            pkgs.python312Packages.python-multipart
+            pkgs.python312Packages.parsel
+
+            pkgs.python312Packages.websockets
+
 #
 #
-#            pkgs.postgresql
+            pkgs.postgresql_14
+            pkgs.pgadmin4
             ];
         };
   };
