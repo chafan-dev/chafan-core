@@ -60,19 +60,21 @@ async def custom_validation_exception_handler(
         sentry_sdk.capture_message(err_msg)
     return await request_validation_exception_handler(request, exc)
 
-
-# Set all CORS enabled origins
-if settings.BACKEND_CORS_ORIGINS:
-    origins = settings.BACKEND_CORS_ORIGINS
-    if settings.AWS_CLOUDFRONT_HOST:
-        origins.append(settings.AWS_CLOUDFRONT_HOST)  # type: ignore
+def set_backend_cors_origins():
+    origins = []
+    if settings.DEBUG_BYPASS_BACKEND_CORS == 'magic':
+        origins.append('*')
+    for host in settings.CHAFAN_BACKEND_CORS_ORIGINS.split(','):
+        origins.append(host)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in origins],
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+set_backend_cors_origins()
 
 app.include_router(health.router)
 app.include_router(api_router, prefix=settings.API_V1_STR)

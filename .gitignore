@@ -1,5 +1,20 @@
+# DB related
+dump.rdb
+
+
+# log
+logfile
+
+# Nix related
+flake.lock
+
+
 # Project specific
+.pgsql.env
+.launch_env
+
 .env
+.env.bak.*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

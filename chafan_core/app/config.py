@@ -2,8 +2,8 @@ import os
 from typing import Any, Dict, List, Literal, Optional, Union
 
 import boto3
-import sentry_dramatiq  # type: ignore
 import sentry_sdk
+from sentry_sdk.integrations.dramatiq import DramatiqIntegration
 from pydantic import AnyHttpUrl, validator
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings
@@ -67,9 +67,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 60
     API_SERVER_SCHEME: str = "https"
 
+    # TODO This config is deprecated. To be removed - 2024 Oct
     # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
     # e.g: '["http://localhost"]'
     BACKEND_CORS_ORIGINS: List[str] = []
+
+    DEBUG_BYPASS_BACKEND_CORS: str = "false"
+    # TODO Better default value - 2024 Oct
+    CHAFAN_BACKEND_CORS_ORIGINS: str = "https://127.0.0.1:8080"
 
     HCAPTCHA_SITEKEY: str = "10000000-ffff-ffff-ffff-000000000001"
     HCAPTCHA_SECRET: str = "0x0000000000000000000000000000000000000000"
@@ -107,10 +112,13 @@ class Settings(BaseSettings):
 
 setting_keys = set(Settings.schema()["properties"].keys())
 
+
+_ENV = os.environ.get("ENV")
+
+'''
 _AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
 _AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
 _AWS_REGION = os.environ.get("AWS_REGION")
-_ENV = os.environ.get("ENV")
 
 if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "prod":
     # Override some env vars from parameter store
@@ -131,13 +139,16 @@ if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "pr
             if "ParameterNotFound" in str(e):
                 continue
             print(setting_key, type(e))
+'''
 
 
 settings = Settings()
 
+'''
 # TODO: migrate
 if settings.AWS_CLOUDFRONT_HOST is None:
     settings.AWS_CLOUDFRONT_HOST = settings.CLOUDFRONT_HOST
+'''
 
 
 def get_mq_url() -> str:
@@ -153,6 +164,6 @@ if settings.SENTRY_DSN:
         integrations=[
             RedisIntegration(),
             SqlalchemyIntegration(),
-            sentry_dramatiq.DramatiqIntegration(),
+            DramatiqIntegration(),
         ],
     )
