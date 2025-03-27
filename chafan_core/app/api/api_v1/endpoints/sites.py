@@ -50,21 +50,22 @@ def create_site(
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     needs_approval = settings.CREATE_SITE_FORCE_NEED_APPROVAL
-    if not is_dev():
-        if (
-            site_in.permission_type == "public"
-            and current_user.karma < settings.MIN_KARMA_CREATE_PUBLIC_SITE
-        ):
-            needs_approval = True
-        if (
-            site_in.permission_type == "private"
-            and current_user.karma < settings.MIN_KARMA_CREATE_PUBLIC_SITE
-        ):
-            needs_approval = True
-        if current_user.remaining_coins < settings.CREATE_SITE_COIN_DEDUCTION:
-            needs_approval = True
+    if current_user.remaining_coins < settings.CREATE_SITE_COIN_DEDUCTION:
+        needs_approval = True
+    if current_user.karma < settings.MIN_KARMA_CREATE_PUBLIC_SITE:
+        needs_approval = True
+    if site_in.permission_type != "public":
+        raise HTTPException_(
+            status_code=400,
+            detail="Not allowed to create a private site",
+        )
     if current_user.is_superuser:
         needs_approval = False
+    if needs_approval:
+        raise HTTPException_(
+            status_code=400,
+            detail="Not allowed to create site with approval (yet)",
+        )
     if needs_approval:
         admin = crud.user.get_superuser(db)
         channel = crud.channel.get_or_create_private_channel_with(
@@ -106,13 +107,10 @@ def create_site(
             )
     category_topic_id: Optional[int] = None
     if site_in.category_topic_uuid:
-        category_topic = crud.topic.get_by_uuid(db, uuid=site_in.category_topic_uuid)
-        if category_topic is None or not category_topic.is_category:
-            raise HTTPException_(
+        raise HTTPException_(
                 status_code=400,
-                detail="Invalid category topic id.",
+                detail="Attach a category topic id when creating a site is disabled.",
             )
-        category_topic_id = category_topic.id
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     super_user = crud.user.get_superuser(db)
     new_site = cached_layer.create_site(

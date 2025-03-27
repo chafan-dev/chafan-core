@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
 
+import chafan_core
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
@@ -22,28 +23,35 @@ router = APIRouter()
 
 
 @router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
-def get_article(
+async def get_article(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
 ) -> Any:
     current_user_id = cached_layer.principal_id
+    print("requesting article ", uuid)
     article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if article is None:
         raise HTTPException_(
             status_code=400,
             detail="The article doesn't exists in the system.",
         )
+    assert isinstance(article, chafan_core.app.models.article.Article)
+    print(str(article))
     data: Optional[Union[schemas.Article, schemas.ArticleForVisitor]] = None
-    if current_user_id:
-        data = cached_layer.materializer.article_schema_from_orm(article)
-    else:
-        if article.visibility != ContentVisibility.ANYONE:
-            raise HTTPException_(
-                status_code=400,
-                detail="The article doesn't exists in the system.",
-            )
-        data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
+    # TODO here has some dup code with materialize.py
+    if article.visibility != ContentVisibility.ANYONE:
+        raise HTTPException_(
+            status_code=400,
+            detail="The article has corrupted data. Please contact admin.",
+        )
+    print("current id  ", current_user_id)
+    data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
+    if False: # TODO merge these two workflow 2025-Mar-17
+        if current_user_id:
+            data = cached_layer.materializer.article_schema_from_orm(article)
+        else:
+            data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
     if data is None:
         raise HTTPException_(
             status_code=400,

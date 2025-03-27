@@ -1,6 +1,7 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
+from chafan_core.app.config import settings
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
@@ -25,8 +26,9 @@ def get_article_column(
     return cached_layer.materializer.article_column_schema_from_orm(article_column)
 
 
+# TODO This API should support limit and page 2025-Mar-23
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
-def get_article_column_articles(
+async def get_article_column_articles(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
@@ -40,7 +42,7 @@ def get_article_column_articles(
         )
     articles = article_column.articles
     if not current_user_id:
-        articles = articles[:5]
+        articles = articles[:settings.VISITORS_READ_ARTICLE_LIMIT]
     return filter_not_none(
         [cached_layer.materializer.preview_of_article(a) for a in articles]
     )

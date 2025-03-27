@@ -117,6 +117,12 @@ def login_access_token(
             raise HTTPException_(status_code=400, detail="Missing hCaptcha token")
         _verify_hcaptcha(hcaptcha_token)
     email = CaseInsensitiveEmailStr._validate(form_data.username)  # type: ignore
+    if '@cha.fan' not in email:
+        raise HTTPException_(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="System Busy",
+        )
+        
     user = crud.user.authenticate(
         db, email=email, password=SecretStr(form_data.password)
     )

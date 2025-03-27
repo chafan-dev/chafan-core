@@ -16,7 +16,7 @@ from chafan_core.utils.validators import CaseInsensitiveEmailStr
 class Settings(BaseSettings):
     ############ Common ############
     SERVER_NAME: str = "dev.cha.fan"
-    SERVER_HOST: AnyHttpUrl
+    SERVER_HOST: AnyHttpUrl = AnyHttpUrl("https://www.google.com/search?q=test")
     ENV: Literal["dev", "stag", "prod"] = "dev"
     DB_SESSION_POOL_SIZE: int = 60
     DB_SESSION_POOL_MAX_OVERFLOW_SIZE: int = 20
@@ -109,38 +109,14 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = True
 
+    ### Limit settings
+    VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
+
 
 setting_keys = set(Settings.schema()["properties"].keys())
 
 
 _ENV = os.environ.get("ENV")
-
-'''
-_AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID")
-_AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
-_AWS_REGION = os.environ.get("AWS_REGION")
-
-if _AWS_ACCESS_KEY_ID and _AWS_SECRET_ACCESS_KEY and _AWS_REGION and _ENV == "prod":
-    # Override some env vars from parameter store
-    ssm = boto3.Session(
-        aws_access_key_id=_AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=_AWS_SECRET_ACCESS_KEY,
-        region_name=_AWS_REGION,
-    ).client("ssm")
-    for setting_key in setting_keys:
-        if setting_key.lower().startswith("aws"):
-            continue
-        try:
-            os.environ[setting_key] = ssm.get_parameter(Name=setting_key)["Parameter"][
-                "Value"
-            ]
-            print(f"Overridden with SSM: {setting_key}")
-        except Exception as e:
-            if "ParameterNotFound" in str(e):
-                continue
-            print(setting_key, type(e))
-'''
-
 
 settings = Settings()
 

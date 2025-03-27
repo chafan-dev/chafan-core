@@ -409,6 +409,7 @@ class Materializer(object):
         return schemas.AnswerPreviewForVisitor(
             **base.dict(),
             question=question,
+            full_answer=None,
         )
 
     def preview_of_answer(
@@ -425,6 +426,7 @@ class Materializer(object):
         return schemas.AnswerPreview(
             **base.dict(),
             question=question,
+            full_answer=None,
         )
 
     def preview_of_article(

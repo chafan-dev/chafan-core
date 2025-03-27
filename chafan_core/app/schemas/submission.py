@@ -60,7 +60,7 @@ class SubmissionInDB(SubmissionBase):
 
 # Additional properties to return via API
 class Submission(SubmissionInDB):
-    desc: Optional[RichText]
+    desc: Optional[RichText] = None
     author: UserPreview
     contributors: List[UserPreview] = []
     comments: List[Comment]

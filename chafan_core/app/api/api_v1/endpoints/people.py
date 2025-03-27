@@ -175,7 +175,7 @@ def get_user_site_profiles(
 @router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
 def get_user_questions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -233,9 +233,10 @@ def get_user_submissions(
 
 
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
-def get_user_articles(
+async def get_user_articles(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    #cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -243,16 +244,18 @@ def get_user_articles(
         le=MAX_USER_ARTICLES_PAGINATION_LIMIT,
         gt=0,
     ),
-    current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    print("get user article " + uuid)
     if user is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exists in the system.",
         )
+    # TODO "owner" is repeated in this response 2025-Mar-23
     return filter_not_none(
         [
+    # TODO we have limit, but we still generate all articles. Need to rewrite with python generator 2025-Mar-23
             cached_layer.materializer.preview_of_article(article)
             for article in user.articles
         ]
@@ -267,7 +270,7 @@ def get_user_articles(
 )
 def get_user_answers(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
