@@ -1,21 +1,19 @@
 {
   inputs = {
-    #nixpkgs-unstable.url = "github:NixOS/nixpkgs/nixos-unstable";
-    #nixpkgs.url = "github:nixos/nixpkgs/nixos-24.05";
-    nixpkgs-24.url = "github:nixos/nixpkgs/nixos-24.11";
+    nixpkgs-25.url = "github:nixos/nixpkgs/nixos-25.05";
+    #nixpkgs-24.url = "github:nixos/nixpkgs/nixos-24.11";
     flake-utils.url = "github:numtide/flake-utils";
   };
   outputs =
     {
       self,
-      nixpkgs-24,
+      nixpkgs-25,
       flake-utils,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        #pkgs = nixpkgs-24.legacyPackages.x86_64-linux;
-        pkgs = nixpkgs-24.legacyPackages.${system};
+        pkgs = nixpkgs-25.legacyPackages.${system};
       in
       {
         devShells.default = pkgs.mkShell {
