@@ -32,6 +32,7 @@
             pkgs.python312
             pkgs.python312Packages.uvicorn
             pkgs.python312Packages.fastapi
+            pkgs.python312Packages.fastapi-cli
             pkgs.python312Packages.python-dotenv
             pkgs.python312Packages.slowapi
             pkgs.python312Packages.shortuuid
@@ -40,6 +41,7 @@
             pkgs.python312Packages.python-jose
             pkgs.python312Packages.passlib
             pkgs.python312Packages.boto3
+	    pkgs.python312Packages.bcrypt
             # Sentry migrate
             # https://github.com/getsentry/sentry-python/commit/570307c946020e9fefdb22904585170cd6d2717d
             pkgs.python312Packages.sentry-sdk_2
