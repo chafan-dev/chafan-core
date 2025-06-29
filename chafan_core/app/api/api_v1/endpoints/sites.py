@@ -235,29 +235,19 @@ def get_site_questions(
     """
     db = cached_layer.get_db()
     site = get_site(db, uuid)
-    if current_user_id:
-        check_user_in_site(
-            db, site=site, user_id=current_user_id, op_type=OperationType.ReadSite
+    if not site.public_readable:
+        raise HTTPException_(
+            status_code=400,
+            detail="Unauthorized.",
         )
-        questions = crud.site.get_multi_questions(
-            db, db_obj=site, skip=skip, limit=limit
-        )
-        return filter_not_none(
-            [cached_layer.materializer.preview_of_question(q) for q in questions]
-        )
-    else:
-        if not site.public_readable:
-            raise HTTPException_(
-                status_code=400,
-                detail="Unauthorized.",
-            )
-        questions = crud.site.get_multi_questions(db, db_obj=site, skip=0, limit=5)
-        return filter_not_none(
-            [
-                cached_layer.materializer.preview_of_question_for_visitor(q)
-                for q in questions
-            ]
-        )
+    max_questions = settings.API_LIMIT_SITES_GET_QUESTIONS_LIMIT
+    limit = min(limit, max_questions)
+    questions = crud.site.get_multi_questions(
+        db, db_obj=site, skip=skip, limit=limit
+    )
+    return filter_not_none(
+        [cached_layer.materializer.preview_of_question(q) for q in questions]
+    )
 
 
 @router.get(

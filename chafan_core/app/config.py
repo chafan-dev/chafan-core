@@ -106,6 +106,8 @@ class Settings(BaseSettings):
 
     FORCE_RATE_LIMIT: bool = False
 
+    API_LIMIT_SITES_GET_QUESTIONS_LIMIT: int = 20
+
     class Config:
         case_sensitive = True
 
