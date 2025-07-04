@@ -83,7 +83,8 @@ bash scripts/reset_app_state.sh
 Test a single file:
 
 ```
-scripts/run-unit-tests.sh
+pytest -vv chafan_core/tests/app/email/test_email.py
+
 ```
 
 Test all:

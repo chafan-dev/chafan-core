@@ -41,7 +41,7 @@
             pkgs.python312Packages.python-jose
             pkgs.python312Packages.passlib
             pkgs.python312Packages.boto3
-	    pkgs.python312Packages.bcrypt
+	        pkgs.python312Packages.bcrypt
             # Sentry migrate
             # https://github.com/getsentry/sentry-python/commit/570307c946020e9fefdb22904585170cd6d2717d
             pkgs.python312Packages.sentry-sdk_2
@@ -70,6 +70,13 @@
             pkgs.python312Packages.parsel
 
             pkgs.python312Packages.websockets
+
+
+
+# Required for unit test
+            pkgs.python312Packages.pytest
+            pkgs.python312Packages.pytest-mock
+            pkgs.python312Packages.httpx
 
           ];
         };

@@ -1,4 +1,3 @@
-import logging
 from contextlib import contextmanager
 from typing import Iterator, Optional
 
@@ -13,6 +12,7 @@ from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.mq import WsUserMsg
 
+import logging
 logger = logging.getLogger(__name__)
 
 

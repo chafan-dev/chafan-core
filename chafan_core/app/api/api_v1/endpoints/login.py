@@ -4,6 +4,9 @@ import random
 from typing import Any, List, Literal, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
+import logging
+logger = logging.getLogger(__name__)
+
 import requests
 from fastapi import APIRouter, Body, Depends, Request, Response, status
 from fastapi.encoders import jsonable_encoder
@@ -29,10 +32,10 @@ from chafan_core.app.common import (
 )
 from chafan_core.app.config import settings
 from chafan_core.app.email_utils import (
-    send_reset_password_email,
     send_verification_code_email,
     send_verification_code_phone_number,
 )
+from chafan_core.app.email.utils import send_reset_password_email
 from chafan_core.app.limiter import limiter
 from chafan_core.app.materialize import user_schema_from_orm
 from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositReference
@@ -205,21 +208,24 @@ def pay_reward_for_invitation(
 
 @limiter.limit("1/minute")
 @router.post("/password-recovery/{email}", response_model=schemas.GenericResponse)
-def recover_password(
+async def recover_password(
     request: Request, email: CaseInsensitiveEmailStr, db: Session = Depends(deps.get_db)
 ) -> Any:
     """
     Password Recovery
     """
-    user = crud.user.get_by_email(db, email=email)
+    user = crud.user.get_by_email(db, email=email) #Optional[User]
+
+    logger.info(f"recover_password email={email}, get user {user}")
 
     if not user:
         raise HTTPException_(
             status_code=404,
             detail="The user with this email does not exist in the system.",
         )
+    # TODO we need to add the token to redis_cli? 2025-07-04
     password_reset_token = generate_password_reset_token(email=email)
-    send_reset_password_email(email=user.email, token=password_reset_token)
+    await send_reset_password_email(email=user.email, token=password_reset_token)
     return schemas.GenericResponse()
 
 
@@ -382,6 +388,10 @@ def reset_password(
     """
     Reset password
     """
+    raise HTTPException_(
+            status_code=404,
+            detail="System busy during 2.0 test. reset_password later"
+    )
     check_password(new_password)
     email = verify_password_reset_token(token)
     if not email:

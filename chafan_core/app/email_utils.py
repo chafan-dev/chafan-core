@@ -1,3 +1,5 @@
+# selfnote 2025-06-25 everything about email should be hidden behind this file
+
 import os
 import tempfile
 from pathlib import Path
@@ -8,19 +10,20 @@ from urllib.parse import urlencode
 
 from chafan_core.app import schemas
 from chafan_core.app.aws_ses import send_email_ses
-from chafan_core.app.aws_sns import send_sms
 from chafan_core.app.common import from_now, is_dev, render_notif_content
 from chafan_core.app.config import settings
 
+# TODO this file should be moved into chafan_core/app/email_util
 
+
+# Old code
 def send_email(
     email_to: str,
     subject_template: str = "",
     html_template: str = "",
     environment: Dict[str, Any] = {},
 ) -> None:
-    assert settings.EMAILS_ENABLED, "no provided configuration for email variables"
-    body_html = html_template
+    return
     #body_html = JinjaTemplate(html_template).render(**environment)
     if is_dev():
         mailbox_dir = f"/tmp/chafan/mailbox/{email_to}/"
@@ -37,25 +40,6 @@ def send_email(
         )
 
 
-def send_reset_password_email(email: str, token: str) -> None:
-    project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - 密码重置 {email}"
-    with open(Path(settings.EMAIL_TEMPLATES_DIR) / "reset_password.html") as f:
-        template_str = f.read()
-    server_host = str(settings.SERVER_HOST).strip("/")
-    link = f"{server_host}/reset-password?token={token}"
-    send_email(
-        email_to=email,
-        subject_template=subject,
-        html_template=template_str,
-        environment={
-            "project_name": settings.PROJECT_NAME,
-            "username": email,
-            "email": email,
-            "valid_hours": settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS,
-            "link": link,
-        },
-    )
 
 
 def send_feedback_status_update_email(email: str, desc: str, new_status: str) -> None:
@@ -119,10 +103,8 @@ def send_notification_email(
     )
 
 
-def send_verification_code_phone_number(phone_number: str, code: str) -> None:
-    project_name = settings.PROJECT_NAME
-    text = f"{project_name} - 验证码 {code} ({settings.PHONE_NUMBER_VERIFICATION_CODE_EXPIRE_HOURS} 小时内过期)"
-    send_sms(phone_number, text)
+def send_verification_code_phone_number(_phone_number: str, _code: str) -> None:
+    raise NotImplementedError("No longer support SMS")
 
 
 def send_verification_code_email(email: str, code: str) -> None:

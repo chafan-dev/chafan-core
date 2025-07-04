@@ -28,6 +28,7 @@ compile-email-templates:
 	mjml chafan_core/app/email-templates/src/feedback_status_update.mjml -o chafan_core/app/email-templates/build/feedback_status_update.html
 
 reset-and-run-unit-tests:
+	exit 1
 	bash scripts/reset_app_state.sh
 	bash scripts/run-unit-tests.sh
 

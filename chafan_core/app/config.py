@@ -1,7 +1,6 @@
 import os
 from typing import Any, Dict, List, Literal, Optional, Union
 
-import boto3
 import sentry_sdk
 from sentry_sdk.integrations.dramatiq import DramatiqIntegration
 from pydantic import AnyHttpUrl, validator
@@ -29,7 +28,6 @@ class Settings(BaseSettings):
 
     ENABLE_CAPTCHA: bool = False
 
-    EMAILS_FROM_EMAIL: Optional[CaseInsensitiveEmailStr] = None
 
     INVITE_NEW_USER_COIN_PAYMENT_AMOUNT: int = 5
     CREATE_ARTICLE_COIN_DEDUCTION: int = 2
@@ -37,16 +35,14 @@ class Settings(BaseSettings):
     CREATE_SITE_COIN_DEDUCTION: int = 10
     CREATE_SITE_FORCE_NEED_APPROVAL: bool = True
 
-    EMAILS_FROM_NAME: Optional[str] = None
 
-    @validator("EMAILS_FROM_NAME")
-    def get_project_name(cls, v: Optional[str], values: Dict[str, Any]) -> str:
-        if not v:
-            return values["PROJECT_NAME"]
-        return v
-
-    EMAIL_TEMPLATES_DIR: str = "chafan_core/app/email-templates/build"
     EMAILS_ENABLED: bool = False
+    EMAIL_SMTP_HOST: Optional[str] = None
+    EMAIL_SMTP_PORT: Optional[int] = None
+    EMAIL_SMTP_LOGIN_USERNAME: Optional[str] = None
+    EMAIL_SMTP_LOGIN_PASSWORD: Optional[str] = None
+    EMAIL_TEMPLATES_DIR: str = "chafan_core/app/email-templates/build"
+
 
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
@@ -117,17 +113,7 @@ class Settings(BaseSettings):
 
 setting_keys = set(Settings.schema()["properties"].keys())
 
-
-_ENV = os.environ.get("ENV")
-
 settings = Settings()
-
-'''
-# TODO: migrate
-if settings.AWS_CLOUDFRONT_HOST is None:
-    settings.AWS_CLOUDFRONT_HOST = settings.CLOUDFRONT_HOST
-'''
-
 
 def get_mq_url() -> str:
     url = settings.RABBITMQ_URL
