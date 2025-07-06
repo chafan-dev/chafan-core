@@ -42,21 +42,6 @@ def send_email(
 
 
 
-def send_feedback_status_update_email(email: str, desc: str, new_status: str) -> None:
-    project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - 您的反馈状态有更新"
-    with open(Path(settings.EMAIL_TEMPLATES_DIR) / "feedback_status_update.html") as f:
-        template_str = f.read()
-    send_email(
-        email_to=email,
-        subject_template=subject,
-        html_template=template_str,
-        environment={
-            "project_name": settings.PROJECT_NAME,
-            "desc": desc,
-            "new_status": new_status,
-        },
-    )
 
 
 def send_notification_email(
