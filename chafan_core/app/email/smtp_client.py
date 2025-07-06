@@ -14,7 +14,7 @@ class SmtpClient(MockEmailClient):
     password = None
     debug = False
     def login(self):
-        server = smtplib.SMTP(self.host, self.port)
+        server = smtplib.SMTP(self.host, self.port, timeout=30)
         if self.debug:
             server.set_debuglevel(2)
         server.ehlo()

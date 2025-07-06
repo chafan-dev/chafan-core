@@ -97,6 +97,8 @@ class Settings(BaseSettings):
 
     API_LIMIT_SITES_GET_QUESTIONS_LIMIT: int = 20
 
+    DEBUG_BYPASS_REDIS_VERIFICATION_CODE: Optional[str] = None
+
     class Config:
         case_sensitive = True
 

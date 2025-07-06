@@ -29,6 +29,10 @@ ALGORITHM = "HS256"
 
 async def check_digit_verification_code(email:str, code:str) -> bool:
     #logger.info("Check verification code")
+    bypass = settings.DEBUG_BYPASS_REDIS_VERIFICATION_CODE
+    if bypass is not None and bypass.startswith("magic") and bypass == code:
+        logger.warning("Using magic bypass code for email="+email)
+        return True
     redis_cli = get_redis_cli()
     key = f"chafan:verification-code:{email}"
     value = redis_cli.get(key)
