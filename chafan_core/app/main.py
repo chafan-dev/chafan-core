@@ -88,15 +88,15 @@ log_config = {
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "level": "DEBUG",
+            "level": "INFO",
             "formatter": "default",
             "stream": "ext://sys.stdout",
         },
     },
     "loggers": {
-        "app": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+        "app": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
-    "root": {"handlers": ["console"], "level": "DEBUG"},
+    "root": {"handlers": ["console"], "level": "INFO"},
 } # https://betterstack.com/community/guides/logging/logging-with-fastapi/#configuring-your-logging-system
 logging.config.dictConfig(log_config)
 logger = logging.getLogger(__name__)
