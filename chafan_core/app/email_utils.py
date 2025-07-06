@@ -4,7 +4,6 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
-from urllib.parse import urlencode
 
 #from emails.template import JinjaTemplate  # type: ignore
 
@@ -91,27 +90,6 @@ def send_notification_email(
 def send_verification_code_phone_number(_phone_number: str, _code: str) -> None:
     raise NotImplementedError("No longer support SMS")
 
-
-def send_verification_code_email(email: str, code: str) -> None:
-    project_name = settings.PROJECT_NAME
-    subject = f"{project_name} - 验证码 {code}"
-    with open(Path(settings.EMAIL_TEMPLATES_DIR) / "verification_code.html") as f:
-        template_str = f.read()
-    server_host = str(settings.SERVER_HOST).strip("/")
-    params = {"email": email, "code": code}
-    link = f"{server_host}/signup?{urlencode(params)}"
-    send_email(
-        email_to=email,
-        subject_template=subject,
-        html_template=template_str,
-        environment={
-            "project_name": settings.PROJECT_NAME,
-            "email": email,
-            "valid_hours": settings.EMAIL_SIGNUP_CODE_EXPIRE_HOURS,
-            "code": code,
-            "link": link,
-        },
-    )
 
 
 def send_new_account_email(email_to: str, username: str, password: str) -> None:

@@ -11,11 +11,14 @@ from chafan_core.app.schemas.invitation_link import (
     InvitationLinkUpdate,
 )
 
+import logging
+logger = logging.getLogger(__name__)
+
 
 class CRUDInvitationLink(
     CRUDBase[InvitationLink, InvitationLinkCreate, InvitationLinkUpdate]
 ):
-    def create_invitation(
+    async def create_invitation(
         self,
         db: Session,
         *,
@@ -35,6 +38,7 @@ class CRUDInvitationLink(
         db.commit()
         db.refresh(db_obj)
         return db_obj
+
 
 
 invitation_link = CRUDInvitationLink(InvitationLink)

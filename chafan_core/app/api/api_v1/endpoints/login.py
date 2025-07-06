@@ -1,6 +1,5 @@
 import datetime
 import json
-import random
 from typing import Any, List, Literal, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
@@ -21,6 +20,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas, security
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+#from chafan_core.app.cached_layer import try_consume_invitation_link_by_uuid
 from chafan_core.app.common import (
     check_email,
     client_ip,
@@ -31,12 +31,15 @@ from chafan_core.app.security import (
     check_token_validity_impl,
     generate_password_reset_token,
     verify_password_reset_token,
+    create_digit_verification_code,
+    register_digit_verification_code,
+    check_digit_verification_code,
 )
 from chafan_core.app.config import settings
-from chafan_core.app.email_utils import (
+from chafan_core.app.email.utils import (
+    send_reset_password_email,
     send_verification_code_email,
 )
-from chafan_core.app.email.utils import send_reset_password_email
 from chafan_core.app.limiter import limiter
 from chafan_core.app.materialize import user_schema_from_orm
 from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositReference
@@ -56,6 +59,7 @@ from chafan_core.app.schemas.security import (
     LoginWithVerificationCode,
     VerificationCodeRequest,
 )
+
 from chafan_core.app.security import get_password_hash
 from chafan_core.app.task_utils import execute_with_db
 from chafan_core.db.session import ReadSessionLocal
@@ -117,11 +121,6 @@ def login_access_token(
     OAuth2 compatible token login, get an access token for future requests
     """
     email = CaseInsensitiveEmailStr._validate(form_data.username)  # type: ignore
-    if '@cha.fan' not in email:
-        raise HTTPException_(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="System Busy",
-        )
 
     user = crud.user.authenticate(
         db, email=email, password=SecretStr(form_data.password)
@@ -173,6 +172,7 @@ def login_with_verification_code_access_token(
     return _login_user(db, request=request, user=user)
 
 
+# TODO should remove out of api
 def pay_reward_for_invitation(
     db: Session,
     *,
@@ -217,8 +217,6 @@ async def recover_password(
     """
     user = crud.user.get_by_email(db, email=email) #Optional[User]
 
-    logger.info(f"recover_password email={email}, get user {user}")
-
     if not user:
         raise HTTPException_(
             status_code=404,
@@ -234,36 +232,34 @@ async def recover_password(
 
 @router.post("/send-verification-code", response_model=schemas.GenericResponse)
 @limiter.limit("1/minute")
-def send_verification_code(
-    response: Response, request: Request, *, request_in: VerificationCodeRequest
+async def send_verification_code(
+    response: Response, request: Request, *, request_in: VerificationCodeRequest,
+    db: Session = Depends(deps.get_db)
 ) -> Any:
 
-    if request_in.phone_number is not None:
+    logger.info(str(request_in))
+    logger.info("sending verification")
+    if request_in.email is None:
         raise HTTPException_(
-            status_code=405,
-            detail="SMS verification is no longer supported",
+            status_code=422,
+            detail="Email not provided",
         )
-    if request_in.email is not None:
-        redis_cli = get_redis_cli()
-        code = "".join([str(random.randint(0, 9)) for _ in range(6)])
-        if settings.EMAILS_ENABLED:
-            send_verification_code_email(email=request_in.email, code=code)
-        key = f"chafan:verification-code:{request_in.email}"
-        redis_cli.delete(key)
-        redis_cli.set(key, code)
-        redis_cli.expire(
-            key, time=datetime.timedelta(hours=settings.EMAIL_SIGNUP_CODE_EXPIRE_HOURS)
-        )
-        return schemas.GenericResponse()
-    else:
-        raise HTTPException_(
-            status_code=400,
-            detail="Invalid request.",
-        )
+    # TODO audit log should support user_id is NULL. 2025-Jul-06
+    crud.audit_log.create_with_user(
+        db, ipaddr=client_ip(request), user_id=1, api="send_verification_code to email " + request_in.email
+    )
+    code = create_digit_verification_code(6)
+    await send_verification_code_email(email=request_in.email, code=code)
+    await register_digit_verification_code(request_in.email, code)
+    # We may switch to trio + hypercorn in future 2025-Jul-06
+    #async with trio.open_nursery() as nursery:
+    #    nursery.start_soon(send_verification_code_email,email=request_in.email, code=code)
+    #    nursery.start_soon(register_digit_verification_code, request_in.email, code)
+    return schemas.GenericResponse()
 
 
 @router.post("/open-account", response_model=schemas.User)
-def create_user_open(
+async def create_user_open(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     email: CaseInsensitiveEmailStr = Body(...),
@@ -281,13 +277,13 @@ def create_user_open(
     check_password(password)
 
     db = cached_layer.get_db()
-    invitation_link = crud.invitation_link.get_by_uuid(db, uuid=invitation_link_uuid)
-    if (
-        invitation_link is None
-        or not cached_layer.materializer.invitation_link_schema_from_orm(
-            invitation_link
-        ).valid
-    ):
+
+    # TODO audit log should support user_id is NULL. 2025-Jul-06
+    crud.audit_log.create_with_user(
+        db, ipaddr="0.0.0.0", user_id=1, api="Open new account email " + email
+    )
+    invitation_link_valid = await cached_layer.try_consume_invitation_link_by_uuid(invitation_link_uuid)
+    if not invitation_link_valid:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid invitation link",
@@ -305,25 +301,19 @@ def create_user_open(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="The user with this username already exists in the system",
         )
-    if not is_dev():
-        redis_cli = get_redis_cli()
-        key = f"chafan:verification-code:{email}"
-        value = redis_cli.get(key)
-        if value is None:
-            raise HTTPException_(
+    logger.info(f"No existing user info found for email={email}, handle={handle}")
+
+    ver_code = await check_digit_verification_code(email, code)
+    if not ver_code:
+        raise HTTPException_(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="The verification code is not present in the system.",
-            )
-        redis_cli.delete(key)
-        if value != code:
-            raise HTTPException_(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid verification code.",
-            )
+                )
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
-    user = crud.user.create(db, obj_in=user_in)
+    user = await crud.user.create(db, obj_in=user_in)
 
-    if invitation_link.invited_to_site is not None:
+    # TODO auto add site
+    if False and invitation_link.invited_to_site is not None:
         existing_profile = crud.profile.get_by_user_and_site(
             db, owner_id=user.id, site_id=invitation_link.invited_to_site.id
         )
@@ -331,33 +321,9 @@ def create_user_open(
             cached_layer.create_site_profile(
                 owner=user, site_uuid=invitation_link.invited_to_site.uuid
             )
-    paid = pay_reward_for_invitation(
-        db,
-        inviter=invitation_link.inviter,
-        invited_to_site_id=invitation_link.invited_to_site_id,
-        invited_email=None,
-    )
-    if paid is not None:
-        invitation_link.inviter.sent_new_user_invitataions += 1
 
-    invitation_link.remaining_quota -= 1
-    db.add(invitation_link)
-    db.commit()
 
-    crud.coin_deposit.make_deposit(
-        db,
-        obj_in=CoinDepositCreate(
-            payee_id=user.id,
-            amount=50,
-            ref_id=CoinDepositReference(
-                action="create_new_external_user",
-                object_id=user.email,
-            ).json(),
-            comment="",
-        ),
-        authorizer_id=crud.user.get_superuser(db).id,
-        payee=user,
-    )
+    # TODO bonus for invite new user, new user's initial coins
     return user_schema_from_orm(user)
 
 
@@ -482,6 +448,7 @@ def compute_score_of_form_response(
     )
 
 
+# TODO Remove this api. put this test in backed
 @router.post(
     "/claim-welcome-test-rewards/{id}",
     response_model=schemas.msg.ClaimWelcomeTestScoreMsg,
@@ -532,6 +499,7 @@ def claim_welcome_test_rewards(
     )
 
 
+# TODO Remove or modify this api. Should not depend on redis directly
 @router.get("/category-topics/", response_model=List[schemas.Topic])
 def get_category_topics() -> Any:
     redis = get_redis_cli()

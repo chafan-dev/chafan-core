@@ -4,9 +4,10 @@ from dotenv import load_dotenv  # isort:skip
 
 load_dotenv()  # isort:skip
 
-import logging
 
 import sentry_sdk
+import uvicorn
+import fastapi
 from fastapi import FastAPI
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -27,19 +28,12 @@ if is_dev():
     args["openapi_url"] = f"{settings.API_V1_STR}/openapi.json"
 else:
     args["openapi_url"] = None
-    args["docs_url"] = None
+    #args["docs_url"] = None
     args["redoc_url"] = None
 
 app = FastAPI(title=settings.PROJECT_NAME, **args)  # type: ignore
 
-# Create a logger object
-logger = logging.getLogger(__name__)
 
-# Configure the logger to log level of INFO or higher
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
 
 if enable_rate_limit():
     app.state.limiter = limiter
@@ -80,12 +74,43 @@ app.include_router(health.router)
 app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
-# log settings
-def log_settings() -> None:
+
+import logging
+log_config = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "default",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "app": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+    },
+    "root": {"handlers": ["console"], "level": "DEBUG"},
+} # https://betterstack.com/community/guides/logging/logging-with-fastapi/#configuring-your-logging-system
+logging.config.dictConfig(log_config)
+logger = logging.getLogger(__name__)
+
+def print_app_settings() -> None:
     logger.info("settings:")
     for k, v in settings.__dict__.items():
         if not k.startswith("__"):
             logger.info(f"{k}: {v}")
 
+print_app_settings()
+for lib in [fastapi, uvicorn]:
+    logger.info("{} version: {}".format(lib.__name__, lib.__version__))
 
-log_settings()
+logger.info("Server launches")
+
+

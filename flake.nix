@@ -71,6 +71,8 @@
 
             pkgs.python312Packages.websockets
 
+            #pkgs.python312Packages.trio
+
 
 
 # Required for unit test

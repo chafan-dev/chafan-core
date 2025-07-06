@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import crud, schemas, models
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType
@@ -15,14 +15,16 @@ router = APIRouter()
 
 
 @router.post("/", response_model=schemas.InvitationLink)
-def create_invitation_link(
+async def create_invitation_link(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     create_in: InvitationLinkCreate,
-) -> Any:
+) -> models.User:
     current_user = cached_layer.get_current_active_user()
+    # TODO we didn't check if this user is allowed to invite new users 2025-Jul-06
     invited_to_site_id = None
     db = cached_layer.get_db()
+
     if create_in.invited_to_site_uuid is not None:
         invited_to_site = get_site(db, create_in.invited_to_site_uuid)
         check_user_in_site(
@@ -32,10 +34,14 @@ def create_invitation_link(
             op_type=OperationType.AddSiteMember,
         )
         invited_to_site_id = invited_to_site.id
-    return cached_layer.materializer.invitation_link_schema_from_orm(
-        crud.invitation_link.create_invitation(
+    invitation_link = await crud.invitation_link.create_invitation(
             db, invited_to_site_id=invited_to_site_id, inviter=current_user
         )
+    crud.audit_log.create_with_user(
+        db, ipaddr="0.0.0.0", user_id=current_user.id, api=f"Created invitation link {invitation_link.uuid}"
+    )
+    return cached_layer.materializer.invitation_link_schema_from_orm(
+            invitation_link
     )
 
 

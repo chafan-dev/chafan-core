@@ -27,7 +27,6 @@ class IntlPhoneNumber(BaseModel):
 
 class VerificationCodeRequest(BaseModel):
     email: Optional[CaseInsensitiveEmailStr]
-    phone_number: Optional[IntlPhoneNumber]
 
 
 class LoginWithVerificationCode(BaseModel):

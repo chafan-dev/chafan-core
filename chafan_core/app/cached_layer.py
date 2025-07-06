@@ -4,6 +4,9 @@ import random
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union
 
+import logging
+logger = logging.getLogger(__name__)
+
 import redis
 import requests
 import sentry_sdk
@@ -852,3 +855,22 @@ class CachedLayer(object):
             self.get_db(), owner_id=owner_id, site_id=site_id
         )
         self.get_redis().delete(USER_SITE_PROFILES.format(user_id=owner_id))
+
+
+    # TODO maybe this is not the best place to put it  2025-Jul-06
+    async def try_consume_invitation_link_by_uuid(
+            self, invitation_uuid:str) -> bool:
+        logger.info(f"Consumed invitation link uuid=${invitation_uuid}")
+        db = self.get_db()
+        invitation_link = crud.invitation_link.get_by_uuid(db, uuid=invitation_uuid)
+        if invitation_link is None:
+            logger.info(f"Invalid invitation uuid=${invitation_uuid}")
+            return False
+        logger.info("got in db " + str(invitation_link))
+        if invitation_link.remaining_quota < 1:
+            logger.info(f"Invitation quota has exceeded limit uuid=${invitation_uuid}")
+            return False
+        invitation_link.remaining_quota -= 1
+        db.add(invitation_link)
+        db.commit()
+        return True

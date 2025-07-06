@@ -2,6 +2,7 @@ from typing import Dict, Any
 
 from jinja2 import Template,StrictUndefined
 
+from urllib.parse import urlencode
 
 from chafan_core.app.config import settings
 from chafan_core.app.email.smtp_client import SmtpClient
@@ -23,6 +24,26 @@ def apply_email_template(template_name:str,
     else:
         jinja = Template(template_str,undefined=StrictUndefined)
     return jinja.render(environment)
+
+async def send_verification_code_email(email: str, code: str) -> None:
+    project_name = settings.PROJECT_NAME
+    subject = f"{project_name} - 验证码 {code}"
+    server_host = str(settings.SERVER_HOST).strip("/")
+    params = {"email": email, "code": code}
+    link = f"{server_host}/signup?{urlencode(params)}"
+    environment={
+        "project_name": settings.PROJECT_NAME,
+        "email": email,
+        "valid_hours": settings.EMAIL_SIGNUP_CODE_EXPIRE_HOURS,
+        "code": code,
+        "link": link,
+    }
+    html_body = apply_email_template("verification_code", environment)
+    await send_email(
+        email_to=email,
+        subject=subject,
+        html_body=html_body,
+    )
 
 async def send_reset_password_email(email: str, token: str) -> None:
     project_name = settings.PROJECT_NAME
