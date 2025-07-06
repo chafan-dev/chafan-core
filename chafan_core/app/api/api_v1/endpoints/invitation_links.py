@@ -49,6 +49,11 @@ async def create_invitation_link(
 def get_daily_invitation_link(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
+
+    raise HTTPException_(
+            status_code=404,
+            detail="Invalid invitation link",
+    )
     return cached_layer.get_daily_invitation_link()
 
 
