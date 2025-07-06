@@ -23,17 +23,18 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import (
     check_email,
-    check_token_validity_impl,
     client_ip,
-    generate_password_reset_token,
     get_redis_cli,
     is_dev,
+)
+from chafan_core.app.security import (
+    check_token_validity_impl,
+    generate_password_reset_token,
     verify_password_reset_token,
 )
 from chafan_core.app.config import settings
 from chafan_core.app.email_utils import (
     send_verification_code_email,
-    send_verification_code_phone_number,
 )
 from chafan_core.app.email.utils import send_reset_password_email
 from chafan_core.app.limiter import limiter
@@ -67,7 +68,7 @@ from chafan_core.utils.validators import (
 
 router = APIRouter()
 
-
+# The user's authentication MUST be passed when calling this function
 def _login_user(db: Session, *, request: Request, user: models.User) -> schemas.Token:
     if not crud.user.is_active(user):
         raise HTTPException_(status_code=400, detail="Inactive user")
@@ -76,6 +77,7 @@ def _login_user(db: Session, *, request: Request, user: models.User) -> schemas.
     )
     if user.flags is None:
         user.flags = ""
+    # TODO This should be moved to another component
     if "activated" not in user.flags.split():
         user.flags += " activated"  # Used to decide whether to resend invitation email
     db.commit()
@@ -110,22 +112,17 @@ def login_access_token(
     *,
     db: Session = Depends(deps.get_db),
     form_data: OAuth2PasswordRequestForm = Depends(),
-    hcaptcha_token: Optional[str] = Form(None),
 ) -> Any:
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    if settings.ENABLE_CAPTCHA and not is_dev():
-        if hcaptcha_token is None:
-            raise HTTPException_(status_code=400, detail="Missing hCaptcha token")
-        _verify_hcaptcha(hcaptcha_token)
     email = CaseInsensitiveEmailStr._validate(form_data.username)  # type: ignore
     if '@cha.fan' not in email:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="System Busy",
         )
-        
+
     user = crud.user.authenticate(
         db, email=email, password=SecretStr(form_data.password)
     )
@@ -152,6 +149,10 @@ def login_with_verification_code_access_token(
     phone_number_str = login_in.phone_number.format_e164()
     key = f"chafan:verification-code:{phone_number_str}"
     value = redis_cli.get(key)
+    raise HTTPException_(
+        status_code=400,
+        detail="login with verification code is blocked",
+    )
     if value is None:
         raise HTTPException_(
             status_code=400,
@@ -223,7 +224,9 @@ async def recover_password(
             status_code=404,
             detail="The user with this email does not exist in the system.",
         )
-    # TODO we need to add the token to redis_cli? 2025-07-04
+    crud.audit_log.create_with_user(
+        db, ipaddr=client_ip(request), user_id=user.id, api=f"Password reset email sent to {email}"
+    )
     password_reset_token = generate_password_reset_token(email=email)
     await send_reset_password_email(email=user.email, token=password_reset_token)
     return schemas.GenericResponse()
@@ -234,6 +237,12 @@ async def recover_password(
 def send_verification_code(
     response: Response, request: Request, *, request_in: VerificationCodeRequest
 ) -> Any:
+
+    if request_in.phone_number is not None:
+        raise HTTPException_(
+            status_code=405,
+            detail="SMS verification is no longer supported",
+        )
     if request_in.email is not None:
         redis_cli = get_redis_cli()
         code = "".join([str(random.randint(0, 9)) for _ in range(6)])
@@ -244,21 +253,6 @@ def send_verification_code(
         redis_cli.set(key, code)
         redis_cli.expire(
             key, time=datetime.timedelta(hours=settings.EMAIL_SIGNUP_CODE_EXPIRE_HOURS)
-        )
-        return schemas.GenericResponse()
-    elif request_in.phone_number is not None:
-        redis_cli = get_redis_cli()
-        code = "".join([str(random.randint(0, 9)) for _ in range(6)])
-        phone_number_str = request_in.phone_number.format_e164()
-        send_verification_code_phone_number(phone_number=phone_number_str, code=code)
-        key = f"chafan:verification-code:{phone_number_str}"
-        redis_cli.delete(key)
-        redis_cli.set(key, code)
-        redis_cli.expire(
-            key,
-            time=datetime.timedelta(
-                hours=settings.PHONE_NUMBER_VERIFICATION_CODE_EXPIRE_HOURS
-            ),
         )
         return schemas.GenericResponse()
     else:
@@ -278,7 +272,7 @@ def create_user_open(
     code: str = Body(...),
     invitation_link_uuid: str = Body(...),
 ) -> Any:
-    if (not is_dev()) and (not settings.USERS_OPEN_REGISTRATION):
+    if (not settings.USERS_OPEN_REGISTRATION):
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Open user registration is forbidden on this server",
@@ -380,7 +374,7 @@ def check_token_validity(
 
 
 @router.post("/reset-password/", response_model=schemas.GenericResponse)
-def reset_password(
+async def reset_password(
     token: str = Body(...),
     new_password: SecretStr = Body(...),
     db: Session = Depends(deps.get_db),
@@ -388,10 +382,6 @@ def reset_password(
     """
     Reset password
     """
-    raise HTTPException_(
-            status_code=404,
-            detail="System busy during 2.0 test. reset_password later"
-    )
     check_password(new_password)
     email = verify_password_reset_token(token)
     if not email:
@@ -404,6 +394,9 @@ def reset_password(
         )
     elif not crud.user.is_active(user):
         raise HTTPException_(status_code=400, detail="Inactive user")
+    crud.audit_log.create_with_user(
+        db, ipaddr="0.0.0.0", user_id=user.id, api="Reset password with token"
+    )
     hashed_password = get_password_hash(new_password)
     user.hashed_password = hashed_password
     db.add(user)

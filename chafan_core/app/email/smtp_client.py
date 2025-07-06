@@ -39,7 +39,7 @@ class SmtpClient(MockEmailClient):
         if self.smtp is None:
             raise ValueError("smtp client is not initialized")
         msg = self.build_email(from_addr, to_addr, subject, text)
-        self.smtp.send_message(msg)
+        self.smtp.sendmail(from_addr, to_addr, msg.as_bytes())
 
     def quit(self):
         if self.smtp is None:

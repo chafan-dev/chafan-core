@@ -14,8 +14,7 @@ from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 class Settings(BaseSettings):
     ############ Common ############
-    SERVER_NAME: str = "dev.cha.fan"
-    SERVER_HOST: AnyHttpUrl = AnyHttpUrl("https://www.google.com/search?q=test")
+    SERVER_HOST: str
     ENV: Literal["dev", "stag", "prod"] = "dev"
     DB_SESSION_POOL_SIZE: int = 60
     DB_SESSION_POOL_MAX_OVERFLOW_SIZE: int = 20
@@ -51,6 +50,7 @@ class Settings(BaseSettings):
     CLOUDFRONT_HOST: Optional[AnyHttpUrl] = None
     S3_UPLOADS_BUCKET_NAME: Optional[str] = None
 
+    USERS_OPEN_REGISTRATION: bool = True
     MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
     MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
 
@@ -79,22 +79,15 @@ class Settings(BaseSettings):
 
     SEARCH_INDEX_FILESYSTEM_PATH: str = "/tmp/chafan/search_index"
 
-    @validator("BACKEND_CORS_ORIGINS", pre=True)
-    def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",")]
-        elif isinstance(v, (list, str)):
-            return v
-        raise ValueError(v)
+# TODO BACKEND_CORS_ORIGINS need v2 validator and docs for it
 
-    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
-    EMAIL_SIGNUP_CODE_EXPIRE_HOURS: int = 48
-    PHONE_NUMBER_VERIFICATION_CODE_EXPIRE_HOURS: int = 1
+    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 1
+    EMAIL_SIGNUP_CODE_EXPIRE_HOURS: int = 1
 
     FIRST_SUPERUSER: Optional[CaseInsensitiveEmailStr] = None
     FIRST_SUPERUSER_PASSWORD: Optional[SecretStr] = None
     VISITOR_USER_ID: Optional[int] = None
-    USERS_OPEN_REGISTRATION: bool = True
+
 
     MONGO_CONNECTION: Optional[str] = None
 

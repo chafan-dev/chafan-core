@@ -1,16 +1,20 @@
 from email.message import EmailMessage
-from email.generator import Generator
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 class MockEmailClient(object):
     smtp = None
     def __init__(self):
         pass
-    def build_email(self, from_addr, to_addrs, subject, text)->EmailMessage:
-        msg = EmailMessage()
+    def build_email(self, from_addr, to_addrs, subject, html_body)->EmailMessage:
+        msg = MIMEMultipart("alternative")
         msg['Subject'] = subject
         msg['From'] = from_addr
         msg['To'] = to_addrs # TODO not tested if it supports more emails 2025-06-25
-        msg.set_content(text)
+        part1 = MIMEText("Thanks for using cha.fan", "plain")
+        part2 = MIMEText(html_body, "html")
+        msg.attach(part1)
+        msg.attach(part2)
         return msg
     def login(self):
         self.smtp = "Mock_Smtp"

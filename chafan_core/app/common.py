@@ -11,7 +11,6 @@ import sentry_sdk
 from fastapi import Header, Request
 from html2text import HTML2Text
 from jinja2 import Template
-from jose import jwt
 from pymongo import MongoClient
 from pymongo.database import Database as MongoDB
 
@@ -19,7 +18,6 @@ from chafan_core.app import schemas
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.event import Event
 from chafan_core.utils.base import HTTPException_, unwrap
-from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 
 class OperationType(enum.Enum):
@@ -95,35 +93,6 @@ def run_dramatiq_task(task: Any, *arg: Any, **kwargs: Any) -> None:
 def from_now(utc: datetime.datetime, locale: str) -> str:
     return arrow.get(utc).humanize(locale=locale)
 
-
-def generate_password_reset_token(email: CaseInsensitiveEmailStr) -> str:
-    delta = datetime.timedelta(hours=settings.EMAIL_RESET_TOKEN_EXPIRE_HOURS)
-    now = datetime.datetime.utcnow()
-    expires = now + delta
-    encoded_jwt = jwt.encode(
-        {"exp": expires, "nbf": now, "email": str(email)},
-        unwrap(settings.SECRET_KEY),
-        algorithm="HS256",
-    )
-    return encoded_jwt
-
-
-def check_token_validity_impl(token: str) -> bool:
-    try:
-        jwt.decode(token, unwrap(settings.SECRET_KEY), algorithms=["HS256"])
-        return True
-    except Exception:
-        return False
-
-
-def verify_password_reset_token(token: str) -> Optional[str]:
-    try:
-        decoded_token = jwt.decode(
-            token, unwrap(settings.SECRET_KEY), algorithms=["HS256"]
-        )
-        return decoded_token["email"]
-    except Exception:
-        return None
 
 
 def html2plaintext(t: str) -> str:

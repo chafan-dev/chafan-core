@@ -76,6 +76,7 @@
 # Required for unit test
             pkgs.python312Packages.pytest
             pkgs.python312Packages.pytest-mock
+            pkgs.python312Packages.pytest-trio
             pkgs.python312Packages.httpx
 
           ];
