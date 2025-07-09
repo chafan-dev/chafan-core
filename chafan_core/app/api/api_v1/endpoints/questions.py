@@ -520,6 +520,9 @@ async def get_question_page(
         asyncio.create_task(
             view_counters.add_view_async(uuid, "question", cached_layer.principal_id)
         )
+    # TODO 2025-07-08 This is hacky. The whole logic of question flags needs to be reviewed and simplified.
+    if question.site.public_writable_answer:
+        flags.answer_writable = True
     return schemas.QuestionPage(
         question=question_data,
         # TODO: continuation

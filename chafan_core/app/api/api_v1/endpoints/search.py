@@ -1,10 +1,14 @@
 from typing import Any, List
 
+import logging
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, Request, Response
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
 from chafan_core.utils.base import filter_not_none
 
@@ -59,20 +63,22 @@ def search_topics(
     )
 
 
-@router.get("/questions/", response_model=List[schemas.QuestionPreview])
+@router.get("/questions/", response_model=List[schemas.QuestionPreviewForSearch])
 @limiter.limit(_SEARCH_RATE_LIMIT)
-def search_questions(
+async def search_questions(
     response: Response,
     request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    # This API is very time consuming! Must check user logged in
     q: str,
 ) -> Any:
     if q == "":
         return []
     questions = crud.question.search(cached_layer.get_db(), q=q)
+# TODO no search hit limit
     return filter_not_none(
-        [cached_layer.materializer.preview_of_question(q) for q in questions]
+        [await preview_of_question_as_search_hit(q) for q in questions]
     )
 
 

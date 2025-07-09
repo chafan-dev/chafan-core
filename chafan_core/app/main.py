@@ -1,13 +1,37 @@
 from typing import Any, MutableMapping, Optional
 
-from dotenv import load_dotenv  # isort:skip
 
-load_dotenv()  # isort:skip
+import logging
+log_config = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "default": {
+            "format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "INFO",
+            "formatter": "default",
+            "stream": "ext://sys.stdout",
+        },
+    },
+    "loggers": {
+        "app": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+    "root": {"handlers": ["console"], "level": "INFO"},
+} # https://betterstack.com/community/guides/logging/logging-with-fastapi/#configuring-your-logging-system
+logging.config.dictConfig(log_config)
+logger = logging.getLogger(__name__)
 
 
 import sentry_sdk
 import uvicorn
 import fastapi
+import starlette
 from fastapi import FastAPI
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -67,6 +91,7 @@ def set_backend_cors_origins():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    logger.info("Set CORS allowed origins: " + str(origins))
 
 set_backend_cors_origins()
 
@@ -75,31 +100,6 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 
-import logging
-log_config = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "formatters": {
-        "default": {
-            "format": "%(asctime)s %(levelname)s %(name)s: %(message)s",
-            "datefmt": "%Y-%m-%d %H:%M:%S",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "level": "INFO",
-            "formatter": "default",
-            "stream": "ext://sys.stdout",
-        },
-    },
-    "loggers": {
-        "app": {"handlers": ["console"], "level": "INFO", "propagate": False},
-    },
-    "root": {"handlers": ["console"], "level": "INFO"},
-} # https://betterstack.com/community/guides/logging/logging-with-fastapi/#configuring-your-logging-system
-logging.config.dictConfig(log_config)
-logger = logging.getLogger(__name__)
 
 def print_app_settings() -> None:
     logger.info("settings:")
@@ -108,7 +108,7 @@ def print_app_settings() -> None:
             logger.info(f"{k}: {v}")
 
 print_app_settings()
-for lib in [fastapi, uvicorn]:
+for lib in [fastapi, uvicorn, starlette]:
     logger.info("{} version: {}".format(lib.__name__, lib.__version__))
 
 logger.info("Server launches")

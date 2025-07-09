@@ -94,6 +94,7 @@ from .question import (
     QuestionInDB,
     QuestionPreview,
     QuestionPreviewForVisitor,
+    QuestionPreviewForSearch,
     QuestionUpdate,
     QuestionUpvotes,
 )

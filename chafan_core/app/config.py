@@ -63,11 +63,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 60
     API_SERVER_SCHEME: str = "https"
 
-    # TODO This config is deprecated. To be removed - 2024 Oct
-    # BACKEND_CORS_ORIGINS is a JSON-formatted list of origins
-    # e.g: '["http://localhost"]'
-    BACKEND_CORS_ORIGINS: List[str] = []
-
     DEBUG_BYPASS_BACKEND_CORS: str = "false"
     # TODO Better default value - 2024 Oct
     CHAFAN_BACKEND_CORS_ORIGINS: str = "https://127.0.0.1:8080"
@@ -79,7 +74,6 @@ class Settings(BaseSettings):
 
     SEARCH_INDEX_FILESYSTEM_PATH: str = "/tmp/chafan/search_index"
 
-# TODO BACKEND_CORS_ORIGINS need v2 validator and docs for it
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 1
     EMAIL_SIGNUP_CODE_EXPIRE_HOURS: int = 1

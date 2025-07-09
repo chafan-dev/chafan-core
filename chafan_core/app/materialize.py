@@ -1,5 +1,7 @@
 import datetime
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
+import logging
+logger = logging.getLogger(__name__)
 
 import sentry_sdk
 from pydantic.tools import parse_obj_as
@@ -26,7 +28,10 @@ from chafan_core.app.schemas.event import (
     EventInternal,
 )
 from chafan_core.app.schemas.notification import Notification, NotificationInDBBase
-from chafan_core.app.schemas.question import QuestionInDBBase
+from chafan_core.app.schemas.question import (
+        QuestionInDBBase,
+        QuestionPreviewForSearch
+)
 from chafan_core.app.schemas.reward import AnsweredQuestionCondition, RewardCondition
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.security import IntlPhoneNumber
@@ -268,6 +273,18 @@ def user_schema_from_orm(user: models.User) -> schemas.User:
             subscriber_number=user.phone_number_subscriber_number,
         )
     return schemas.User(**d)
+
+
+# Should I put it into a class?
+async def preview_of_question_as_search_hit(question: models.Question):
+    if not question.site.public_readable:
+        return None
+    r = QuestionPreviewForSearch(
+        uuid = question.uuid,
+        title = question.title
+    )
+    return r
+
 
 
 class Materializer(object):

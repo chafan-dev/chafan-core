@@ -87,6 +87,11 @@ class QuestionInDB(QuestionInDBBase):
     pass
 
 
+class QuestionPreviewForSearch(BaseModel):
+    uuid: str
+    title: str
+
+#class QuestionPreviewForVisitor(QuestionPreviewForSearch):
 class QuestionPreviewForVisitor(BaseModel):
     uuid: str
     title: str
