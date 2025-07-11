@@ -143,6 +143,11 @@ class CachedLayer(object):
             )
         return data
 
+    def get_answer_by_id(self, answer_id:int):
+        db = self.get_db()
+        answer = crud.answer.get_by_id(db, uid=answer_id)
+        return answer
+
     def get_answer(
         self, uuid: str
     ) -> Optional[Union[schemas.Answer, schemas.AnswerForVisitor]]:
@@ -243,6 +248,9 @@ class CachedLayer(object):
         if not is_dev():
             redis_cli.set(key, answer_data.json(), ex=datetime.timedelta(hours=12))
         return answer_data
+
+    def get_site_by_subdomain(self, subdomain: str):
+        return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
 
     def get_site_info(self, *, subdomain: str) -> Optional[schemas.Site]:
         redis_cli = self.get_redis()
@@ -567,6 +575,10 @@ class CachedLayer(object):
         if data and not is_dev():
             redis_cli.set(key, data.json(), ex=datetime.timedelta(hours=24))
         return data
+
+    def get_question_by_id(self, question_id: int):
+        question = crud.question.get_by_id(self.get_db(), id=question_id)
+        return question
 
     def get_question_model_http(self, uuid: str) -> models.Question:
         question = crud.question.get_by_uuid(self.get_db(), uuid=uuid)

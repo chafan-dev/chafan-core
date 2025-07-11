@@ -2,6 +2,10 @@ import datetime
 import json
 from typing import Any, Optional, Union
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
@@ -11,6 +15,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import get_redis_cli, is_dev, report_msg
 from chafan_core.app.feed import get_activities, get_random_activities
+from chafan_core.app.feed import get_activities_v2
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.utils.base import unwrap
@@ -48,18 +53,31 @@ async def get_feed(
     redis = get_redis_cli()
     key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
     value = redis.get(key)
+    value = None
     if value:
         return _update_feed_seq(
             cached_layer,
             schemas.FeedSequence.model_validate_json(value),
             full_answers=full_answers,
         )
+#    activities = await get_activities_v2(
+#            cached_layer = cached_layer,
+#        before_activity_id=before_activity_id,
+#        limit=limit,
+#        receiver_user_id=current_user_id,
+#        subject_user_uuid=subject_user_uuid,
+#    )
+    #logger.info("to call v1 api")
     activities = get_activities(
         before_activity_id=before_activity_id,
         limit=limit,
         receiver_user_id=current_user_id,
         subject_user_uuid=subject_user_uuid,
     )
+    #logger.info("call v1 get length : " + str( len(activities) ))
+    # 2025-Jul-10 feed table 在测试里一直是空的。下面的 get_random_activities 提供了主界面的动态
+    # 感觉这个 logic 是不太对的，但底下的 feed.py 不太好修
+    # 我应该去实现一组新的 activities API，用来提供 rss 服务。再回来改原有的 acivities 逻辑
     cache_minutes = 30
     if (
         (before_activity_id is None or random)

@@ -40,11 +40,11 @@ from chafan_core.app.api.api_v1.endpoints import (
     users,
     webhooks,
     ws,
+    rss,
 )
 
 api_router = APIRouter()
 api_router.include_router(login.router, tags=["login"])
-api_router.include_router(bot.router, prefix="/bot", tags=["bot"])
 api_router.include_router(me.router, prefix="/me", tags=["me"])
 api_router.include_router(drafts.router, prefix="/drafts", tags=["drafts"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
@@ -55,11 +55,9 @@ api_router.include_router(
 )
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(sites.router, prefix="/sites", tags=["sites"])
-api_router.include_router(sitemaps.router, prefix="/sitemaps", tags=["sitemaps"])
 api_router.include_router(profiles.router, prefix="/profiles", tags=["profiles"])
 api_router.include_router(questions.router, prefix="/questions", tags=["questions"])
 api_router.include_router(answers.router, prefix="/answers", tags=["answers"])
-api_router.include_router(rewards.router, prefix="/rewards", tags=["rewards"])
 api_router.include_router(articles.router, prefix="/articles", tags=["articles"])
 api_router.include_router(
     invitation_links.router, prefix="/invitation-links", tags=["invitation-links"]
@@ -74,6 +72,7 @@ api_router.include_router(channels.router, prefix="/channels", tags=["channels"]
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(discovery.router, prefix="/discovery", tags=["discovery"])
+api_router.include_router(rss.router, prefix="/rss", tags=["rss"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 api_router.include_router(ws.router, prefix="/ws", tags=["ws"])
 api_router.include_router(reactions.router, prefix="/reactions", tags=["reactions"])
@@ -106,3 +105,6 @@ api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["audit_
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(feedbacks.router, prefix="/feedbacks", tags=["feedbacks"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+api_router.include_router(rewards.router, prefix="/rewards", tags=["rewards"])
+api_router.include_router(sitemaps.router, prefix="/sitemaps", tags=["sitemaps"])
+api_router.include_router(bot.router, prefix="/bot", tags=["bot"])

@@ -1,7 +1,9 @@
 import time
-from typing import Dict, List, NamedTuple, Optional, Set
-
+from typing import Dict, List, NamedTuple, Optional, Set, Any
+import logging
+logger = logging.getLogger(__name__)
 import sentry_sdk
+import json
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -31,6 +33,8 @@ from chafan_core.app.schemas.event import (
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
+from chafan_core.app.cached_layer import CachedLayer
+
 
 
 class ActivityDistributionInfo(NamedTuple):
@@ -183,6 +187,83 @@ def materialize_activity(
             return activity_data
     return None
 
+
+async def get_content_from_eventjson(
+        cached_layer: CachedLayer,
+        event_json: str) -> Any:
+    obj = json.loads(event_json)
+    match obj["content"]["verb"]:
+        case "create_question":
+            question = cached_layer.get_question_by_id(int(obj["content"]["question_id"]))
+            if question.is_hidden != False:
+                logger.warning("Skip a hidden question: " + str(question))
+                return None
+            return question
+        case "answer_question":
+            answer = cached_layer.get_answer_by_id(int(obj["content"]["answer_id"]))
+            if (answer.is_hidden_by_moderator != False) or \
+                (answer.is_published != True):
+                logger.warning("Skip a hidden answer: " + str(answer))
+                return None
+            return answer
+        case _:
+            raise ValueError("Unknown content.verb : " + str(obj["content"]))
+
+async def get_site_activities(
+    cached_layer: CachedLayer,
+    site,
+    limit: int,
+    ) -> List[schemas.Activity]:
+    db = cached_layer.get_db()
+    #site = crud.site.get_by_subdomain(db, subdomain=subdomain)
+    if site is None:
+        raise ValueError("site not found " + subdomain)
+    if not site.public_readable:
+        raise ValueError("site not allowed " + subdomain)
+    feeds = db.query(models.Activity).filter_by(site_id=site.id)
+    feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
+    activities = []
+    for feed in feeds:
+        obj = await get_content_from_eventjson(cached_layer, feed.event_json)
+        activities.append(obj)
+    return activities
+
+async def get_activities_v2(
+    *,
+    cached_layer: CachedLayer,
+    before_activity_id: Optional[int],
+    limit: int,
+    receiver_user_id: int,
+    subject_user_uuid: Optional[str],
+) -> List[schemas.Activity]:
+    return [] # NOT FINISHED
+    logger.info("called v2 api")
+    db = cached_layer.get_db()
+    receiver = crud.user.get(db, id=receiver_user_id)
+    assert receiver is not None
+    if subject_user_uuid is not None:
+        logger.error(f"subject_user_uuid={subject_user_uuid} is not supported!")
+        return []
+    # TODO feed_settings not supported yet
+    feeds = db.query(models.Feed)#.filter_by(receiver_id=receiver_id)
+    logger.info("get all feeds: " + str(feeds))
+    for feed in feeds:
+        logger.info("get feed"  + str(feed))
+    return []
+    if before_activity_id:
+        feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
+    if subject_user_uuid:
+        feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
+    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
+    for feed in feeds:
+        activity = materialize_activity(
+            broker, feed.activity, receiver_user_id, feed_settings
+        )
+        if activity:
+            activities.append(activity)
+    return activities
+
+    return []
 
 def get_activities(
     *,

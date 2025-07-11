@@ -29,6 +29,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def get_by_uuid(self, db: Session, *, uuid: str) -> Optional[ModelType]:
         return db.query(self.model).filter_by(uuid=uuid).first()
 
+    def get_by_id(self, db: Session, *, uid: int) -> Optional[ModelType]:
+        return db.query(self.model).filter_by(id=uid).first()
+
     def get_unique_uuid(self, db: Session) -> str:
         while True:
             uuid = get_uuid()

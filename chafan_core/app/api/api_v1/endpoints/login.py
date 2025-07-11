@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 import requests
 from fastapi import APIRouter, Body, Depends, Request, Response, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.param_functions import Form
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from parsel.selector import Selector
@@ -20,7 +19,6 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas, security
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-#from chafan_core.app.cached_layer import try_consume_invitation_link_by_uuid
 from chafan_core.app.common import (
     check_email,
     client_ip,

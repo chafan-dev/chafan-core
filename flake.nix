@@ -70,6 +70,7 @@
             pkgs.python312Packages.parsel
 
             pkgs.python312Packages.websockets
+            pkgs.python312Packages.feedgen
 
             #pkgs.python312Packages.trio
 
