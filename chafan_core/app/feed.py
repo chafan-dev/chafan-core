@@ -206,6 +206,9 @@ async def get_content_from_eventjson(
                 logger.warning("Skip a hidden answer: " + str(answer))
                 return None
             return answer
+        case "comment_answer":
+            logger.error("not support comment_answer for now TODO")
+            return None
         case _:
             raise ValueError("Unknown content.verb : " + str(obj["content"]))
 
@@ -225,7 +228,8 @@ async def get_site_activities(
     activities = []
     for feed in feeds:
         obj = await get_content_from_eventjson(cached_layer, feed.event_json)
-        activities.append(obj)
+        if obj is not None:
+            activities.append(obj)
     return activities
 
 async def get_activities_v2(
