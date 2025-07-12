@@ -54,8 +54,6 @@ class Settings(BaseSettings):
     MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
     MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
 
-    RABBITMQ_URL: Optional[str] = None
-
     ############ Web server only ############
     API_V1_STR: str = "/api/v1"
     SECRET_KEY: Optional[str] = None
@@ -103,12 +101,6 @@ class Settings(BaseSettings):
 setting_keys = set(Settings.schema()["properties"].keys())
 
 settings = Settings()
-
-def get_mq_url() -> str:
-    url = settings.RABBITMQ_URL
-    assert url is not None
-    return url
-
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(

@@ -51,6 +51,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
                 event_json=event.json(),
             ),
         )
+        # FIXME crud layer should not call higher level components. However, I'd leave it for now. 2025-Jul-11
         push_notification(broker, notif=notification)
         return notification
 

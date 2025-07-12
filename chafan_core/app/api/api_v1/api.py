@@ -34,7 +34,6 @@ from chafan_core.app.api.api_v1.endpoints import (
     sites,
     submission_suggestions,
     submissions,
-    tasks,
     topics,
     upload,
     users,
@@ -45,7 +44,6 @@ from chafan_core.app.api.api_v1.endpoints import (
 
 api_router = APIRouter()
 api_router.include_router(login.router, tags=["login"])
-api_router.include_router(me.router, prefix="/me", tags=["me"])
 api_router.include_router(drafts.router, prefix="/drafts", tags=["drafts"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(people.router, prefix="/people", tags=["people"])
@@ -53,7 +51,6 @@ api_router.include_router(forms.router, prefix="/forms", tags=["forms"])
 api_router.include_router(
     form_responses.router, prefix="/form-responses", tags=["form-responses"]
 )
-api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(sites.router, prefix="/sites", tags=["sites"])
 api_router.include_router(profiles.router, prefix="/profiles", tags=["profiles"])
 api_router.include_router(questions.router, prefix="/questions", tags=["questions"])
@@ -67,6 +64,7 @@ api_router.include_router(
 )
 api_router.include_router(comments.router, prefix="/comments", tags=["comments"])
 api_router.include_router(activities.router, prefix="/activities", tags=["activities"])
+api_router.include_router(me.router, prefix="/me", tags=["me"])
 api_router.include_router(topics.router, prefix="/topics", tags=["topics"])
 api_router.include_router(channels.router, prefix="/channels", tags=["channels"])
 api_router.include_router(messages.router, prefix="/messages", tags=["messages"])

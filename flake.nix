@@ -27,7 +27,6 @@
 
             pkgs.redis
             pkgs.postgresql_14
-            pkgs.rabbitmq-server
 
             pkgs.python312
             pkgs.python312Packages.uvicorn
@@ -65,7 +64,6 @@
             pkgs.python312Packages.sqlalchemy
             pkgs.python312Packages.psycopg2
 
-            pkgs.python312Packages.pika
             pkgs.python312Packages.python-multipart
             pkgs.python312Packages.parsel
 

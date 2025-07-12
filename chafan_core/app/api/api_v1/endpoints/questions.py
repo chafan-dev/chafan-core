@@ -87,6 +87,11 @@ def get_question(
     Get question in one of current_user's belonging sites.
     """
     question = cached_layer.get_question_model_http(uuid)
+    if question.is_hidden != False:
+        raise HTTPException_(
+                status_code=403,
+                detail="Not allowed to access this quesion",
+        )
     return _get_question_data(cached_layer, question)
 
 

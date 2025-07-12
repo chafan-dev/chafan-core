@@ -2,13 +2,17 @@ import datetime
 from typing import List, Optional
 
 import dramatiq
-from dramatiq.brokers.rabbitmq import RabbitmqBroker
+from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.aws_ses import send_email_ses
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.config import get_mq_url, settings
+from chafan_core.app.config import settings
 from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
     create_article_activity,
@@ -38,8 +42,6 @@ from chafan_core.app.schemas.event import (
     EventInternal,
     MentionedInCommentInternal,
     ReplyCommentInternal,
-    SiteBroadcastInternal,
-    SystemBroadcast,
 )
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.app.text_analysis import (
@@ -56,61 +58,16 @@ from chafan_core.app.webhook_utils import (
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import TaskStatus, get_utc_now
 
-rabbitmq_broker = RabbitmqBroker(url=get_mq_url())
-dramatiq.set_broker(rabbitmq_broker)
+import logging
+logger = logging.getLogger(__name__)
 
 
-@dramatiq.actor
-def super_broadcast(task_id: int, message_body: str) -> None:
-    def runnable(broker: DataBroker) -> None:
-        task = broker.get_db().query(models.Task).filter_by(id=task_id).first()
-        assert task is not None
-        for user in crud.user.get_all_active_users(broker.get_db()):
-            utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-            notification = crud.notification.create_with_content(
-                broker,
-                event=EventInternal(
-                    created_at=utc_now,
-                    content=SystemBroadcast(
-                        message=message_body,
-                    ),
-                ),
-                receiver_id=user.id,
-            )
-            print(
-                f"Broadcasting system notification {notification.id} to user {user.id} ..."
-            )
-        task.status = TaskStatus.FINISHED
+# TODO do we need a better way to get url?
+redis_url = settings.REDIS_URL
+logger.info(f"Create DramatiqBroker with redis {redis_url}")
+dramatiq_broker = RedisBroker(url=redis_url, namespace="dramatiq")
+dramatiq.set_broker(dramatiq_broker)
 
-    execute_with_broker(runnable)
-
-
-@dramatiq.actor
-def site_broadcast(task_id: int, submission_id: int, site_id: int) -> None:
-    def runnable(broker: DataBroker) -> None:
-        task = broker.get_db().query(models.Task).filter_by(id=task_id).first()
-        assert task is not None
-        site = crud.site.get_by_id(broker.get_db(), id=site_id)
-        assert site is not None
-        for membership in site.profiles:
-            utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-            notification = crud.notification.create_with_content(
-                broker,
-                event=EventInternal(
-                    created_at=utc_now,
-                    content=SiteBroadcastInternal(
-                        submission_id=submission_id,
-                        site_id=site.id,
-                    ),
-                ),
-                receiver_id=membership.owner_id,
-            )
-            print(
-                f"Broadcasting site notification {notification.id} to user {membership.owner_id} ..."
-            )
-        task.status = TaskStatus.FINISHED
-
-    execute_with_broker(runnable)
 
 
 def notify_mentioned_users(
@@ -188,9 +145,9 @@ def get_comment_event(comment: models.Comment) -> Optional[EventInternal]:
 def postprocess_new_comment(
     comment_id: int, shared_to_timeline: bool, mentioned: Optional[List[str]]
 ) -> None:
-    print("postprocess_new_comment")
 
     def runnable(broker: DataBroker) -> None:
+        logger.info("postprocess_new_comment: id=" + str(comment_id))
         comment = crud.comment.get(broker.get_db(), id=comment_id)
         assert comment is not None
         if mentioned:
@@ -287,6 +244,7 @@ def postprocess_comment_update(
     execute_with_broker(runnable)
 
 
+@dramatiq.actor
 def postprocess_question_common(question: models.Question) -> None:
     update_question_keywords(question)
 
@@ -296,6 +254,7 @@ def postprocess_new_question(question_id: int) -> None:
     print("postprocess_new_question")
 
     def runnable(broker: DataBroker) -> None:
+        logger.info(f"run postprocess_new_question for qid={question_id}")
         question = crud.question.get(broker.get_db(), id=question_id)
         assert question is not None
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)

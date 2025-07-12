@@ -2,6 +2,8 @@ from typing import MutableMapping
 
 from fastapi.websockets import WebSocket
 
+import logging
+logger = logging.getLogger(__name__)
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -19,6 +21,9 @@ class ConnectionManager:
         ws = self.active_connections.get(user_id)
         if ws:
             await ws.send_text(message)
+        else:
+            logger.error(f"Failed to send_message. No active ws for user={user_id}")
 
 
 manager = ConnectionManager()
+
