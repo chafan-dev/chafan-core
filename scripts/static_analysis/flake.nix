@@ -22,6 +22,10 @@
           buildInputs = [
 
             pkgs.python312
+            pkgs.mypy
+            pkgs.black
+            pkgs.isort
+
 
 
           ];

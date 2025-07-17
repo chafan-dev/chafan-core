@@ -22,3 +22,5 @@ jobs:
         run: |
           cd scripts/static_analysis
           nix develop
+      - name: Run Lint
+        run: bash scripts/static_analysis/lint.sh
