@@ -31,8 +31,8 @@
             pkgs.python312
             pkgs.python312Packages.uvicorn
             pkgs.python312Packages.fastapi
-            pkgs.python312Packages.fastapi-cli
             pkgs.python312Packages.python-dotenv
+            pkgs.python312Packages.apscheduler
             pkgs.python312Packages.slowapi
             pkgs.python312Packages.shortuuid
             pkgs.python312Packages.starlette
