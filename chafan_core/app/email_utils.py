@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 #from emails.template import JinjaTemplate  # type: ignore
 
 from chafan_core.app import schemas
-from chafan_core.app.aws_ses import send_email_ses
 from chafan_core.app.common import from_now, is_dev, render_notif_content
 from chafan_core.app.config import settings
 
@@ -23,21 +22,6 @@ def send_email(
     environment: Dict[str, Any] = {},
 ) -> None:
     return
-    #body_html = JinjaTemplate(html_template).render(**environment)
-    if is_dev():
-        mailbox_dir = f"/tmp/chafan/mailbox/{email_to}/"
-        os.makedirs(mailbox_dir, exist_ok=True)
-        with tempfile.NamedTemporaryFile(
-            mode="w", dir=mailbox_dir, delete=False, suffix=".html"
-        ) as tmp:
-            tmp.write(body_html)
-    else:
-        send_email_ses(
-            email_to=email_to,
-            subject=JinjaTemplate(subject_template).render(**environment),
-            body_html=body_html,
-        )
-
 
 
 
