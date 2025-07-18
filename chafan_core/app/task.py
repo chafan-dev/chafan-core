@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.aws_ses import send_email_ses
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.config import settings
 from chafan_core.app.crud.crud_activity import (
@@ -603,11 +602,8 @@ def postprocess_new_feedback(feedback_id: int) -> None:
             db.query(models.Feedback).filter(models.Feedback.id == feedback_id).first()
         )
         assert feedback is not None
-        send_email_ses(
-            email_to="root@cha.fan",
-            subject="New feedback",
-            body_html=f"ID: {feedback.id}\n{feedback.description}",
-        )
+
+    logger.error("This is not supported")
 
     execute_with_db(SessionLocal(), runnable)
 
