@@ -27,6 +27,8 @@
             pkgs.isort
 
 pkgs.python312Packages.mypy
+            pkgs.python312Packages.sqlalchemy
+
             pkgs.python312Packages.pydantic
             pkgs.python312Packages.pydantic-settings
 
