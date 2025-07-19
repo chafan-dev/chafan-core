@@ -1,6 +1,7 @@
 from typing import Any, MutableMapping, Optional
 
 
+
 import logging
 log_config = {
     "version": 1,
@@ -28,6 +29,10 @@ logging.config.dictConfig(log_config)
 logger = logging.getLogger(__name__)
 
 
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
+
+scheduler = BackgroundScheduler()
 import sentry_sdk
 import uvicorn
 import fastapi
@@ -42,6 +47,7 @@ from starlette.requests import Request
 
 from chafan_core.app.api import health
 from chafan_core.app.api.api_v1.api import api_router
+from chafan_core.app.feed import write_new_activities_to_feeds
 from chafan_core.app.common import enable_rate_limit, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
@@ -113,4 +119,17 @@ for lib in [fastapi, uvicorn, starlette]:
 
 logger.info("Server launches")
 
+@app.on_event("startup")
+def set_up_scheduled_tasks():
+#    scheduler.add_job(
+#            write_new_activities_to_feeds,
+#            trigger=IntervalTrigger(minutes=1),
+#            name="write_new_activities_to_feeds")
+#    scheduler.start()
+    logger.info("Set up scheduled tasks")
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    logger.info("Stub: shutdown_event")
 

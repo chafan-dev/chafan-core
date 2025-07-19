@@ -353,6 +353,22 @@ def get_random_activities(
 
 CACHE_REWIND_SIZE = 1000
 
+# TODO This should match schemas/event.py. For now I'm matching them manually 2025-07-18
+from enum import Enum
+class ActivityType(Enum):
+    ANSWER_QUESTION     = "answer_question"
+    CREATE_ARTICLE      = "create_article"
+
+from chafan_core.app.models.activity import Activity
+
+def new_activity_into_feed(activity_type: ActivityType, activity:Activity) -> None:
+    logger.info("generating feed for activity " + str(activity))
+
+
+
+def write_new_activities_to_feeds() -> None: #2.0 api
+    logger.info("run write_new_activities_to_feeds")
+    logger.info("TODO remove this function")
 
 def cache_new_activity_to_feeds() -> None:
     def runnable(read_db: Session) -> None:

@@ -147,3 +147,9 @@ dmypy.json
 .pyre/
 
 !chafan_core/app/email-templates/build
+
+# Node.js
+node_modules/
+package-lock.json
+package.json
+

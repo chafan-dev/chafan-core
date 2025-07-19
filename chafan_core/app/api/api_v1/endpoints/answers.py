@@ -1,5 +1,9 @@
 from typing import Any, List, Optional, Union
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
@@ -19,6 +23,7 @@ from chafan_core.app.schemas.event import EventInternal, UpvoteAnswerInternal
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import HTTPException_, filter_not_none, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
+from chafan_core.app.task import postprocess_new_answer
 
 router = APIRouter()
 
@@ -217,9 +222,9 @@ def create_answer(
         author_id=current_user_id,
         site_id=question.site_id,
     )
+    logger.info("post answer: " + str(answer))
     if answer.is_published:
-        from chafan_core.app.task import postprocess_new_answer
-
+        logger.info(f"create_answer add postprocess task id={answer.id}")
         run_dramatiq_task(postprocess_new_answer, answer.id, False)
     return cached_layer.materializer.answer_schema_from_orm(answer)
 
@@ -268,7 +273,6 @@ def _update_answer(
     if answer.is_published:
         # NOTE: Since is_published will not be reverted, thus this should only be delivered once
         # TODO: Implement the update subscription logic
-        from chafan_core.app.task import postprocess_new_answer
 
         run_dramatiq_task(postprocess_new_answer, answer.id, was_published)
 

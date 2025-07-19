@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.config import settings
+from chafan_core.app.feed import (
+        new_activity_into_feed,
+        ActivityType,
+)
 from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
     create_article_activity,
@@ -56,6 +60,8 @@ from chafan_core.app.webhook_utils import (
 )
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import TaskStatus, get_utc_now
+from chafan_core.app.models.activity import Activity
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -499,6 +505,7 @@ def postprocess_updated_submission(submission_id: int) -> None:
 def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
     def runnable(broker: DataBroker) -> None:
         answer = crud.answer.get(broker.get_db(), id=answer_id)
+        logger.info(f"postprocess_new_answer id={answer_id}, was_published={was_published}")
         assert answer is not None and answer.is_published
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         if not was_published:
@@ -513,14 +520,14 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
                     ),
                     receiver_id=answer.question.author.id,
                 )
-            broker.get_db().add(
-                create_answer_activity(
+            answer_ac: Activity = create_answer_activity(
                     answer=answer,
                     site_id=answer.question.site.id,
                     created_at=utc_now,
                 )
-            )
+            broker.get_db().add(answer_ac)
             broker.get_db().commit()
+            new_activity_into_feed(ActivityType.ANSWER_QUESTION, answer_ac)
         for user in answer.bookmarkers:
             crud.notification.create_with_content(
                 broker,

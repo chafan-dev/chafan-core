@@ -1,6 +1,8 @@
 import os
 import sys
 
+# TODO Remove this file. 2025-07-18
+
 from dotenv import load_dotenv  # isort:skip
 load_dotenv()  # isort:skip
 
