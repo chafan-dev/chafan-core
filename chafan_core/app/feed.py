@@ -72,7 +72,9 @@ def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)
     )
 
 def new_activity_into_feed(broker: DataBroker, activity_type: ActivityType, activity:models.Activity) -> None:
-    logger.info("generating feed for activity " + str(activity))
+    logger.info("generating feed for activity " + str(activity) + str(activity.id))
+    assert activity.id is not None
+    assert isinstance(activity.id, int)
     receivers = lookup_activity_receiver_list(broker, activity)
     write_db = broker.get_db()
     for receiver_id in receivers.receiver_ids:

@@ -285,7 +285,10 @@ def postprocess_new_question(question_id: int) -> None:
                 site_id=question.site_id,
                 event_json=event_json,
             )
-        broker.get_db().add(question_ac)
+        db = broker.get_db()
+        db.add(question_ac)
+        db.flush()
+        db.commit()
         new_activity_into_feed(broker, ActivityType.CREATE_QUESTION, question_ac)
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
@@ -525,8 +528,10 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
                     site_id=answer.question.site.id,
                     created_at=utc_now,
                 )
-            broker.get_db().add(answer_ac)
-            broker.get_db().commit()
+            db = broker.get_db()
+            db.add(answer_ac)
+            db.flush()
+            db.commit()
             new_activity_into_feed(broker, ActivityType.ANSWER_QUESTION, answer_ac)
         for user in answer.bookmarkers:
             crud.notification.create_with_content(
