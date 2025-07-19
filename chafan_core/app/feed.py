@@ -41,7 +41,58 @@ class ActivityDistributionInfo(NamedTuple):
     receiver_ids: Set[int]
     subject_user_uuid: Optional[str]
 
+# TODO This should match schemas/event.py. For now I'm matching them manually 2025-07-18
+# 2025-07-19 Do I really need this enum?
+from enum import Enum
+class ActivityType(Enum):
+    CREATE_QUESTION     = "create_question"
+    ANSWER_QUESTION     = "answer_question"
+    CREATE_ARTICLE      = "create_article"
 
+
+
+def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)->ActivityDistributionInfo:
+    try:
+        event = EventInternal.parse_raw(activity.event_json)
+    except Exception:
+        logger.error("failed to parse Event " + activity.event_json)
+        return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
+    logger.info(f"get event: {event}")
+    assert hasattr(event.content, "subject_id")
+    read_db = broker.get_db()
+    subject = crud.user.get(read_db, id=event.content.subject_id)
+    assert subject is not None
+    subject_user_uuid = subject.uuid
+    receivers: Dict[int, models.User] = {}
+    for follower in subject.followers:
+        receivers[follower.id] = follower
+    # TODO didn't consider blocker setting 2025-07-19
+    return ActivityDistributionInfo(
+        receiver_ids=set(receivers.keys()), subject_user_uuid=subject_user_uuid
+    )
+
+def new_activity_into_feed(broker: DataBroker, activity_type: ActivityType, activity:models.Activity) -> None:
+    logger.info("generating feed for activity " + str(activity))
+    receivers = lookup_activity_receiver_list(broker, activity)
+    write_db = broker.get_db()
+    for receiver_id in receivers.receiver_ids:
+        feed = write_db.query(models.Feed)  \
+            .filter_by(receiver_id=receiver_id, activity_id=activity.id) \
+            .first()
+        logger.info(f"receiver={receiver_id}, activity={activity}, feed={feed}")
+        if feed is None:
+            write_db.add(
+                models.Feed(
+                    receiver_id=receiver_id,
+                    activity_id=activity.id,
+                    subject_user_uuid=receivers.subject_user_uuid,
+                )
+            )
+            write_db.commit()
+
+
+
+# TODO This is the v1 api. To be removed. 2025-07-19
 def get_activity_dist_info(
     read_db: Session, activity: models.Activity
 ) -> ActivityDistributionInfo:
@@ -97,7 +148,7 @@ def get_activity_dist_info(
             del receivers[answer.author_id]
     elif isinstance(event.content, UpvoteQuestionInternal):
         question = crud.question.get(read_db, id=event.content.question_id)
-        assert question is not None
+        #assert question is not None 
         for question_upvote in read_db.query(models.QuestionUpvotes).filter_by(
             question_id=question.id
         ):
@@ -353,23 +404,12 @@ def get_random_activities(
 
 CACHE_REWIND_SIZE = 1000
 
-# TODO This should match schemas/event.py. For now I'm matching them manually 2025-07-18
-from enum import Enum
-class ActivityType(Enum):
-    ANSWER_QUESTION     = "answer_question"
-    CREATE_ARTICLE      = "create_article"
-
-from chafan_core.app.models.activity import Activity
-
-def new_activity_into_feed(activity_type: ActivityType, activity:Activity) -> None:
-    logger.info("generating feed for activity " + str(activity))
-
-
 
 def write_new_activities_to_feeds() -> None: #2.0 api
     logger.info("run write_new_activities_to_feeds")
     logger.info("TODO remove this function")
 
+# TODO This is v1 util. To be removed 2025-07-19
 def cache_new_activity_to_feeds() -> None:
     def runnable(read_db: Session) -> None:
         max_feed_activity_id = read_db.query(func.max(models.Feed.activity_id)).scalar()

@@ -280,13 +280,13 @@ def postprocess_new_question(question_id: int) -> None:
             payer=question.author,
             payee=question.site.moderator,
         )
-        broker.get_db().add(
-            models.Activity(
+        question_ac = models.Activity(
                 created_at=utc_now,
                 site_id=question.site_id,
                 event_json=event_json,
             )
-        )
+        broker.get_db().add(question_ac)
+        new_activity_into_feed(broker, ActivityType.CREATE_QUESTION, question_ac)
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
             call_webhook(
@@ -527,7 +527,7 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
                 )
             broker.get_db().add(answer_ac)
             broker.get_db().commit()
-            new_activity_into_feed(ActivityType.ANSWER_QUESTION, answer_ac)
+            new_activity_into_feed(broker, ActivityType.ANSWER_QUESTION, answer_ac)
         for user in answer.bookmarkers:
             crud.notification.create_with_content(
                 broker,
