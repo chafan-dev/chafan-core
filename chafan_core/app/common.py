@@ -86,7 +86,7 @@ def enable_rate_limit() -> bool:
 def run_dramatiq_task(task: Any, *arg: Any, **kwargs: Any) -> None:
     # TODO This function should be moved out of common.py, to task.py
     print("run_dramatiq_task")
-    print(type(task))
+    print(arg)
     #task(*arg, **kwargs)
     task.send(*arg, **kwargs)
 
