@@ -1,7 +1,5 @@
 from typing import Any, MutableMapping, Optional
 
-
-
 import logging
 log_config = {
     "version": 1,
@@ -47,7 +45,6 @@ from starlette.requests import Request
 
 from chafan_core.app.api import health
 from chafan_core.app.api.api_v1.api import api_router
-from chafan_core.app.feed import write_new_activities_to_feeds
 from chafan_core.app.common import enable_rate_limit, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter

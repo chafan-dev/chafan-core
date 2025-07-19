@@ -3,7 +3,6 @@ from typing import Any, List, Optional, Union
 import logging
 logger = logging.getLogger(__name__)
 
-
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
@@ -222,7 +221,6 @@ def create_answer(
         author_id=current_user_id,
         site_id=question.site_id,
     )
-    logger.info("post answer: " + str(answer))
     if answer.is_published:
         logger.info(f"create_answer add postprocess task id={answer.id}")
         run_dramatiq_task(postprocess_new_answer, answer.id, False)

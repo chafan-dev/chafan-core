@@ -57,6 +57,7 @@ def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)
     except Exception:
         logger.error("failed to parse Event " + activity.event_json)
         return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
+    # TODO We need to consider different types of events 2025-07-20
     logger.info(f"get event: {event}")
     assert hasattr(event.content, "subject_id")
     read_db = broker.get_db()
@@ -149,7 +150,7 @@ def get_activity_dist_info(
             del receivers[answer.author_id]
     elif isinstance(event.content, UpvoteQuestionInternal):
         question = crud.question.get(read_db, id=event.content.question_id)
-        #assert question is not None 
+        assert question is not None
         for question_upvote in read_db.query(models.QuestionUpvotes).filter_by(
             question_id=question.id
         ):
@@ -406,9 +407,6 @@ def get_random_activities(
 CACHE_REWIND_SIZE = 1000
 
 
-def write_new_activities_to_feeds() -> None: #2.0 api
-    logger.info("run write_new_activities_to_feeds")
-    logger.info("TODO remove this function")
 
 # TODO This is v1 util. To be removed 2025-07-19
 def cache_new_activity_to_feeds() -> None:
