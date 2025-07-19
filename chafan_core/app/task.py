@@ -289,7 +289,7 @@ def postprocess_new_question(question_id: int) -> None:
         db.add(question_ac)
         db.flush()
         db.commit()
-        new_activity_into_feed(broker, ActivityType.CREATE_QUESTION, question_ac)
+        new_activity_into_feed(broker, question_ac)
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
             call_webhook(
@@ -532,7 +532,7 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
             db.add(answer_ac)
             db.flush()
             db.commit()
-            new_activity_into_feed(broker, ActivityType.ANSWER_QUESTION, answer_ac)
+            new_activity_into_feed(broker, answer_ac)
         for user in answer.bookmarkers:
             crud.notification.create_with_content(
                 broker,

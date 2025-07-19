@@ -71,8 +71,8 @@ def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)
         receiver_ids=set(receivers.keys()), subject_user_uuid=subject_user_uuid
     )
 
-def new_activity_into_feed(broker: DataBroker, activity_type: ActivityType, activity:models.Activity) -> None:
-    logger.info("generating feed for activity " + str(activity) + str(activity.id))
+def new_activity_into_feed(broker: DataBroker, activity:models.Activity) -> None:
+    logger.info("generating feed for activity "  + str(activity.id))
     assert activity.id is not None
     assert isinstance(activity.id, int)
     receivers = lookup_activity_receiver_list(broker, activity)
@@ -81,7 +81,6 @@ def new_activity_into_feed(broker: DataBroker, activity_type: ActivityType, acti
         feed = write_db.query(models.Feed)  \
             .filter_by(receiver_id=receiver_id, activity_id=activity.id) \
             .first()
-        logger.info(f"receiver={receiver_id}, activity={activity}, feed={feed}")
         if feed is None:
             write_db.add(
                 models.Feed(
