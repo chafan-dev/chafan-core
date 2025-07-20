@@ -26,7 +26,6 @@ from chafan_core.app.api.api_v1.endpoints import (
     people,
     profiles,
     questions,
-    reactions,
     reports,
     rewards,
     search,
