@@ -23,4 +23,9 @@ jobs:
       - name: Check size
         run: |
           cd /nix/store
-          du -h --max-depth=0
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            du -h --max-depth=0
+          else
+            du -h -d 0
+          fi
+            
