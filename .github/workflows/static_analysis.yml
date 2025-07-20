@@ -20,5 +20,4 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Run Lint
         run: |
-          cp -f scripts/static_analysis/flake.nix .
           nix develop --command bash -c scripts/static_analysis/lint.sh
