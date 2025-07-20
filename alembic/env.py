@@ -1,9 +1,8 @@
 from __future__ import with_statement
 
-from dotenv import load_dotenv  # isort:skip
-load_dotenv()  # isort:skip
+#from dotenv import load_dotenv  # isort:skip
+#load_dotenv()  # isort:skip
 
-import os
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 from logging.config import fileConfig
