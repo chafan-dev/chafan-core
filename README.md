@@ -66,6 +66,15 @@ make dev-run
 Open http://dev.cha.fan:4582/docs for API docs.
 
 ## DB Schema Migrations
+```
+nix develop
+source ../launch_env
+echo $DATABASE_URL
+```
+Modify `app/models`, including `app/models/__init__.py`
+
+
+
 
 ```bash
 $ alembic revision --autogenerate -m "Add column last_name to User model"
@@ -93,21 +102,6 @@ Test all:
 pytest
 ```
 
-## RabbitMQ dev setup in macOS
-
-Management Plugin enabled by default at http://localhost:15672. Default username/password is guest/guest.
-
-To have launchd start rabbitmq now and restart at login:
-
-```
-brew services start rabbitmq
-```
-
-Or, if you don't want/need a background service you can just run:
-
-```
-rabbitmq-server
-```
 
 ## Staging
 

@@ -23,10 +23,14 @@
             pkgs.locale
             pkgs.glibcLocales
 
+            pkgs.python312Packages.pymongo # TODO remove
+
             pkgs.cloudflared
 
             pkgs.redis
+
             pkgs.postgresql_14
+            pkgs.python312Packages.alembic
 
             pkgs.python312
             pkgs.python312Packages.uvicorn
@@ -55,8 +59,6 @@
             pkgs.python312Packages.redis
             pkgs.python312Packages.html2text
             pkgs.python312Packages.jinja2
-            pkgs.python312Packages.pymongo
-            pkgs.python312Packages.alembic
 
             pkgs.python312Packages.jieba
             pkgs.python312Packages.whoosh

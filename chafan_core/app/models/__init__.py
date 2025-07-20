@@ -34,3 +34,4 @@ from .task import Task
 from .topic import Topic
 from .user import User
 from .webhook import Webhook
+from .viewcount import ViewCountArticle, ViewCountAnswer, ViewCountQuestion
