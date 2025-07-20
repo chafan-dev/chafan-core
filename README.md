@@ -78,7 +78,12 @@ Modify `app/models`, including `app/models/__init__.py`
 
 ```bash
 $ alembic revision --autogenerate -m "Add column last_name to User model"
-$ alembic upgrade head
+```
+
+Check the generated version file, eg `4794c0c3c743_add_view_count_tables.py`
+
+```
+alembic upgrade head
 ```
 
 ## Test

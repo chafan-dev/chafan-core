@@ -1,8 +1,8 @@
 """Add view count tables
 
-Revision ID: 39bea5109b9e
+Revision ID: 4794c0c3c743
 Revises: 6162e247214e
-Create Date: 2025-07-20 19:01:31.565999
+Create Date: 2025-07-20 19:06:25.347319
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '39bea5109b9e'
+revision = '4794c0c3c743'
 down_revision = '6162e247214e'
 branch_labels = None
 depends_on = None
@@ -22,24 +22,24 @@ def upgrade():
     sa.Column('article_id', sa.Integer(), nullable=False),
     sa.Column('view_count', sa.Integer(), server_default='0', nullable=False),
     sa.ForeignKeyConstraint(['article_id'], ['article.id'], ),
-    sa.PrimaryKeyConstraint('article_id', 'view_count'),
-    sa.UniqueConstraint('article_id', 'view_count')
+    sa.PrimaryKeyConstraint('article_id'),
+    sa.UniqueConstraint('article_id')
     )
     op.create_index(op.f('ix_viewcountarticle_article_id'), 'viewcountarticle', ['article_id'], unique=False)
     op.create_table('viewcountquestion',
     sa.Column('question_id', sa.Integer(), nullable=True),
     sa.Column('view_count', sa.Integer(), server_default='0', nullable=False),
     sa.ForeignKeyConstraint(['question_id'], ['question.id'], ),
-    sa.PrimaryKeyConstraint('question_id', 'view_count'),
-    sa.UniqueConstraint('question_id', 'view_count')
+    sa.PrimaryKeyConstraint('question_id'),
+    sa.UniqueConstraint('question_id')
     )
     op.create_index(op.f('ix_viewcountquestion_question_id'), 'viewcountquestion', ['question_id'], unique=False)
     op.create_table('viewcountanswer',
     sa.Column('answer_id', sa.Integer(), nullable=True),
     sa.Column('view_count', sa.Integer(), server_default='0', nullable=False),
     sa.ForeignKeyConstraint(['answer_id'], ['answer.id'], ),
-    sa.PrimaryKeyConstraint('answer_id', 'view_count'),
-    sa.UniqueConstraint('answer_id', 'view_count')
+    sa.PrimaryKeyConstraint('answer_id'),
+    sa.UniqueConstraint('answer_id')
     )
     op.create_index(op.f('ix_viewcountanswer_answer_id'), 'viewcountanswer', ['answer_id'], unique=False)
     # ### end Alembic commands ###
