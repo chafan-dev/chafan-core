@@ -73,7 +73,6 @@ api_router.include_router(discovery.router, prefix="/discovery", tags=["discover
 api_router.include_router(rss.router, prefix="/rss", tags=["rss"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 api_router.include_router(ws.router, prefix="/ws", tags=["ws"])
-api_router.include_router(reactions.router, prefix="/reactions", tags=["reactions"])
 api_router.include_router(
     submissions.router, prefix="/submissions", tags=["submissions"]
 )
