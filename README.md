@@ -66,27 +66,44 @@ make dev-run
 Open http://dev.cha.fan:4582/docs for API docs.
 
 ## DB Schema Migrations
+
+### Step 1: Set up python dependencies and Shell envs
+
 ```
 nix develop
 source ../launch_env
 echo $DATABASE_URL
 ```
-Modify `app/models`, including `app/models/__init__.py`
 
+### Step 2: Run PostgreSQL
+```
+pg_ctl start -l logfile   -D   $CHAFAN_PG_DB_CLUSTER -o "--unix_socket_directories='$CHAFAN_PG_DB_BASE'  -p $CHAFAN_PG_PORT"
+```
 
+### Step 3: Edit models
+
+- Modify `app/models`
+- Also modify `app/models/__init__.py`
+
+### Step 4: Generate version file
 
 
 ```bash
-$ alembic revision --autogenerate -m "Add column last_name to User model"
+alembic revision --autogenerate -m "Add column last_name to User model"
 ```
 
-Check the generated version file, eg `4794c0c3c743_add_view_count_tables.py`
+See [doc](https://alembic.sqlalchemy.org/en/latest/autogenerate.html) and [StackOverflow](https://stackoverflow.com/questions/11180013/auto-generating-migrations-using-alembic/11193390#11193390)
+
+
+SHALL manually check the generated version file, eg `4794c0c3c743_add_view_count_tables.py`
+
+### Step 5: Apply DB change
 
 ```
 alembic upgrade head
 ```
 
-Check PostgreSQL DB. `alembic_version`
+Check PostgreSQL DB and `TABLE alembic_version`.
 
 ## Test
 
