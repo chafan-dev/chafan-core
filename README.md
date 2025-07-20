@@ -86,6 +86,8 @@ Check the generated version file, eg `4794c0c3c743_add_view_count_tables.py`
 alembic upgrade head
 ```
 
+Check PostgreSQL DB. `alembic_version`
+
 ## Test
 
 Reset persistent state before testing:
