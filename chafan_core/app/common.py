@@ -11,8 +11,6 @@ import sentry_sdk
 from fastapi import Header, Request
 from html2text import HTML2Text
 from jinja2 import Template
-from pymongo import MongoClient
-from pymongo.database import Database as MongoDB
 
 from chafan_core.app import schemas
 from chafan_core.app.config import settings
@@ -42,24 +40,6 @@ def get_redis_cli() -> redis.Redis:
             settings.REDIS_URL, decode_responses=True, max_connections=60
         )
     return _redis_pool
-
-
-_mongo_pool: Optional[MongoClient] = None
-
-
-def get_mongo_pool() -> MongoClient:
-    global _mongo_pool
-    if not _mongo_pool:
-        _mongo_pool = MongoClient(settings.MONGO_CONNECTION)
-        _mongo_pool.admin.command("ping")
-    return _mongo_pool
-
-
-def get_mongo_db() -> MongoDB:
-    from chafan_core.app.config import settings
-
-    pool = get_mongo_pool()
-    return pool.get_database("chafan_" + settings.ENV)
 
 
 MAX_FILE_SIZE = 10_000_000
