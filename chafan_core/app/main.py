@@ -49,6 +49,7 @@ from chafan_core.app.common import enable_rate_limit, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
 from chafan_core.app.limiter_middleware import SlowAPIMiddleware
+from chafan_core.app.task import write_view_count_to_db
 
 args: MutableMapping[str, Optional[Any]] = {}
 if is_dev():
@@ -118,11 +119,12 @@ logger.info("Server launches")
 
 @app.on_event("startup")
 def set_up_scheduled_tasks():
-#    scheduler.add_job(
-#            write_new_activities_to_feeds,
+    scheduler.add_job(
+            write_view_count_to_db,
 #            trigger=IntervalTrigger(minutes=1),
-#            name="write_new_activities_to_feeds")
-#    scheduler.start()
+            trigger=IntervalTrigger(seconds=10),
+            name="write_new_activities_to_feeds")
+    scheduler.start()
     logger.info("Set up scheduled tasks")
 
 
