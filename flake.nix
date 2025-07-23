@@ -26,7 +26,9 @@
             pkgs.cloudflared
 
             pkgs.redis
+
             pkgs.postgresql_14
+            pkgs.python312Packages.alembic
 
             pkgs.python312
             pkgs.python312Packages.uvicorn
@@ -39,7 +41,7 @@
             pkgs.python312Packages.pytz
             pkgs.python312Packages.python-jose
             pkgs.python312Packages.passlib
-            pkgs.python312Packages.boto3
+            pkgs.python312Packages.boto3 # S3 client
 	        pkgs.python312Packages.bcrypt
             # Sentry migrate
             # https://github.com/getsentry/sentry-python/commit/570307c946020e9fefdb22904585170cd6d2717d
@@ -55,8 +57,6 @@
             pkgs.python312Packages.redis
             pkgs.python312Packages.html2text
             pkgs.python312Packages.jinja2
-            pkgs.python312Packages.pymongo
-            pkgs.python312Packages.alembic
 
             pkgs.python312Packages.jieba
             pkgs.python312Packages.whoosh

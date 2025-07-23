@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
 from chafan_core.app.config import settings
 from chafan_core.app.feed import (
         new_activity_into_feed,
@@ -656,3 +657,16 @@ def refresh_interesting_user_ids_for_user(user_id: int) -> None:
         user.interesting_user_ids_updated_at = get_utc_now()
 
     execute_with_db(SessionLocal(), runnable)
+
+from collections import Counter
+
+def write_view_count_to_db() -> None:
+    def runnable(broker: DataBroker):
+        logger.info("write_view_count_to_db called")
+        redis = broker.get_redis()
+        views = redis.lrange(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, 0, -1)
+        redis.delete(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY) # Race condition here. But losing a few view counts is okay
+        view_dict = Counter(views)
+        logger.info("get views " + str(view_dict))
+    execute_with_broker(runnable)
+    return None
