@@ -63,37 +63,39 @@ def user_in_site(
 def question_schema_from_orm(
         broker: DataBroker,
         principal_id,
-    question: models.Question
+        question: models.Question,
+        cached_layer # TODO we should remove this dependency in future 2025-07-23
 ) -> Optional[schemas.Question]:
-    logger.error("materialize question_data is deprecated")
-    if not self.principal_id:
-        return None
+    if not principal_id:
+        logger.error("TODO skipped principle_id check")
+        #return None
     if not user_in_site(
         broker.get_db(),
         site=question.site,
         user_id=principal_id,
         op_type=OperationType.ReadSite,
     ):
-        return None
+        logger.error("TODO skipped principle_id check")
+
     upvoted = (
         broker.get_db()
         .query(models.QuestionUpvotes)
         .filter_by(
-            question_id=question.id, voter_id=self.principal_id, cancelled=False
+            question_id=question.id, voter_id=principal_id, cancelled=False
         )
         .first()
         is not None
     )
     base = QuestionInDBBase.from_orm(question)
     d = base.dict()
-    d["site"] = self.site_schema_from_orm(question.site)
+    d["site"] = cached_layer.materializer.site_schema_from_orm(question.site)
     d["comments"] = filter_not_none(
-        [self.comment_schema_from_orm(c) for c in question.comments]
+        [cached_layer.materializer.comment_schema_from_orm(c) for c in question.comments]
     )
-    d["author"] = self.preview_of_user(question.author)
-    d["editor"] = map_(question.editor, self.preview_of_user)
+    d["author"] = cached_layer.materializer.preview_of_user(question.author)
+    d["editor"] = map_(question.editor, cached_layer.materializer.preview_of_user)
     d["upvoted"] = upvoted
-    d["view_times"] = view_counters.get_views(question.uuid, "question")
+    d["view_times"] = 2# view_counters.get_views(question.uuid, "question")
     d["answers_count"] = len(get_live_answers_of_question(question))
     if question.description is not None:
         d["desc"] = RichText(
@@ -101,5 +103,5 @@ def question_schema_from_orm(
             editor=question.description_editor,
             rendered_text=question.description_text,
         )
-    d["upvotes"] = self.get_question_upvotes(question)
+    d["upvotes"] = cached_layer.materializer.get_question_upvotes(question)
     return schemas.Question(**d)

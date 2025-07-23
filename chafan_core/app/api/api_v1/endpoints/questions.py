@@ -61,12 +61,14 @@ def _get_question_data(
     cached_layer: CachedLayer, question: models.Question
 ) -> Union[schemas.Question, schemas.QuestionForVisitor]:
     question_data: Optional[Union[schemas.Question, schemas.QuestionForVisitor]] = None
-    if cached_layer.principal_id is None:
-        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
-            question
-        )
-    else:
-        question_data = cached_layer.materializer.question_schema_from_orm(question)
+    # TODO removed the check for principle id 2025-07-23
+    question_data = cached_layer.question_schema_from_orm(question)
+#    if cached_layer.principal_id is None:
+#        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
+#            question
+#        )
+#    else:
+#        question_data = cached_layer.materializer.question_schema_from_orm(question)
     if question_data is None:
         raise HTTPException_(
             status_code=400,

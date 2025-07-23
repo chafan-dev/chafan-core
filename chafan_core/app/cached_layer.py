@@ -19,6 +19,7 @@ from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
+import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.app.schemas.preview import UserPreview
@@ -150,6 +151,11 @@ class CachedLayer(object):
                 ex=datetime.timedelta(hours=hours),
             )
         return data
+
+    def question_schema_from_orm(self, question: models.Question) -> Optional[schemas.Question]:
+        logger.info("called cached.layer for question " + str(question))
+        return responders.question.question_schema_from_orm(
+                self.broker, self.principal_id, question, self)
 
     def get_answer_by_id(self, answer_id:int):
         db = self.get_db()
