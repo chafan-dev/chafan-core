@@ -122,7 +122,7 @@ def set_up_scheduled_tasks():
     scheduler.add_job(
             write_view_count_to_db,
 #            trigger=IntervalTrigger(minutes=1),
-            trigger=IntervalTrigger(seconds=10),
+            trigger=IntervalTrigger(seconds=2),
             name="write_new_activities_to_feeds")
     scheduler.start()
     logger.info("Set up scheduled tasks")
