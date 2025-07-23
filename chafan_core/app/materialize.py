@@ -7,7 +7,7 @@ import sentry_sdk
 from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas, view_counters
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import OperationType, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
@@ -580,7 +580,7 @@ class Materializer(object):
         d["bookmarked"] = article in principal.bookmarked_articles
         d["author"] = self.preview_of_user(article.author)
         d["upvoted"] = upvoted
-        d["view_times"] = view_counters.get_views(article.uuid, "article")
+        d["view_times"] = 0#view_counters.get_views(article.uuid, "article")
         d["archives_count"] = len(article.archives)
         if article.is_published:
             body = article.body
@@ -790,7 +790,7 @@ class Materializer(object):
             return None
         d["question"] = q
         d["author"] = self.preview_of_user(answer.author)
-        d["view_times"] = view_counters.get_views(answer.uuid, "answer")
+        d["view_times"] = 0 #view_counters.get_views(answer.uuid, "answer")
         d["content"] = RichText(
             source=answer.body,
             rendered_text=answer.body_prerendered_text,
@@ -831,7 +831,7 @@ class Materializer(object):
         principal = crud.user.get(db, id=self.principal_id)
         assert principal is not None
         d["bookmarked"] = answer in principal.bookmarked_answers
-        d["view_times"] = view_counters.get_views(answer.uuid, "answer")
+        d["view_times"] = 0 #view_counters.get_views(answer.uuid, "answer")
         if answer.is_published:
             body = answer.body
         else:
@@ -850,6 +850,7 @@ class Materializer(object):
     def question_schema_from_orm(
         self, question: models.Question
     ) -> Optional[schemas.Question]:
+        logger.error("materialize question_data is deprecated")
         if not self.principal_id:
             return None
         if not user_in_site(
@@ -877,7 +878,7 @@ class Materializer(object):
         d["author"] = self.preview_of_user(question.author)
         d["editor"] = map_(question.editor, self.preview_of_user)
         d["upvoted"] = upvoted
-        d["view_times"] = view_counters.get_views(question.uuid, "question")
+        d["view_times"] = 0 #view_counters.get_views(question.uuid, "question")
         d["answers_count"] = len(get_live_answers_of_question(question))
         if question.description is not None:
             d["desc"] = RichText(
@@ -963,7 +964,7 @@ class Materializer(object):
         )
         d["author"] = self.preview_of_user(submission.author)
         d["contributors"] = [self.preview_of_user(u) for u in submission.contributors]
-        d["view_times"] = view_counters.get_views(submission.uuid, "submission")
+        d["view_times"] = 0 #view_counters.get_views(submission.uuid, "submission")
         if submission.description is not None:
             d["desc"] = RichText(
                 source=submission.description,

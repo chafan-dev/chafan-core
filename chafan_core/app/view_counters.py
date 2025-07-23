@@ -33,19 +33,4 @@ def add_view(
     return 0
 
 
-# TODO: caching strategy?
-def get_views(
-    object_uuid: str,
-    object_type: Literal["question", "answer", "profile", "article", "submission"],
-) -> int:
-    logger.error("get_views is a deprecated function")
-    return 0
-    result = db.views.find_one(
-        {
-            "object_uuid": object_uuid,
-            "object_type": object_type,
-        }
-    )
-    if result is None:
-        return 0
-    return len(result["counter"])
+#object_type: Literal["question", "answer", "profile", "article", "submission"],
