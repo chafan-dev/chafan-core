@@ -39,3 +39,10 @@ class ViewCountAnswer(Base):
     answer_id = Column(Integer, ForeignKey("answer.id"), nullable=True, index=True)
     view_count = Column(Integer, default=0, server_default="0", nullable=False)
 
+class ViewCountSubmission(Base):
+    __table_args__ = (
+        UniqueConstraint("submission_id"),
+        PrimaryKeyConstraint("submission_id"),
+    )
+    submission_id = Column(Integer, ForeignKey("submission.id"), nullable=True, index=True)
+    view_count = Column(Integer, default=0, server_default="0", nullable=False)

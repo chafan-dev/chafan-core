@@ -105,6 +105,12 @@ alembic upgrade head
 
 Check PostgreSQL DB and `TABLE alembic_version`.
 
+### Step 6: If we need to downgrade
+
+```
+alembic downgrade 6162e247214e
+```
+
 ## Test
 
 Reset persistent state before testing:
