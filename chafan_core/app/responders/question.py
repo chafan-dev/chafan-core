@@ -84,7 +84,6 @@ def question_schema_from_orm(
     d["editor"] = map_(question.editor, cached_layer.materializer.preview_of_user)
     d["upvoted"] = upvoted
     d["view_times"] = view_counters.get_viewcount_question(broker, question.id)
-                                                           #2# view_counters.get_views(question.uuid, "question")
     d["answers_count"] = len(get_live_answers_of_question(question))
     if question.description is not None:
         d["desc"] = RichText(

@@ -191,7 +191,7 @@ def create_question(
         db, db_obj=current_user, question=new_question
     )
     run_dramatiq_task(postprocess_new_question, new_question.id)
-    return cached_layer.materializer.question_schema_from_orm(new_question)
+    return cached_layer.question_schema_from_orm(new_question)
 
 
 @router.put("/{uuid}", response_model=schemas.Question)
@@ -274,7 +274,7 @@ def update_question(
         question_in_dict["description_text"] = None
     new_question = crud.question.update(db, db_obj=question, obj_in=question_in_dict)
     run_dramatiq_task(postprocess_updated_question, new_question.id)
-    return cached_layer.materializer.question_schema_from_orm(new_question)
+    return cached_layer.question_schema_from_orm(new_question)
 
 
 @router.get("/{uuid}/archives/", response_model=List[schemas.QuestionArchive])
