@@ -33,6 +33,12 @@ def add_view(
     return 0
 
 
-def get_viewcount_question(broker, row_id:int):
-    return 3
+from chafan_core.app.models.viewcount import ViewCountQuestion
+
+def get_viewcount_question(broker, row_id:int)->int:
+    db = broker.get_db()
+    row = db.query(ViewCountQuestion).filter(ViewCountQuestion.question_id == row_id).first()
+    if row is None:
+        return 0
+    return row.view_count
 #object_type: Literal["question", "answer", "profile", "article", "submission"],
