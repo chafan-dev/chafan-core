@@ -33,4 +33,6 @@ def add_view(
     return 0
 
 
+def get_viewcount_question(broker, row_id:int):
+    return 3
 #object_type: Literal["question", "answer", "profile", "article", "submission"],

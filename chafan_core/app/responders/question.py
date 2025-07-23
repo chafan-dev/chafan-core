@@ -3,7 +3,6 @@ from typing import Any, Dict, Mapping, Optional, Tuple, Union
 import logging
 logger = logging.getLogger(__name__)
 
-import sentry_sdk
 from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
@@ -16,25 +15,12 @@ from chafan_core.app.model_utils import (
     is_live_answer,
     is_live_article,
 )
-from chafan_core.app.schemas import event as event_module
-from chafan_core.app.schemas.answer import AnswerInDBBase
-from chafan_core.app.schemas.answer_archive import AnswerArchiveInDB
-from chafan_core.app.schemas.article import ArticleInDB
-from chafan_core.app.schemas.article_archive import ArticleArchiveInDB
-from chafan_core.app.schemas.event import (
-    ClaimAnswerQuestionRewardInternal,
-    CreateAnswerQuestionRewardInternal,
-    Event,
-    EventInternal,
-)
 from chafan_core.app.schemas.notification import Notification, NotificationInDBBase
 from chafan_core.app.schemas.question import (
         QuestionInDBBase,
         QuestionPreviewForSearch
 )
-from chafan_core.app.schemas.reward import AnsweredQuestionCondition, RewardCondition
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.schemas.security import IntlPhoneNumber
 from chafan_core.utils.base import (
     ContentVisibility,
     HTTPException_,
@@ -48,6 +34,8 @@ from chafan_core.utils.constants import (
     unknown_user_uuid,
 )
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr
+
+from chafan_core.app import view_counters
 
 def user_in_site(
     db: Session,
@@ -95,7 +83,8 @@ def question_schema_from_orm(
     d["author"] = cached_layer.materializer.preview_of_user(question.author)
     d["editor"] = map_(question.editor, cached_layer.materializer.preview_of_user)
     d["upvoted"] = upvoted
-    d["view_times"] = 2# view_counters.get_views(question.uuid, "question")
+    d["view_times"] = view_counters.get_viewcount_question(broker, question.id)
+                                                           #2# view_counters.get_views(question.uuid, "question")
     d["answers_count"] = len(get_live_answers_of_question(question))
     if question.description is not None:
         d["desc"] = RichText(
