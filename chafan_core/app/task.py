@@ -659,7 +659,7 @@ def refresh_interesting_user_ids_for_user(user_id: int) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-from chafan_core.app.models.viewcount import ViewCountQuestion
+from chafan_core.app.models.viewcount import ViewCountQuestion, ViewCountAnswer
 
 # TODO Should I move this function to another file? 2025-07-23
 def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
@@ -681,8 +681,20 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
         db.add(prev)
         db.commit()
 
+    def bump_answer():
+        prev = db.query(ViewCountAnswer).filter(ViewCountAnswer.answer_id == row_id).first()
+        if prev is None:
+            prev = ViewCountAnswer()
+            prev.answer_id = row_id
+            prev.view_count = 0
+        prev.view_count += count
+        db.add(prev)
+        db.commit()
+
     if row_type == "question":
         bump_question()
+    elif row_type == "answer":
+        bump_answer()
     else:
         logger.error(f"Unhandled viewcount key: {key}")
 

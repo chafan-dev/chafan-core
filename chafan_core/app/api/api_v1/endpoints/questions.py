@@ -114,7 +114,7 @@ async def bump_views_counter(
                 detail="No such question",
         )
     assert isinstance(question, models.Question)
-    await view_counters.add_view_async(cached_layer, question, "question")
+    await view_counters.add_view_async(cached_layer, "question", question.id)
     return schemas.GenericResponse()
 
 

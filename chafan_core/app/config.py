@@ -80,9 +80,6 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: Optional[SecretStr] = None
     VISITOR_USER_ID: Optional[int] = None
 
-
-    MONGO_CONNECTION: Optional[str] = None
-
     OFFICIAL_BOT_SECRET: Optional[str] = None
 
     FORCE_RATE_LIMIT: bool = False

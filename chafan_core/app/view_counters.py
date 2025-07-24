@@ -11,15 +11,12 @@ from chafan_core.db.base_class import Base
 
 async def add_view_async(
     cached_layer, # TODO 2025-07-20 due to cyclic dep, turn off this type hint: CachedLayer,
-    obj: Base,
     object_type: Literal["question", "answer", "profile", "article", "submission"],
+    obj_id: int
 ) -> None:
-    logger.info(type(obj))
 
-    if isinstance(obj, models.Question):
-        assert object_type == "question"
-        cached_layer.bump_view(object_type, obj.id)
-        return
+    if object_type in ["question", "answer"]:
+        cached_layer.bump_view(object_type, obj_id)
 
     return
 
