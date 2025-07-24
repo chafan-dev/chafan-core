@@ -102,13 +102,18 @@ def get_submission_upvotes(
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
-def bump_views_counter(
+async def bump_views_counter(
     *,
     uuid: str,
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    if current_user_id:
-        view_counters.add_view(uuid, "submission", current_user_id)
+    submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    if submission is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The submission doesn't exists in the system.",
+        )
+    await view_counters.add_view_async(cached_layer, "submission", submission.id)
     return schemas.GenericResponse()
 
 

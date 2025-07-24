@@ -13,7 +13,7 @@ async def add_view_async(
     obj_id: int
 ) -> None:
 
-    assert object_type in ["question", "answer", "article"]
+    assert object_type in ["question", "answer", "article", "submission"]
     cached_layer.bump_view(object_type, obj_id)
 
 
