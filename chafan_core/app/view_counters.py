@@ -3,8 +3,6 @@ from typing import Literal
 import logging
 logger = logging.getLogger(__name__)
 
-from chafan_core.app import models
-from chafan_core.db.base_class import Base
 #from chafan_core.app.cached_layer import CachedLayer
 
 
@@ -15,10 +13,8 @@ async def add_view_async(
     obj_id: int
 ) -> None:
 
-    if object_type in ["question", "answer"]:
-        cached_layer.bump_view(object_type, obj_id)
-
-    return
+    assert object_type in ["question", "answer", "article"]
+    cached_layer.bump_view(object_type, obj_id)
 
 
 def add_view(
