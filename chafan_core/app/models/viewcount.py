@@ -1,4 +1,3 @@
-from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import (
     Column,

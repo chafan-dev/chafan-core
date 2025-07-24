@@ -23,6 +23,8 @@
             pkgs.locale
             pkgs.glibcLocales
 
+            pkgs.python312Packages.pymongo # TODO remove
+
             pkgs.cloudflared
 
             pkgs.redis
@@ -80,6 +82,12 @@
             pkgs.python312Packages.pytest-trio
             pkgs.python312Packages.httpx
 
+# Required for static analysis (lint)
+            pkgs.mypy
+            pkgs.python312Packages.mypy
+            pkgs.black
+            pkgs.isort
+            pkgs.python312Packages.flake8
           ];
         };
       }

@@ -67,6 +67,7 @@ Open http://dev.cha.fan:4582/docs for API docs.
 
 ## DB Schema Migrations
 
+<<<<<<< HEAD
 ### Step 1: Set up python dependencies and Shell envs
 
 ```
@@ -110,6 +111,7 @@ Check PostgreSQL DB and `TABLE alembic_version`.
 ```
 alembic downgrade 6162e247214e
 ```
+
 
 ## Test
 
