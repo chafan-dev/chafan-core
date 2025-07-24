@@ -947,6 +947,7 @@ class Materializer(object):
     def submission_schema_from_orm(
         self, submission: models.Submission
     ) -> Optional[schemas.Submission]:
+        logger.error("TODO submission_schema_from_orm in materialize.py is deprecated")
         if self.principal_id and not user_in_site(
             self.broker.get_db(),
             site=submission.site,

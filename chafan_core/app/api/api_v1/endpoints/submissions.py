@@ -55,14 +55,8 @@ def get_submission(
     submission_data: Optional[
         Union[schemas.Submission, schemas.SubmissionForVisitor]
     ] = None
-    if cached_layer.principal_id:
-        submission_data = cached_layer.materializer.submission_schema_from_orm(
-            submission
-        )
-    else:
-        submission_data = (
-            cached_layer.materializer.submission_for_visitor_schema_from_orm(submission)
-        )
+    # TODO didn't check principal id
+    submission_data = cached_layer.submission_schema_from_orm(submission)
     if submission_data is None:
         raise HTTPException_(
             status_code=400,

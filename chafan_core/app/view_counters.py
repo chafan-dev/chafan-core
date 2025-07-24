@@ -26,7 +26,8 @@ def add_view(
     return 0
 
 
-from chafan_core.app.models.viewcount import ViewCountQuestion
+from chafan_core.app.models.viewcount import ViewCountQuestion, ViewCountAnswer, ViewCountArticle, ViewCountSubmission
+
 
 def get_viewcount_question(broker, row_id:int)->int:
     db = broker.get_db()
