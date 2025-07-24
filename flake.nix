@@ -43,7 +43,7 @@
             pkgs.python312Packages.pytz
             pkgs.python312Packages.python-jose
             pkgs.python312Packages.passlib
-            pkgs.python312Packages.boto3
+            pkgs.python312Packages.boto3 # S3 client
 	        pkgs.python312Packages.bcrypt
             # Sentry migrate
             # https://github.com/getsentry/sentry-python/commit/570307c946020e9fefdb22904585170cd6d2717d

@@ -1,6 +1,9 @@
-import asyncio
 import datetime
 from typing import Any, List, Optional, Union
+
+
+import logging
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.encoders import jsonable_encoder
@@ -58,12 +61,14 @@ def _get_question_data(
     cached_layer: CachedLayer, question: models.Question
 ) -> Union[schemas.Question, schemas.QuestionForVisitor]:
     question_data: Optional[Union[schemas.Question, schemas.QuestionForVisitor]] = None
-    if cached_layer.principal_id is None:
-        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
-            question
-        )
-    else:
-        question_data = cached_layer.materializer.question_schema_from_orm(question)
+    # TODO removed the check for principle id 2025-07-23
+    question_data = cached_layer.question_schema_from_orm(question)
+#    if cached_layer.principal_id is None:
+#        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
+#            question
+#        )
+#    else:
+#        question_data = cached_layer.materializer.question_schema_from_orm(question)
     if question_data is None:
         raise HTTPException_(
             status_code=400,
@@ -96,13 +101,20 @@ def get_question(
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
-def bump_views_counter(
+async def bump_views_counter(
     *,
     uuid: str,
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    _current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    if current_user_id:
-        view_counters.add_view(uuid, "question", current_user_id)
+    question = cached_layer.get_question_model_http(uuid)
+    if question is None:
+        raise HTTPException_(
+                status_code=404,
+                detail="No such question",
+        )
+    assert isinstance(question, models.Question)
+    await view_counters.add_view_async(cached_layer, question, "question")
     return schemas.GenericResponse()
 
 
@@ -179,7 +191,7 @@ def create_question(
         db, db_obj=current_user, question=new_question
     )
     run_dramatiq_task(postprocess_new_question, new_question.id)
-    return cached_layer.materializer.question_schema_from_orm(new_question)
+    return cached_layer.question_schema_from_orm(new_question)
 
 
 @router.put("/{uuid}", response_model=schemas.Question)
@@ -262,7 +274,7 @@ def update_question(
         question_in_dict["description_text"] = None
     new_question = crud.question.update(db, db_obj=question, obj_in=question_in_dict)
     run_dramatiq_task(postprocess_updated_question, new_question.id)
-    return cached_layer.materializer.question_schema_from_orm(new_question)
+    return cached_layer.question_schema_from_orm(new_question)
 
 
 @router.get("/{uuid}/archives/", response_model=List[schemas.QuestionArchive])
@@ -521,10 +533,6 @@ async def get_question_page(
         if question.site.moderator_id == cached_layer.principal_id:
             flags.is_mod = True
             flags.hideable = True
-    if cached_layer.principal_id:
-        asyncio.create_task(
-            view_counters.add_view_async(uuid, "question", cached_layer.principal_id)
-        )
     # TODO 2025-07-08 This is hacky. The whole logic of question flags needs to be reviewed and simplified.
     if question.site.public_writable_answer:
         flags.answer_writable = True

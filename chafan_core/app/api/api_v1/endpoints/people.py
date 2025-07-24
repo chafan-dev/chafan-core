@@ -5,7 +5,7 @@ from fastapi.param_functions import Query
 from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas, view_counters
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType, get_logger
@@ -114,10 +114,11 @@ def get_user_public(
             status_code=400,
             detail="The user doesn't exists in the system.",
         )
-    view_times = view_counters.get_views(user.uuid, "profile")
+    # TODO turn it off 2025-07-23
+    view_times = 5 # view_counters.get_views(user.uuid, "profile")
     if current_user_id is None:
         return _get_user_public_visitor(cached_layer, user, view_times)
-    view_counters.add_view(user.uuid, "profile", current_user_id)
+    #view_counters.add_view(user.uuid, "profile", current_user_id)
     db.commit()
     about_content = None
     if user.about is not None:

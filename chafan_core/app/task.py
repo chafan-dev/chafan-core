@@ -1,6 +1,7 @@
 import datetime
 from typing import List, Optional
 
+from collections import Counter
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
@@ -11,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
 from chafan_core.app.config import settings
 from chafan_core.app.feed import (
         new_activity_into_feed,
-        ActivityType,
 )
 from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
@@ -656,3 +657,47 @@ def refresh_interesting_user_ids_for_user(user_id: int) -> None:
         user.interesting_user_ids_updated_at = get_utc_now()
 
     execute_with_db(SessionLocal(), runnable)
+
+
+from chafan_core.app.models.viewcount import ViewCountQuestion
+
+# TODO Should I move this function to another file? 2025-07-23
+def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
+    logger.info(key)
+    segs = key.split(":")
+    row_type = segs[0]
+    row_id = segs[1]
+    row_id = int(row_id)
+    db = broker.get_db()
+
+    def bump_question():
+        prev = db.query(ViewCountQuestion).filter(ViewCountQuestion.question_id == row_id).first()
+        if prev is None:
+            prev = ViewCountQuestion()
+            prev.question_id = row_id
+            prev.view_count = 0
+
+        prev.view_count += count
+        db.add(prev)
+        db.commit()
+
+    if row_type == "question":
+        bump_question()
+    else:
+        logger.error(f"Unhandled viewcount key: {key}")
+
+
+
+
+def write_view_count_to_db() -> None:
+    def runnable(broker: DataBroker):
+        logger.info("write_view_count_to_db called")
+        redis = broker.get_redis()
+        views = redis.lrange(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, 0, -1)
+        redis.delete(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY) # Race condition here. But losing a few view counts is okay
+        view_dict = Counter(views)
+        logger.info("get views " + str(view_dict))
+        for k,v in view_dict.items():
+            _add_viewcount_to_db(broker, k, v)
+    execute_with_broker(runnable)
+    return None

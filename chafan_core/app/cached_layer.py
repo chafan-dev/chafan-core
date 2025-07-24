@@ -17,7 +17,9 @@ from sqlalchemy.orm.session import Session
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
+# TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
+import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.app.schemas.preview import UserPreview
@@ -65,6 +67,7 @@ DAILY_INVITATION_LINK_ID_CACHE_KEY = "chafan:daily-invitation-link-id"
 RELATED_USERS_CACHE_KEY = "chafan:related-users:{user_id}"
 REQUEST_TEXT_CACHE_KEY = "chafan:request-text:{url}"
 
+BUMP_VIEW_COUNT_QUEUE_CACHE_KEY = "chafan:bump-view-count"
 
 class CachedLayer(object):
     def __init__(self, broker: DataBroker, principal_id: Optional[int] = None) -> None:
@@ -75,6 +78,12 @@ class CachedLayer(object):
         self._user_contributions_map: Dict[int, UserContributions] = {}
         self._follow_follow_fanout: Optional[WeightedMatrixType] = None
         self._entity_similarity_matrices: Dict[EntityType, MatrixType] = {}
+
+    def bump_view(self, object_type: str, obj_id:int):
+        obj_str = f"{object_type}:{obj_id}"
+        self.get_redis().rpush(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, obj_str)
+
+
 
     def unwrapped_principal_id(self) -> int:
         return unwrap(self.principal_id)
@@ -142,6 +151,11 @@ class CachedLayer(object):
                 ex=datetime.timedelta(hours=hours),
             )
         return data
+
+    def question_schema_from_orm(self, question: models.Question) -> Optional[schemas.Question]:
+        logger.info("called cached.layer for question " + str(question))
+        return responders.question.question_schema_from_orm(
+                self.broker, self.principal_id, question, self)
 
     def get_answer_by_id(self, answer_id:int):
         db = self.get_db()
