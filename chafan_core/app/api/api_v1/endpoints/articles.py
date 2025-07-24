@@ -34,7 +34,6 @@ async def get_article(
     uuid: str,
 ) -> Any:
     current_user_id = cached_layer.principal_id
-    print("requesting article ", uuid)
     article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if article is None:
         raise HTTPException_(
@@ -49,8 +48,7 @@ async def get_article(
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
-    print("current id  ", current_user_id)
-    data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
+    data = cached_layer.article_schema_from_orm(article)
     if False: # TODO merge these two workflow 2025-Mar-17
         if current_user_id:
             data = cached_layer.materializer.article_schema_from_orm(article)

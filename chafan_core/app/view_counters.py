@@ -35,4 +35,10 @@ def get_viewcount_question(broker, row_id:int)->int:
     if row is None:
         return 0
     return row.view_count
+def get_viewcount_article(broker, row_id:int)->int:
+    db = broker.get_db()
+    row = db.query(ViewCountArticle).filter(ViewCountArticle.article_id == row_id).first()
+    if row is None:
+        return 0
+    return row.view_count
 #object_type: Literal["question", "answer", "profile", "article", "submission"],

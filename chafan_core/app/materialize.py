@@ -534,6 +534,7 @@ class Materializer(object):
         self,
         article: models.Article,
     ) -> Optional[schemas.ArticleForVisitor]:
+        logger.error("TODO remove article_for_visitor_schema_from_orm from materialize")
         if not visitor_can_read_article(article=article):
             return None
         base = ArticleInDB.from_orm(article)
@@ -553,6 +554,7 @@ class Materializer(object):
     def article_schema_from_orm(
         self, article: models.Article
     ) -> Optional[schemas.Article]:
+        logger.error("TODO remove article_schema_from_orm from materialize")
         if not self.principal_id:
             return None
         if not can_read_article(article=article, principal_id=self.principal_id):

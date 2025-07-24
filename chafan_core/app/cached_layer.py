@@ -161,7 +161,11 @@ class CachedLayer(object):
         logger.info("called cached layer for submission")
         return responders.submission.submission_schema_from_orm(
                 self.broker, submission, self)
-        return None
+
+    def article_schema_from_orm(self, article: models.Article):
+        logger.info("called cached layer for article")
+        return responders.article.article_schema_from_orm(
+                self, article, self.principal_id)
 
 
     def get_answer_by_id(self, answer_id:int):
