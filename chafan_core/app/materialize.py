@@ -801,6 +801,7 @@ class Materializer(object):
         return schemas.AnswerForVisitor(**d)
 
     def answer_schema_from_orm(self, answer: models.Answer) -> Optional[schemas.Answer]:
+        logger.error("TODO answer_schema_from_orm is deprecated in materialize")
         if not self.principal_id:
             return None
         db = self.broker.get_db()

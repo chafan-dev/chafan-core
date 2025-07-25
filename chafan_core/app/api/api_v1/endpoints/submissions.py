@@ -5,6 +5,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
@@ -46,6 +50,7 @@ def get_submission(
     """
     Get submission in one of current_user's belonging sites.
     """
+    logger.info("get submission " + uuid)
     submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(

@@ -160,7 +160,7 @@ class CachedLayer(object):
     def submission_schema_from_orm(self, submission: models.Submission) :
         logger.info("called cached layer for submission")
         return responders.submission.submission_schema_from_orm(
-                self.broker, submission, self)
+                self, submission)
 
     def article_schema_from_orm(self, article: models.Article):
         logger.info("called cached layer for article")
@@ -173,6 +173,11 @@ class CachedLayer(object):
         answer = crud.answer.get_by_id(db, uid=answer_id)
         return answer
 
+    def answer_schema_from_orm(self, answer):
+        answer_data = responders.answer.answer_schema_from_orm(self, answer, self.principal_id)
+        if answer_data:
+            answer_data.upvotes = self.get_answer_upvotes(answer.uuid)
+        return answer_data
     def get_answer(
         self, uuid: str
     ) -> Optional[Union[schemas.Answer, schemas.AnswerForVisitor]]:
@@ -180,7 +185,7 @@ class CachedLayer(object):
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
             return None
-        answer_data = self.materializer.get_materalized_answer(answer)
+        answer_data = responders.answer.answer_schema_from_orm(self, answer, self.principal_id)
         if answer_data:
             answer_data.upvotes = self.get_answer_upvotes(uuid)
         return answer_data

@@ -542,7 +542,7 @@ async def get_question_page(
         # TODO: rethink the internal caching
         full_answers=filter_not_none(
             [
-                cached_layer.materializer.get_materalized_answer(answer)
+                cached_layer.answer_schema_from_orm(answer)
                 for answer in rank_answers(
                     question.answers, principal_id=cached_layer.principal_id
                 )
