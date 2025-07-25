@@ -5,6 +5,10 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
@@ -46,6 +50,7 @@ def get_submission(
     """
     Get submission in one of current_user's belonging sites.
     """
+    logger.info("get submission " + uuid)
     submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -55,14 +60,8 @@ def get_submission(
     submission_data: Optional[
         Union[schemas.Submission, schemas.SubmissionForVisitor]
     ] = None
-    if cached_layer.principal_id:
-        submission_data = cached_layer.materializer.submission_schema_from_orm(
-            submission
-        )
-    else:
-        submission_data = (
-            cached_layer.materializer.submission_for_visitor_schema_from_orm(submission)
-        )
+    # TODO didn't check principal id
+    submission_data = cached_layer.submission_schema_from_orm(submission)
     if submission_data is None:
         raise HTTPException_(
             status_code=400,
@@ -102,13 +101,18 @@ def get_submission_upvotes(
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
-def bump_views_counter(
+async def bump_views_counter(
     *,
     uuid: str,
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    if current_user_id:
-        view_counters.add_view(uuid, "submission", current_user_id)
+    submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    if submission is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The submission doesn't exists in the system.",
+        )
+    await view_counters.add_view_async(cached_layer, "submission", submission.id)
     return schemas.GenericResponse()
 
 

@@ -6,6 +6,11 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
 
+
+import logging
+logger = logging.getLogger(__name__)
+
+
 import chafan_core
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
@@ -29,7 +34,6 @@ async def get_article(
     uuid: str,
 ) -> Any:
     current_user_id = cached_layer.principal_id
-    print("requesting article ", uuid)
     article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if article is None:
         raise HTTPException_(
@@ -37,7 +41,6 @@ async def get_article(
             detail="The article doesn't exists in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
-    print(str(article))
     data: Optional[Union[schemas.Article, schemas.ArticleForVisitor]] = None
     # TODO here has some dup code with materialize.py
     if article.visibility != ContentVisibility.ANYONE:
@@ -45,8 +48,7 @@ async def get_article(
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
-    print("current id  ", current_user_id)
-    data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
+    data = cached_layer.article_schema_from_orm(article)
     if False: # TODO merge these two workflow 2025-Mar-17
         if current_user_id:
             data = cached_layer.materializer.article_schema_from_orm(article)
@@ -61,13 +63,20 @@ async def get_article(
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
-def bump_views_counter(
+async def bump_views_counter(
     *,
     uuid: str,
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    if current_user_id:
-        view_counters.add_view(uuid, "article", current_user_id)
+    logger.info("add view for article " + uuid)
+    article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    if article is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The article doesn't exists in the system.",
+        )
+    assert isinstance(article, chafan_core.app.models.article.Article)
+    await view_counters.add_view_async(cached_layer, "article", article.id)
     return schemas.GenericResponse()
 
 
