@@ -11,6 +11,9 @@ from whoosh.qparser import MultifieldParser  # type: ignore
 from chafan_core.app.config import settings
 from chafan_core.utils.constants import indexed_object_T
 
+import logging
+logger = logging.getLogger(__name__)
+
 _analyzer = ChineseAnalyzer()
 _stemming_analyzer = StemmingAnalyzer()
 
@@ -64,6 +67,7 @@ def do_search(
         index_dir_prefix = settings.SEARCH_INDEX_FILESYSTEM_PATH + "/"
     index_dir = index_dir_prefix + index_type
     if not os.path.exists(index_dir):
+        logger.error(f"index_dir not exist, search skipped {index_dir}")
         return None
     ix = open_dir(index_dir)
     with ix.searcher() as searcher:
