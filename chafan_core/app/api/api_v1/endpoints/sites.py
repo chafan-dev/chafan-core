@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, is_dev
+from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.materialize import check_user_in_site
@@ -26,16 +26,6 @@ from chafan_core.utils.constants import MAX_SITE_QUESTIONS_PAGINATION_LIMIT
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 router = APIRouter()
-
-
-if is_dev():
-
-    @router.get("/", response_model=List[schemas.Site], include_in_schema=False)
-    def read_sites(
-        cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
-    ) -> Any:
-        sites = crud.site.get_multi(cached_layer.get_db())
-        return [cached_layer.materializer.site_schema_from_orm(s) for s in sites]
 
 
 @router.post("/", response_model=schemas.CreateSiteResponse)
@@ -341,22 +331,11 @@ def site_apply(
                 detail="Insuffient karma for joining site.",
             )
     if site.email_domain_suffix_for_application is not None:
-        user_emails = [current_user.email]
-        if current_user.secondary_emails:
-            user_emails.extend(
-                parse_obj_as(
-                    List[CaseInsensitiveEmailStr], current_user.secondary_emails
-                )
-            )
-        suffixes = site.email_domain_suffix_for_application.lower().split(",")
-        if not any(
-            any(email.endswith(suffix) for suffix in suffixes) for email in user_emails
-        ):
-            raise HTTPException_(
-                status_code=400,
-                detail="No verified email.",
-            )
-    if site.auto_approval:
+        raise HTTPException_(
+            status_code=400,
+            detail="Email Verify Turned off.",
+        )
+    if site.auto_approval or current_user.is_superuser:
         existing_profile = crud.profile.get_by_user_and_site(
             db, owner_id=current_user.id, site_id=site.id
         )
@@ -375,6 +354,7 @@ def site_apply(
             ),
         ),
     )
+    # FIXME 圈子管理功能还是不可用的，不确定问题在前端还是后端 2025-Jul-27
     crud.application.create_with_applicant(
         db,
         create_in=ApplicationCreate(applied_site_id=site.id),
