@@ -228,6 +228,7 @@ def get_user_submissions(
     return filter_not_none(
         [
             cached_layer.materializer.submission_schema_from_orm(submission)
+            #cached_layer.submission_schema_from_orm(submission)
             for submission in user.submissions
         ]
     )[skip : skip + limit]

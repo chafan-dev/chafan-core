@@ -523,7 +523,7 @@ def get_user_submission_subscriptions(
     """
     current_user = cached_layer.get_current_active_user()
     return [
-        cached_layer.materializer.submission_schema_from_orm(q)
+        cached_layer.submission_schema_from_orm(q)
         for q in current_user.subscribed_submissions[skip : skip + limit]
     ]
 

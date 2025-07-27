@@ -112,7 +112,7 @@ def search_submissions(
         return []
     submissions = crud.submission.search(cached_layer.get_db(), q=q)
     return filter_not_none(
-        [cached_layer.materializer.submission_schema_from_orm(q) for q in submissions]
+        [cached_layer.submission_schema_from_orm(q) for q in submissions]
     )
 
 
