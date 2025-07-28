@@ -14,6 +14,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
+from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
@@ -362,25 +363,18 @@ class CachedLayer(object):
         site_maps: Dict[str, schemas.site.SiteMap] = {}
         sites_without_topics: List[schemas.Site] = []
         for s in sites:
+            if not s.public_readable:
+                continue
             site_data = self.materializer.site_schema_from_orm(s)
             if s.category_topic is not None:
-                if s.category_topic.uuid in site_maps:
-                    site_maps[s.category_topic.uuid].sites.append(site_data)
-                else:
-                    site_maps[s.category_topic.uuid] = schemas.site.SiteMap(
-                        topic=schemas.Topic.from_orm(s.category_topic),
-                        sites=[site_data],
-                    )
-            else:
-                sites_without_topics.append(site_data)
+                logger.error("site category_topic is deprecated")
+            sites_without_topics.append(site_data)
         data = schemas.site.SiteMaps(
             site_maps=list(site_maps.values()),
             sites_without_topics=sites_without_topics,
         )
-        if not is_dev():
-            redis_cli.set(
-                SITEMAPS_CACHE_KEY, data.json(), ex=datetime.timedelta(hours=24)
-            )
+        redis_cli.set(
+            SITEMAPS_CACHE_KEY, data.json(), ex=settings.CACHE_SITEMAP_VALID_HOURS)
         return data
 
     def create_site(
