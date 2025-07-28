@@ -3,8 +3,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends
 from fastapi.param_functions import Query
-from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
@@ -21,9 +24,10 @@ from chafan_core.app.schemas.event import (
     CreateSiteNeedApprovalInternal,
     EventInternal,
 )
+from chafan_core.app.user_permission import user_in_site
+
 from chafan_core.utils.base import EntityType, HTTPException_, filter_not_none, unwrap
 from chafan_core.utils.constants import MAX_SITE_QUESTIONS_PAGINATION_LIMIT
-from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 router = APIRouter()
 
@@ -186,19 +190,36 @@ def config_site(
     return cached_layer.materializer.site_schema_from_orm(new_site)
 
 
+from chafan_core.app.common import OperationType
+
 @router.get("/{subdomain}", response_model=schemas.Site)
-def get_site_info(
-    *, cached_layer: CachedLayer = Depends(deps.get_cached_layer), subdomain: str
+async def get_site_info(
+    *,
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+    subdomain: str
 ) -> Any:
     """
     Get a site's basic info.
     """
-    site_data = cached_layer.get_site_info(subdomain=subdomain)
-    if not site_data:
+    logger.info(f"user {current_user_id} requesting site {subdomain}")
+    #site_data = cached_layer.get_site_info(subdomain=subdomain)
+    db = cached_layer.get_db()
+    site = crud.site.get_by_subdomain(db, subdomain=subdomain)
+
+    if not site:
         raise HTTPException_(
             status_code=404,
             detail="The site with this id does not exist in the system",
         )
+    if not user_in_site(db, site, current_user_id, OperationType.ReadSite):
+        logger.info("user has no permission")
+        #TODO add audit
+        raise HTTPException_(
+            status_code=404,
+            detail="The site with this id does not exist in the system",
+        )
+    return None
     return site_data
 
 

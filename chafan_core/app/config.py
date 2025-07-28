@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
 
     ### Cache (Redis)
-    CACHE_SITEMAP_VALID_HOURS: int = 24
+    CACHE_SITEMAP_VALID_HOURS: int = 1
 
 
 setting_keys = set(Settings.schema()["properties"].keys())

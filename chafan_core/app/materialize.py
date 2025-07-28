@@ -56,10 +56,12 @@ _ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
 )
 
 
+import chafan_core.app.user_permission as user_permission
 def get_active_site_profile(
     db: Session, *, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
-    return crud.profile.get_by_user_and_site(db, owner_id=user_id, site_id=site.id)
+    # TODO remove it from materialize
+    return user_permission.get_active_site_profile(db, site, user_id)
 
 
 _VISIBLE_QUESTION_CONDITIONS = {
@@ -86,21 +88,8 @@ def user_in_site(
     user_id: int,
     op_type: OperationType,
 ) -> bool:
-    if op_type == OperationType.ReadSite and site.public_readable:
-        return True
-    if op_type == OperationType.WriteSiteAnswer and site.public_writable_answer:
-        return True
-    if op_type == OperationType.WriteSiteSubmission and site.public_writable_submission:
-        return True
-    if op_type == OperationType.WriteSiteQuestion and site.public_writable_question:
-        return True
-    if op_type == OperationType.WriteSiteComment and site.public_writable_comment:
-        return True
-    if get_active_site_profile(db, site=site, user_id=user_id) is None:
-        return False
-    if op_type == OperationType.AddSiteMember and not site.addable_member:
-        return False
-    return True
+    # TODO remove it from materialize
+    return user_permission.user_in_site(db, site, user_id, op_type)
 
 
 def check_user_in_site(
