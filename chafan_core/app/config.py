@@ -1,9 +1,8 @@
-import os
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Literal, Optional
 
 import sentry_sdk
 from sentry_sdk.integrations.dramatiq import DramatiqIntegration
-from pydantic import AnyHttpUrl, validator
+from pydantic import AnyHttpUrl
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings
 from sentry_sdk.integrations.redis import RedisIntegration
@@ -93,6 +92,9 @@ class Settings(BaseSettings):
 
     ### Limit settings
     VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
+
+    ### Cache (Redis)
+    CACHE_SITEMAP_VALID_HOURS: int = 1
 
 
 setting_keys = set(Settings.schema()["properties"].keys())

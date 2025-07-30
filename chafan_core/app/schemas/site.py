@@ -6,6 +6,8 @@ from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.topic import Topic
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr, StrippedNonEmptyStr
 
+import logging
+logger = logging.getLogger(__name__)
 
 # Shared properties
 class SiteBase(BaseModel):
@@ -66,7 +68,6 @@ class Site(SiteInDBBase):
         if (
             values["public_readable"]
             and values["public_writable_question"]
-            and values["public_writable_submission"]
             and values["public_writable_answer"]
             and values["public_writable_comment"]
         ):
@@ -74,12 +75,13 @@ class Site(SiteInDBBase):
         if (
             (not values["public_readable"])
             and (not values["public_writable_question"])
-            and (not values["public_writable_submission"])
             and (not values["public_writable_answer"])
             and (not values["public_writable_comment"])
         ):
             return "private"
-        raise Exception(f"Incompatible site flags: {values}")
+        logger.error("site permission broken, name={},subdomain={}".format(values["name"], values["subdomain"]))
+        return "private"
+        #raise Exception(f"Incompatible site flags: {values}")
 
 
 # Additional properties stored in DB
