@@ -1,39 +1,26 @@
-import datetime
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
 import logging
 logger = logging.getLogger(__name__)
 
-from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+import chafan_core.app.responders as responders
+from chafan_core.app import models, schemas
 from chafan_core.app.common import OperationType, is_dev
-from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.model_utils import (
     get_live_answers_of_question,
-    is_live_answer,
-    is_live_article,
 )
-from chafan_core.app.schemas.notification import Notification, NotificationInDBBase
 from chafan_core.app.schemas.question import (
         QuestionInDBBase,
         QuestionPreviewForSearch
 )
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import (
-    ContentVisibility,
-    HTTPException_,
     filter_not_none,
     map_,
     unwrap,
 )
-from chafan_core.utils.constants import (
-    unknown_user_full_name,
-    unknown_user_handle,
-    unknown_user_uuid,
-)
-from chafan_core.utils.validators import StrippedNonEmptyBasicStr
 
 from chafan_core.app import view_counters
 
@@ -76,7 +63,7 @@ def question_schema_from_orm(
     )
     base = QuestionInDBBase.from_orm(question)
     d = base.dict()
-    d["site"] = cached_layer.materializer.site_schema_from_orm(question.site)
+    d["site"] = responders.site.site_schema_from_orm(cached_layer, question.site)
     d["comments"] = filter_not_none(
         [cached_layer.materializer.comment_schema_from_orm(c) for c in question.comments]
     )

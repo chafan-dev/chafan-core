@@ -194,15 +194,16 @@ class CachedLayer(object):
     def get_submissions_for_user(
         self,
     ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
-        def f() -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
-            return self._get_submissions_for_user(self.principal_id)
-
-        return self._get_cached(
-            key=SUBMISSIONS_FOR_USER_CACHE_KEY.format(user_id=self.principal_id),
-            typeObj=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
-            fetch=f,
-            hours=24,
-        )
+        return self._get_submissions_for_user(self.principal_id)
+        # def f() -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+        #     return self._get_submissions_for_user(self.principal_id)
+        #
+        # return self._get_cached(
+        #     key=SUBMISSIONS_FOR_USER_CACHE_KEY.format(user_id=self.principal_id),
+        #     typeObj=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+        #     fetch=f,
+        #     hours=24,
+        # )
 
     def invalidate_answer_cache(self, uuid: str) -> None:
         redis_cli = self.get_redis()
@@ -259,6 +260,7 @@ class CachedLayer(object):
                         ]
                     )[:10]
                 )
+            print(submissions_for_visitors)
             return rank_submissions(submissions_for_visitors)
 
     def get_answer_for_visitor(self, uuid: str) -> Optional[schemas.AnswerForVisitor]:
@@ -327,17 +329,19 @@ class CachedLayer(object):
             )
         else:
             # FIXME: compute rank async
-            submissions = rank_submissions(
-                filter_not_none(
-                    [
-                        self.materializer.submission_for_visitor_schema_from_orm(
-                            submission
-                        )
-                        for submission in site.submissions[:10]
-                    ]
-                )
-            )
-        if not is_dev():
+            logger.error("TODO submission list for visitors are turned off due to `desc` missing") #2025-Jul-30
+            submissions = []
+            # submissions = rank_submissions(
+            #     filter_not_none(
+            #         [
+            #             self.materializer.submission_for_visitor_schema_from_orm(
+            #                 submission
+            #             )
+            #             for submission in site.submissions[:10]
+            #         ]
+            #     )
+            # )
+        if False and not is_dev():
             redis.set(
                 key,
                 json.dumps(jsonable_encoder(submissions)),
