@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Union
 from fastapi import APIRouter, Depends
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
+import chafan_core.app.responders as responders
+
 
 import logging
 logger = logging.getLogger(__name__)
@@ -219,7 +221,7 @@ async def get_site_info(
             status_code=404,
             detail="The site with this id does not exist in the system",
         )
-    return None
+    site_data = responders.site.site_schema_from_orm(cached_layer, site)
     return site_data
 
 

@@ -298,6 +298,7 @@ class Materializer(object):
         )
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
+        logger.error("TODO materialize site_schema_from_orm to be removed")
         base = schemas.SiteInDBBase.from_orm(site)
         site_dict = base.dict()
         site_dict["moderator"] = self.preview_of_user(site.moderator)
