@@ -8,6 +8,10 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.materialize import check_user_in_channel
 from chafan_core.utils.base import HTTPException_
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 router = APIRouter()
 
 
@@ -64,6 +68,7 @@ def create_channel(
     """
     Create new private channel by the current user.
     """
+    logger.info("create_channel")
     private_with_user = crud.user.get_by_uuid(
         cached_layer.get_db(), uuid=channel_in.private_with_user_uuid
     )

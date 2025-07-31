@@ -28,7 +28,7 @@ FeedbackSubjectT = Union[FeedbackSubject, SiteCreationSubject, None]
 # Properties to receive via API on creation
 class ChannelCreate(ChannelBase):
     private_with_user_uuid: str
-    subject: FeedbackSubjectT
+    subject: FeedbackSubjectT = None
 
 
 class ChannelUpdate(BaseModel):
