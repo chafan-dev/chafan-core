@@ -98,7 +98,7 @@ class Settings(BaseSettings):
 
     ### Scheduled Tasks
     SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES: int = 5
-    SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS: int = 1 # TODO switch to 24 in future
+    SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS: int = 24
 
 
 setting_keys = set(Settings.schema()["properties"].keys())

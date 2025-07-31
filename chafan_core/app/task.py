@@ -775,7 +775,6 @@ def _index_rewriter(index_type: indexed_object_T) -> Iterator[writing.IndexWrite
 def refresh_search_index() -> None:
     def runnable(db: Session) -> None:
         logger.info("refresh_search_index executed")
-        return
         with _index_rewriter("question") as writer:
             for q in crud.question.get_all_valid(db):
                 writer.add_document(

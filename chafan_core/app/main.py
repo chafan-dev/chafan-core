@@ -128,7 +128,7 @@ def set_up_scheduled_tasks():
             name="write_new_activities_to_feeds")
     scheduler.add_job(
             refresh_search_index,
-            trigger=IntervalTrigger(minutes=1),
+            trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS),
             name="refresh_search_index")
     scheduler.start()
     logger.info("Set up scheduled tasks")
