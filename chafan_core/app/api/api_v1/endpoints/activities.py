@@ -2,10 +2,6 @@ import datetime
 import json
 from typing import Any, Optional, Union
 
-import logging
-logger = logging.getLogger(__name__)
-
-
 from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
@@ -19,6 +15,10 @@ from chafan_core.app.feed import get_activities_v2
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.utils.base import unwrap
+
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -50,6 +50,7 @@ async def get_feed(
     Get activity feed.
     """
     current_user_id: int = unwrap(cached_layer.principal_id)
+    logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
     redis = get_redis_cli()
     key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
     value = redis.get(key)

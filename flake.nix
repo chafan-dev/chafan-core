@@ -23,8 +23,6 @@
             pkgs.locale
             pkgs.glibcLocales
 
-            pkgs.python312Packages.pymongo # TODO remove
-
             pkgs.cloudflared
 
             pkgs.redis
