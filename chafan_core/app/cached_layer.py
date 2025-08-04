@@ -784,6 +784,27 @@ class CachedLayer(object):
             ret.append((year, day_contribs))
         return ret
 
+    async def get_user_activity(
+            self,
+            current_user_id: int,
+            before_activity_id:Optional[int],
+            limit:int,
+            subject_user_uuid: Optional[str]):
+        logger.info(f"cached_layer get_user_activity for {current_user_id}")
+        redis = self.get_redis()
+        key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
+        value = redis.get(key)
+        value = None
+        return None
+        if value:
+            return None
+#            return _update_feed_seq(
+#                cached_layer,
+#                schemas.FeedSequence.model_validate_json(value),
+#                full_answers=full_answers,
+#            )
+
+
     def get_user_contributions(self, user: models.User) -> UserContributions:
         if user.id in self._user_contributions_map:
             return self._user_contributions_map[user.id]

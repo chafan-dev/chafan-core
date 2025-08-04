@@ -51,16 +51,11 @@ async def get_feed(
     """
     current_user_id: int = unwrap(cached_layer.principal_id)
     logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
-    redis = get_redis_cli()
-    key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
-    value = redis.get(key)
-    value = None
-    if value:
-        return _update_feed_seq(
-            cached_layer,
-            schemas.FeedSequence.model_validate_json(value),
-            full_answers=full_answers,
-        )
+
+    activities = await cached_layer.get_user_activity(
+            current_user_id, before_activity_id, limit, subject_user_uuid)
+    logger.info(activities)
+
 #    activities = await get_activities_v2(
 #            cached_layer = cached_layer,
 #        before_activity_id=before_activity_id,

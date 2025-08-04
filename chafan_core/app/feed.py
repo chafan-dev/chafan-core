@@ -1,7 +1,5 @@
 import time
 from typing import Dict, List, NamedTuple, Optional, Set, Any
-import logging
-logger = logging.getLogger(__name__)
 import sentry_sdk
 import json
 from sqlalchemy import func
@@ -35,19 +33,14 @@ from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
 from chafan_core.app.cached_layer import CachedLayer
 
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ActivityDistributionInfo(NamedTuple):
     receiver_ids: Set[int]
     subject_user_uuid: Optional[str]
 
-# TODO This should match schemas/event.py. For now I'm matching them manually 2025-07-18
-# 2025-07-19 Do I really need this enum?
-from enum import Enum
-class ActivityType(Enum):
-    CREATE_QUESTION     = "create_question"
-    ANSWER_QUESTION     = "answer_question"
-    CREATE_ARTICLE      = "create_article"
 
 
 
