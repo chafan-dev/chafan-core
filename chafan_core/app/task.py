@@ -593,6 +593,7 @@ def postprocess_new_article(article_id: int) -> None:
         db.flush()
         db.commit()
         new_activity_into_feed(broker, article_ac)
+        # TODO FIXME TABLE activitity 里同一篇文章有两条记录。看起来无害就先不管了 2025-aug-04
 
     execute_with_broker(runnable)
 
