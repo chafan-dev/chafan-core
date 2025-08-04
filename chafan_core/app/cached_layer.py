@@ -12,7 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
-from chafan_core.app.feed import get_activities_v2
+from chafan_core.app.feed import get_activities_v2, get_random_activities
 from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
@@ -790,6 +790,7 @@ class CachedLayer(object):
             current_user_id: int,
             before_activity_id:Optional[int],
             limit:int,
+            random:bool,
             subject_user_uuid: Optional[str]):
         logger.info(f"cached_layer get_user_activity for {current_user_id}")
         redis = self.get_redis()
@@ -810,6 +811,25 @@ class CachedLayer(object):
             receiver_user_id=current_user_id,
             subject_user_uuid=subject_user_uuid,
         )
+
+        insufficient = limit - len(activities)
+        tolerate_order = before_activity_id is None
+        if random:
+            tolerate_order = True
+
+        if (
+            tolerate_order
+            and insufficient > 0
+            and subject_user_uuid is None
+        ):
+            random = True
+            extra_activities = get_random_activities(
+                receiver_user_id=current_user_id,
+                before_activity_id=before_activity_id,
+                limit=limit,
+            )
+            activities.extend(extra_activities)
+
         redis.delete(key)
         redis.set( # TODO fixme
             key,
