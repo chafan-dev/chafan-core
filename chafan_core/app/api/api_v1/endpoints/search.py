@@ -1,7 +1,5 @@
 from typing import Any, List
 
-import logging
-logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, Request, Response
 
@@ -11,6 +9,9 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
 from chafan_core.utils.base import filter_not_none
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def search_sites(
     if q == "":
         return []
     sites = crud.site.search(cached_layer.get_db(), fragment=q)
-    return [cached_layer.materializer.site_schema_from_orm(s) for s in sites]
+    return [cached_layer.site_schema_from_orm(s) for s in sites]
 
 
 @router.get("/topics/", response_model=List[schemas.Topic])

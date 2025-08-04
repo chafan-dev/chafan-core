@@ -738,7 +738,7 @@ class CachedLayer(object):
         return self.materializer.channel_schema_from_orm(channel)
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
-        return responders.site_schema_from_orm(self, site)
+        return responders.site.site_schema_from_orm(self, site)
 
     def compute_user_contributions_map(self, user: models.User) -> UserContributions:
         d: Dict[int, Dict[int, Dict[str, int]]] = {}

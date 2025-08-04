@@ -919,4 +919,4 @@ def get_moderated_sites(
         sites = crud.site.get_all(cached_layer.get_db())
     else:
         sites = current_user.moderated_sites
-    return [cached_layer.materializer.site_schema_from_orm(s) for s in sites]
+    return [cached_layer.site_schema_from_orm(s) for s in sites]

@@ -1,7 +1,4 @@
-from typing import Any, List, Optional, Union
-
-import logging
-logger = logging.getLogger(__name__)
+from typing import Any, List, Union
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
@@ -23,6 +20,9 @@ from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import HTTPException_, filter_not_none, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 from chafan_core.app.task import postprocess_new_answer
+
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

@@ -1,8 +1,6 @@
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
-import logging
-logger = logging.getLogger(__name__)
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import models, schemas
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import (
     filter_not_none,
@@ -12,6 +10,9 @@ from chafan_core.app import view_counters
 
 
 from chafan_core.app.schemas.answer import AnswerInDBBase
+
+import logging
+logger = logging.getLogger(__name__)
 
 def answer_schema_from_orm(cached_layer, answer: models.Answer, principal_id) -> Optional[schemas.Answer]:
     db = cached_layer.broker.get_db()
@@ -32,7 +33,7 @@ def answer_schema_from_orm(cached_layer, answer: models.Answer, principal_id) ->
 #    )
     base = AnswerInDBBase.from_orm(answer)
     d = base.dict()
-    d["site"] = cached_layer.materializer.site_schema_from_orm(answer.site)
+    d["site"] = cached_layer.site_schema_from_orm(answer.site)
     d["comments"] = filter_not_none(
         [cached_layer.materializer.comment_schema_from_orm(c) for c in answer.comments]
     )
