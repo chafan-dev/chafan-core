@@ -4,8 +4,6 @@ import random
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union
 
-import logging
-logger = logging.getLogger(__name__)
 
 import redis
 import requests
@@ -14,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
+from chafan_core.app.feed import get_activities_v2, get_random_activities
 from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
@@ -32,6 +31,9 @@ from chafan_core.utils.base import (
     filter_not_none,
     unwrap,
 )
+
+import logging
+logger = logging.getLogger(__name__)
 
 MatrixType = Dict[int, List[int]]
 
@@ -294,7 +296,7 @@ class CachedLayer(object):
         site = crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
         if site is None:
             return None
-        site_data = self.materializer.site_schema_from_orm(site)
+        site_data = self.site_schema_from_orm(site)
         if not is_dev():
             redis_cli.set(key, site_data.json(), ex=datetime.timedelta(hours=24))
         return site_data
@@ -369,7 +371,7 @@ class CachedLayer(object):
         for s in sites:
             if not s.public_readable:
                 continue
-            site_data = self.materializer.site_schema_from_orm(s)
+            site_data = self.site_schema_from_orm(s)
             if s.category_topic is not None:
                 logger.error("site category_topic is deprecated")
             sites_without_topics.append(site_data)
@@ -737,7 +739,7 @@ class CachedLayer(object):
         return self.materializer.channel_schema_from_orm(channel)
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
-        return self.materializer.site_schema_from_orm(site)
+        return responders.site.site_schema_from_orm(self, site)
 
     def compute_user_contributions_map(self, user: models.User) -> UserContributions:
         d: Dict[int, Dict[int, Dict[str, int]]] = {}
@@ -782,6 +784,61 @@ class CachedLayer(object):
                     day_contribs.append(min(int(v), 3))
             ret.append((year, day_contribs))
         return ret
+
+    async def get_user_activity(
+            self,
+            current_user_id: int,
+            before_activity_id:Optional[int],
+            limit:int,
+            random:bool,
+            subject_user_uuid: Optional[str]):
+        logger.info(f"cached_layer get_user_activity for {current_user_id}")
+        redis = self.get_redis()
+        key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
+        value = redis.get(key)
+        value = None
+        if value: # TODO redis cache is broken for now 2025-08-04
+            return None
+#            return _update_feed_seq(
+#                cached_layer,
+#                schemas.FeedSequence.model_validate_json(value),
+#                full_answers=full_answers,
+#            )
+        activities = await get_activities_v2(
+            cached_layer = self,
+            before_activity_id=before_activity_id,
+            limit=limit,
+            receiver_user_id=current_user_id,
+            subject_user_uuid=subject_user_uuid,
+        )
+
+        insufficient = limit - len(activities)
+        tolerate_order = before_activity_id is None
+        if random:
+            tolerate_order = True
+
+        if (
+            tolerate_order
+            and insufficient > 0
+            and subject_user_uuid is None
+        ):
+            random = True
+            extra_activities = get_random_activities(
+                receiver_user_id=current_user_id,
+                before_activity_id=before_activity_id,
+                limit=limit,
+            )
+            activities.extend(extra_activities)
+
+        redis.delete(key)
+        redis.set( # TODO fixme
+            key,
+            json.dumps(jsonable_encoder(1)),
+            ex=datetime.timedelta(minutes=1),
+        )
+        return activities
+
+
 
     def get_user_contributions(self, user: models.User) -> UserContributions:
         if user.id in self._user_contributions_map:

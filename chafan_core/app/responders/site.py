@@ -1,9 +1,8 @@
-from typing import Optional, Any, Mapping
+from typing import Any, Mapping
+from chafan_core.app import models, schemas
+
 import logging
 logger = logging.getLogger(__name__)
-
-from chafan_core.app import crud, models, schemas
-
 
 _VISIBLE_QUESTION_CONDITIONS = {
     "is_hidden": False,

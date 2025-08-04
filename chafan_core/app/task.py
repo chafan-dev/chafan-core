@@ -6,8 +6,6 @@ import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
 
-import logging
-logger = logging.getLogger(__name__)
 
 
 from chafan_core.app import crud, models, schemas
@@ -271,7 +269,8 @@ def postprocess_new_question(question_id: int) -> None:
                 question_id=question.id,
             ),
         ).json()
-        crud.coin_payment.make_payment(
+        if False: # TODO coin
+            crud.coin_payment.make_payment(
             broker.get_db(),
             obj_in=schemas.CoinPaymentCreate(
                 payee_id=question.site.moderator_id,
@@ -571,7 +570,8 @@ def postprocess_new_article(article_id: int) -> None:
             created_at=utc_now,
             content=event,
         )
-        crud.coin_payment.make_payment(
+        if False: # FIXME 2025-Aug-04 found this issue. No plan to fix it yet
+            crud.coin_payment.make_payment(
             broker.get_db(),
             obj_in=schemas.CoinPaymentCreate(
                 payee_id=superuser.id,
@@ -587,9 +587,13 @@ def postprocess_new_article(article_id: int) -> None:
                 event=event_internal,
                 receiver_id=subscriber.id,
             )
-        broker.get_db().add(
-            create_article_activity(article=article, created_at=utc_now)
-        )
+        article_ac: Activity = create_article_activity(article=article, created_at=utc_now)
+        db = broker.get_db()
+        db.add(article_ac)
+        db.flush()
+        db.commit()
+        new_activity_into_feed(broker, article_ac)
+        # TODO FIXME TABLE activitity 里同一篇文章有两条记录。看起来无害就先不管了 2025-aug-04
 
     execute_with_broker(runnable)
 

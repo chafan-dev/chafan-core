@@ -1,7 +1,5 @@
 import time
 from typing import Dict, List, NamedTuple, Optional, Set, Any
-import logging
-logger = logging.getLogger(__name__)
 import sentry_sdk
 import json
 from sqlalchemy import func
@@ -33,21 +31,19 @@ from chafan_core.app.schemas.event import (
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
-from chafan_core.app.cached_layer import CachedLayer
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from chafan_core.app.cached_layer import CachedLayer
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class ActivityDistributionInfo(NamedTuple):
     receiver_ids: Set[int]
     subject_user_uuid: Optional[str]
 
-# TODO This should match schemas/event.py. For now I'm matching them manually 2025-07-18
-# 2025-07-19 Do I really need this enum?
-from enum import Enum
-class ActivityType(Enum):
-    CREATE_QUESTION     = "create_question"
-    ANSWER_QUESTION     = "answer_question"
-    CREATE_ARTICLE      = "create_article"
 
 
 
@@ -242,7 +238,7 @@ def materialize_activity(
 
 
 async def get_content_from_eventjson(
-        cached_layer: CachedLayer,
+        cached_layer: "CachedLayer",
         event_json: str) -> Any:
     obj = json.loads(event_json)
     match obj["content"]["verb"]:
@@ -266,7 +262,7 @@ async def get_content_from_eventjson(
             raise ValueError("Unknown content.verb : " + str(obj["content"]))
 
 async def get_site_activities(
-    cached_layer: CachedLayer,
+    cached_layer: "CachedLayer",
     site,
     limit: int,
     ) -> List[schemas.Activity]:
@@ -287,42 +283,38 @@ async def get_site_activities(
 
 async def get_activities_v2(
     *,
-    cached_layer: CachedLayer,
+    cached_layer: "CachedLayer",
     before_activity_id: Optional[int],
     limit: int,
     receiver_user_id: int,
     subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
-    return [] # NOT FINISHED
-    logger.info("called v2 api")
     db = cached_layer.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
     if subject_user_uuid is not None:
         logger.error(f"subject_user_uuid={subject_user_uuid} is not supported!")
         return []
+        if subject_user_uuid:
+            feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
     # TODO feed_settings not supported yet
-    feeds = db.query(models.Feed)#.filter_by(receiver_id=receiver_id)
-    logger.info("get all feeds: " + str(feeds))
-    for feed in feeds:
-        logger.info("get feed"  + str(feed))
-    return []
+    feeds = db.query(models.Feed).filter_by(receiver_id=receiver_user_id)
     if before_activity_id:
         feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
-    if subject_user_uuid:
-        feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
     feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
+    activities = []
     for feed in feeds:
+        feed_settings = None # TODO not supported yed
         activity = materialize_activity(
-            broker, feed.activity, receiver_user_id, feed_settings
+            cached_layer.broker, feed.activity, receiver_user_id, feed_settings
         )
         if activity:
             activities.append(activity)
+    logger.info("v2 get " + str(len(activities)))
     return activities
 
-    return []
 
-def get_activities(
+def get_activities( # TODO to remove this function
     *,
     before_activity_id: Optional[int],
     limit: int,
