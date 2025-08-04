@@ -587,9 +587,12 @@ def postprocess_new_article(article_id: int) -> None:
                 event=event_internal,
                 receiver_id=subscriber.id,
             )
-        broker.get_db().add(
-            create_article_activity(article=article, created_at=utc_now)
-        )
+        article_ac: Activity = create_article_activity(article=article, created_at=utc_now)
+        db = broker.get_db()
+        db.add(article_ac)
+        db.flush()
+        db.commit()
+        new_activity_into_feed(broker, article_ac)
 
     execute_with_broker(runnable)
 
