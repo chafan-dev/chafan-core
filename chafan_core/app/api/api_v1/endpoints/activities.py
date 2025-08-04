@@ -9,9 +9,8 @@ from fastapi.param_functions import Query
 from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import get_redis_cli, is_dev, report_msg
+from chafan_core.app.common import is_dev, report_msg
 from chafan_core.app.feed import get_activities, get_random_activities
-from chafan_core.app.feed import get_activities_v2
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.utils.base import unwrap
@@ -56,13 +55,6 @@ async def get_feed(
             current_user_id, before_activity_id, limit, subject_user_uuid)
     logger.info(activities)
 
-#    activities = await get_activities_v2(
-#            cached_layer = cached_layer,
-#        before_activity_id=before_activity_id,
-#        limit=limit,
-#        receiver_user_id=current_user_id,
-#        subject_user_uuid=subject_user_uuid,
-#    )
     #logger.info("to call v1 api")
     activities = get_activities(
         before_activity_id=before_activity_id,

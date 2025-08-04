@@ -12,6 +12,7 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
+from chafan_core.app.feed import get_activities_v2
 from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
@@ -795,14 +796,22 @@ class CachedLayer(object):
         key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
         value = redis.get(key)
         value = None
-        return None
-        if value:
+        if value: # TODO redis cache is broken for now 2025-08-04
             return None
 #            return _update_feed_seq(
 #                cached_layer,
 #                schemas.FeedSequence.model_validate_json(value),
 #                full_answers=full_answers,
 #            )
+        activities = await get_activities_v2(
+            cached_layer = self,
+            before_activity_id=before_activity_id,
+            limit=limit,
+            receiver_user_id=current_user_id,
+            subject_user_uuid=subject_user_uuid,
+        )
+        return activities
+
 
 
     def get_user_contributions(self, user: models.User) -> UserContributions:

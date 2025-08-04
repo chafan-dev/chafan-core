@@ -31,7 +31,10 @@ from chafan_core.app.schemas.event import (
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
-from chafan_core.app.cached_layer import CachedLayer
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from chafan_core.app.cached_layer import CachedLayer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -235,7 +238,7 @@ def materialize_activity(
 
 
 async def get_content_from_eventjson(
-        cached_layer: CachedLayer,
+        cached_layer: "CachedLayer",
         event_json: str) -> Any:
     obj = json.loads(event_json)
     match obj["content"]["verb"]:
@@ -259,7 +262,7 @@ async def get_content_from_eventjson(
             raise ValueError("Unknown content.verb : " + str(obj["content"]))
 
 async def get_site_activities(
-    cached_layer: CachedLayer,
+    cached_layer: "CachedLayer",
     site,
     limit: int,
     ) -> List[schemas.Activity]:
@@ -280,14 +283,14 @@ async def get_site_activities(
 
 async def get_activities_v2(
     *,
-    cached_layer: CachedLayer,
+    cached_layer: "CachedLayer",
     before_activity_id: Optional[int],
     limit: int,
     receiver_user_id: int,
     subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
-    return [] # NOT FINISHED
     logger.info("called v2 api")
+    return [] # NOT FINISHED
     db = cached_layer.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
