@@ -6,8 +6,6 @@ import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
 
-import logging
-logger = logging.getLogger(__name__)
 
 
 from chafan_core.app import crud, models, schemas
@@ -571,7 +569,8 @@ def postprocess_new_article(article_id: int) -> None:
             created_at=utc_now,
             content=event,
         )
-        crud.coin_payment.make_payment(
+        if False: # FIXME 2025-Aug-04 found this issue. No plan to fix it yet
+            crud.coin_payment.make_payment(
             broker.get_db(),
             obj_in=schemas.CoinPaymentCreate(
                 payee_id=superuser.id,

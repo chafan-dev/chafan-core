@@ -289,7 +289,6 @@ async def get_activities_v2(
     receiver_user_id: int,
     subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
-    logger.info("called v2 api")
     db = cached_layer.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
@@ -300,8 +299,6 @@ async def get_activities_v2(
             feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
     # TODO feed_settings not supported yet
     feeds = db.query(models.Feed).filter_by(receiver_id=receiver_user_id)
-    for feed in feeds:
-        logger.info("get feed"  + str(feed))
     if before_activity_id:
         feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
     feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
@@ -317,7 +314,7 @@ async def get_activities_v2(
     return activities
 
 
-def get_activities(
+def get_activities( # TODO to remove this function
     *,
     before_activity_id: Optional[int],
     limit: int,
