@@ -810,6 +810,12 @@ class CachedLayer(object):
             receiver_user_id=current_user_id,
             subject_user_uuid=subject_user_uuid,
         )
+        redis.delete(key)
+        redis.set( # TODO fixme
+            key,
+            json.dumps(jsonable_encoder(1)),
+            ex=datetime.timedelta(minutes=1),
+        )
         return activities
 
 

@@ -290,33 +290,32 @@ async def get_activities_v2(
     subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
     logger.info("called v2 api")
-    return [] # NOT FINISHED
     db = cached_layer.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
     if subject_user_uuid is not None:
         logger.error(f"subject_user_uuid={subject_user_uuid} is not supported!")
         return []
+        if subject_user_uuid:
+            feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
     # TODO feed_settings not supported yet
-    feeds = db.query(models.Feed)#.filter_by(receiver_id=receiver_id)
-    logger.info("get all feeds: " + str(feeds))
+    feeds = db.query(models.Feed).filter_by(receiver_id=receiver_user_id)
     for feed in feeds:
         logger.info("get feed"  + str(feed))
-    return []
     if before_activity_id:
         feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
-    if subject_user_uuid:
-        feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
     feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
+    activities = []
     for feed in feeds:
+        feed_settings = None # TODO not supported yed
         activity = materialize_activity(
-            broker, feed.activity, receiver_user_id, feed_settings
+            cached_layer.broker, feed.activity, receiver_user_id, feed_settings
         )
         if activity:
             activities.append(activity)
+    logger.info("v2 get " + str(len(activities)))
     return activities
 
-    return []
 
 def get_activities(
     *,

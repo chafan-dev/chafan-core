@@ -56,7 +56,8 @@ async def get_feed(
     logger.info(activities)
 
     #logger.info("to call v1 api")
-    activities = get_activities(
+    if False:
+        activities = get_activities(
         before_activity_id=before_activity_id,
         limit=limit,
         receiver_user_id=current_user_id,
@@ -80,13 +81,6 @@ async def get_feed(
             limit=limit,
         )
     data = schemas.FeedSequence(activities=activities, random=random)
-    if not is_dev():
-        redis.delete(key)
-        redis.set(
-            key,
-            json.dumps(jsonable_encoder(data)),
-            ex=datetime.timedelta(minutes=cache_minutes),
-        )
     return _update_feed_seq(cached_layer, data, full_answers=full_answers)
 
 
