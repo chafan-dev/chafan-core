@@ -269,7 +269,8 @@ def postprocess_new_question(question_id: int) -> None:
                 question_id=question.id,
             ),
         ).json()
-        crud.coin_payment.make_payment(
+        if False: # TODO coin
+            crud.coin_payment.make_payment(
             broker.get_db(),
             obj_in=schemas.CoinPaymentCreate(
                 payee_id=question.site.moderator_id,
