@@ -667,7 +667,6 @@ from chafan_core.app.models.viewcount import ViewCountQuestion, ViewCountAnswer,
 
 # TODO Should I move this function to another file? 2025-07-23
 def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
-    logger.info(key)
     segs = key.split(":")
     row_type = segs[0]
     row_id = segs[1]
@@ -730,12 +729,12 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
 
 def write_view_count_to_db() -> None:
     def runnable(broker: DataBroker):
-        logger.info("write_view_count_to_db called")
+        logger.debug("write_view_count_to_db called")
         redis = broker.get_redis()
         views = redis.lrange(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, 0, -1)
         redis.delete(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY) # Race condition here. But losing a few view counts is okay
         view_dict = Counter(views)
-        logger.info("get views " + str(view_dict))
+        logger.debug("get views " + str(view_dict))
         for k,v in view_dict.items():
             _add_viewcount_to_db(broker, k, v)
     execute_with_broker(runnable)
