@@ -269,9 +269,9 @@ async def get_site_activities(
     db = cached_layer.get_db()
     #site = crud.site.get_by_subdomain(db, subdomain=subdomain)
     if site is None:
-        raise ValueError("site not found " + subdomain)
+        raise ValueError("site not found ")
     if not site.public_readable:
-        raise ValueError("site not allowed " + subdomain)
+        raise ValueError("site not allowed ")
     feeds = db.query(models.Activity).filter_by(site_id=site.id)
     feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
     activities = []
