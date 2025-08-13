@@ -11,7 +11,6 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.feed import get_site_activities
 from chafan_core.utils.base import HTTPException_
 
-from chafan_core.app.feed import get_site_activities
 
 import logging
 logger = logging.getLogger(__name__)

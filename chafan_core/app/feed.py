@@ -3,7 +3,7 @@ import sentry_sdk
 import json
 from sqlalchemy.orm import Session
 
-from chafan_core.db.base_class import Base as BaseModel
+from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
@@ -234,19 +234,28 @@ def materialize_activity(
             return activity_data
     return None
 
+# This is not good OOP practice, but doing it here can avoid making event.py too complex. 2025-Aug-13
+def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudModel]:
+    assert isinstance(event, EventInternal)
+    c = event.content
+    if isinstance(c, CreateQuestionInternal):
+        question = cached_layer.get_question_by_id(c.question_id)
+        if question.is_hidden:
+            logger.warning("Skip a hidden question: " + str(question))
+            return None
+        return question
+
 async def get_content_from_eventjson(
         cached_layer: "CachedLayer",
-        event_json: str) -> Any:
+        event_json: str) -> Optional[BaseCrudModel]:
     event = EventInternal.parse_raw(event_json)
-    print(event)
+    content = retrieve_content(event, cached_layer)
+    print("get content:")
+    print(content)
     obj = json.loads(event_json)
     match obj["content"]["verb"]:
         case "create_question":
-            question = cached_layer.get_question_by_id(int(obj["content"]["question_id"]))
-            if question.is_hidden != False:
-                logger.warning("Skip a hidden question: " + str(question))
-                return None
-            return question
+            return None
         case "answer_question":
             answer = cached_layer.get_answer_by_id(int(obj["content"]["answer_id"]))
             if (answer.is_hidden_by_moderator != False) or \
@@ -271,9 +280,8 @@ async def get_site_activities(
     cached_layer: "CachedLayer",
     site,
     limit: int,
-    all_sites = False) -> List[BaseModel]:
+    all_sites = False) -> List[BaseCrudModel]:
     db = cached_layer.get_db()
-    #site = crud.site.get_by_subdomain(db, subdomain=subdomain)
     if (site is None) and (not all_sites):
         raise ValueError("site not found ")
     if (not all_sites) and (not site.public_readable):
@@ -286,7 +294,7 @@ async def get_site_activities(
     for feed in feeds:
         obj = await get_content_from_eventjson(cached_layer, feed.event_json)
         if obj is not None:
-            assert isinstance(obj, BaseModel)
+            assert isinstance(obj, BaseCrudModel)
             activities.append(obj)
     return activities
 

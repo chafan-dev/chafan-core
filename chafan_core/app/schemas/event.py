@@ -3,6 +3,7 @@ from typing import Literal, Mapping, Optional, Union
 
 from pydantic import BaseModel
 
+from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app.schemas.answer import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.answer_suggest_edit import AnswerSuggestEdit
 from chafan_core.app.schemas.article import ArticlePreview
@@ -112,7 +113,6 @@ class CreateQuestionInternal(BaseModel):
     verb: Literal["create_question"] = "create_question"
     subject_id: int
     question_id: int
-
 
 class CreateSubmission(BaseModel):
     verb: Literal["create_submission"] = "create_submission"
@@ -832,3 +832,4 @@ class EventInternal(BaseModel):
         CreateAnswerSuggestEditInternal,
         AcceptAnswerSuggestEditInternal,
     ]
+
