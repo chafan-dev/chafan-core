@@ -2,7 +2,7 @@ from feedgen.feed import FeedGenerator
 
 from typing import List
 
-from chafan_core.app.models import Answer, Question
+from chafan_core.app.models import Answer, Question, Article
 from chafan_core.app.config import settings
 
 import logging
@@ -35,11 +35,21 @@ def build_rss(activities: List, site)->str:
             answer = ac
             question = ac.question
             link = f"{settings.SERVER_HOST}/questions/{question.uuid}/answers/{answer.uuid}"
-        if isinstance(ac, Question):
+        elif isinstance(ac, Question):
             description = ac.title
             verb = "提问"
             question = ac
             link = f"{settings.SERVER_HOST}/questions/{question.uuid}"
+        elif isinstance(ac, Article):
+            print(ac.__dict__)
+            description = ac.title + "\n\n"
+            if ac.body_text is not None:
+                description = description + ac.body_text
+            verb = "文章 : " + ac.title
+            link = f"{settings.SERVER_HOST}/articles/{ac.uuid}"
+        else:
+            logger.error(f"Not supported item: {ac}")
+
 
         title = f"{user} 发表了{verb}"
         fe.title(title)

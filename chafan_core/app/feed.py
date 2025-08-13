@@ -252,7 +252,8 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
             return None
         return answer
     if isinstance(c, CreateArticleInternal):
-        return None # TODO
+        art = cached_layer.get_article_by_id(c.article_id)
+        return art
 
     logger.error(f"Not supported event type: {event}")
     return None #TODO throw exception
@@ -262,8 +263,6 @@ async def get_content_from_eventjson(
         event_json: str) -> Optional[BaseCrudModel]:
     event = EventInternal.parse_raw(event_json)
     content = retrieve_content(event, cached_layer)
-    print("get content:")
-    print(content)
     return content
 
 async def get_site_activities(
