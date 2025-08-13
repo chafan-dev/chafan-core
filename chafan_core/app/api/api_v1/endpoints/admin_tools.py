@@ -30,7 +30,12 @@ async def get_site_activity(
     Get full cha.fan activity.
     """
     logger.info("Generating RSS for all sites")
-    activities = await get_site_activities(cached_layer, None, 100, True)
+    code = settings.DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE
+    if code is None or code == "" or code != passcode:
+        raise HTTPException_(status_code=405, detail="Not allowed ")
+
+
+    activities = await get_site_activities(cached_layer, None, settings.LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS, True)
     rss_str = build_rss(activities, site=None)
     return Response(content=rss_str, media_type="application/rss+xml")
 
