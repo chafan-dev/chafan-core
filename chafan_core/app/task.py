@@ -594,19 +594,17 @@ def postprocess_new_article(article_id: int) -> None:
         db.commit()
         new_activity_into_feed(broker, article_ac)
         # TODO FIXME TABLE activitity 里同一篇文章有两条记录。看起来无害就先不管了 2025-aug-04
-        # 2025-aug-13 尝试修这个地方，但是没修好，问题依旧存在
 
     execute_with_broker(runnable)
 
 
 @dramatiq.actor
 def postprocess_updated_article(article_id: int, was_published: bool) -> None:
-    # TODO 2025-08-13 Can I just remove this post process?
     def runnable(db: Session) -> None:
         article = crud.article.get(db, id=article_id)
         assert article is not None and article.is_published
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        if False and not was_published:
+        if not was_published:
             # NOTE: Since is_published will not be reverted, thus this should only be delivered once
             # TODO: Implement the update subscription logic
             db.add(create_article_activity(article=article, created_at=utc_now))
