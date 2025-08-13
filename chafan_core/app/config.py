@@ -86,12 +86,15 @@ class Settings(BaseSettings):
     API_LIMIT_SITES_GET_QUESTIONS_LIMIT: int = 20
 
     DEBUG_BYPASS_REDIS_VERIFICATION_CODE: Optional[str] = None
+    DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE: str = "5e5da072"
 
     class Config:
         case_sensitive = True
 
     ### Limit settings
     VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
+    LIMIT_RSS_RESPONSE_ITEMS: int = 200
+    LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS: int = 500
 
     ### Cache (Redis)
     CACHE_SITEMAP_VALID_HOURS: int = 1

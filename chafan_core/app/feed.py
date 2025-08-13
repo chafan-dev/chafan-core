@@ -1,12 +1,10 @@
-import time
 from typing import Dict, List, NamedTuple, Optional, Set, Any
 import sentry_sdk
 import json
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.activity import UserFeedSettings
@@ -236,48 +234,56 @@ def materialize_activity(
             return activity_data
     return None
 
+# This is not good OOP practice, but doing it here can avoid making event.py too complex. 2025-Aug-13
+def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudModel]:
+    assert isinstance(event, EventInternal)
+    c = event.content
+    if isinstance(c, CreateQuestionInternal):
+        question = cached_layer.get_question_by_id(c.question_id)
+        if question.is_hidden:
+            logger.warning("Skip a hidden question: " + str(question))
+            return None
+        return question
+    if isinstance(c, AnswerQuestionInternal):
+        answer = cached_layer.get_answer_by_id(c.answer_id)
+        if (answer.is_hidden_by_moderator) or \
+            (not answer.is_published):
+            logger.warning("Skip a hidden answer: " + str(answer))
+            return None
+        return answer
+    if isinstance(c, CreateArticleInternal):
+        art = cached_layer.get_article_by_id(c.article_id)
+        return art
+
+    logger.error(f"Not supported event type: {event}")
+    return None #TODO throw exception
 
 async def get_content_from_eventjson(
         cached_layer: "CachedLayer",
-        event_json: str) -> Any:
-    obj = json.loads(event_json)
-    match obj["content"]["verb"]:
-        case "create_question":
-            question = cached_layer.get_question_by_id(int(obj["content"]["question_id"]))
-            if question.is_hidden != False:
-                logger.warning("Skip a hidden question: " + str(question))
-                return None
-            return question
-        case "answer_question":
-            answer = cached_layer.get_answer_by_id(int(obj["content"]["answer_id"]))
-            if (answer.is_hidden_by_moderator != False) or \
-                (answer.is_published != True):
-                logger.warning("Skip a hidden answer: " + str(answer))
-                return None
-            return answer
-        case "comment_answer":
-            logger.error("not support comment_answer for now TODO")
-            return None
-        case _:
-            raise ValueError("Unknown content.verb : " + str(obj["content"]))
+        event_json: str) -> Optional[BaseCrudModel]:
+    event = EventInternal.parse_raw(event_json)
+    content = retrieve_content(event, cached_layer)
+    return content
 
 async def get_site_activities(
     cached_layer: "CachedLayer",
     site,
     limit: int,
-    ) -> List[schemas.Activity]:
+    all_sites = False) -> List[BaseCrudModel]:
     db = cached_layer.get_db()
-    #site = crud.site.get_by_subdomain(db, subdomain=subdomain)
-    if site is None:
-        raise ValueError("site not found " + subdomain)
-    if not site.public_readable:
-        raise ValueError("site not allowed " + subdomain)
-    feeds = db.query(models.Activity).filter_by(site_id=site.id)
+    if (site is None) and (not all_sites):
+        raise ValueError("site not found ")
+    if (not all_sites) and (not site.public_readable):
+        raise ValueError("site not allowed ")
+    feeds = db.query(models.Activity)
+    if not all_sites:
+        feeds = feeds.filter_by(site_id=site.id)
     feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
     activities = []
     for feed in feeds:
         obj = await get_content_from_eventjson(cached_layer, feed.event_json)
         if obj is not None:
+            assert isinstance(obj, BaseCrudModel)
             activities.append(obj)
     return activities
 
@@ -400,49 +406,3 @@ CACHE_REWIND_SIZE = 1000
 
 
 
-# TODO This is v1 util. To be removed 2025-07-19
-def cache_new_activity_to_feeds() -> None:
-    def runnable(read_db: Session) -> None:
-        max_feed_activity_id = read_db.query(func.max(models.Feed.activity_id)).scalar()
-        print(f"Initial max_feed_activity_id: {max_feed_activity_id}", flush=True)
-        scanned_activities = 0
-        superuser_id = crud.user.get_superuser(read_db).id
-        stream = read_db.query(models.Activity)
-        if max_feed_activity_id:
-            stream = stream.filter(
-                models.Activity.id > max_feed_activity_id - CACHE_REWIND_SIZE
-            )
-        time_seconds = time.time()
-        for activity in stream.order_by(models.Activity.id.asc()):
-            scanned_activities += 1
-            if activity.id % 10 == 0 or is_dev():
-                passed_seconds = int(time.time() - time_seconds)
-                print(
-                    f"Scanned activity ID: {activity.id} @ {passed_seconds} seconds",
-                    flush=True,
-                )
-            dist_info = get_activity_dist_info(read_db, activity)
-            if is_dev():
-                print(f"Activity dist_info: {dist_info}")
-
-            def runnable(write_db: Session) -> None:
-                for receiver_id in dist_info.receiver_ids.union([superuser_id]):
-                    feed = (
-                        write_db.query(models.Feed)
-                        .filter_by(receiver_id=receiver_id, activity_id=activity.id)
-                        .first()
-                    )
-                    if feed is None:
-                        write_db.add(
-                            models.Feed(
-                                receiver_id=receiver_id,
-                                activity_id=activity.id,
-                                subject_user_uuid=dist_info.subject_user_uuid,
-                            )
-                        )
-                write_db.commit()
-
-            execute_with_db(SessionLocal(), runnable)
-        print(f"Initial scanned_activities: {scanned_activities}", flush=True)
-
-    return execute_with_db(ReadSessionLocal(), runnable)

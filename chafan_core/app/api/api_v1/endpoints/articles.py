@@ -6,11 +6,6 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
 
-
-import logging
-logger = logging.getLogger(__name__)
-
-
 import chafan_core
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
@@ -23,6 +18,10 @@ from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import ContentVisibility, HTTPException_
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
+
+import logging
+logger = logging.getLogger(__name__)
+
 
 router = APIRouter()
 

@@ -171,6 +171,12 @@ class CachedLayer(object):
                 self, article, self.principal_id)
 
 
+    def get_article_by_id(self, article_id:int)->models.Article:
+        logger.info(f"get_article cached layer id={article_id}")
+        article = crud.article.get(self.get_db(), id=article_id)
+        # TODO check read permission
+        return article
+
     def get_answer_by_id(self, answer_id:int):
         db = self.get_db()
         answer = crud.answer.get_by_id(db, uid=answer_id)
