@@ -255,6 +255,9 @@ async def get_content_from_eventjson(
                 logger.warning("Skip a hidden answer: " + str(answer))
                 return None
             return answer
+        case "create_article":
+            article = cached_layer.get_article_by_id(int(obj["content"]["article_id"]))
+            return None
         case "comment_answer":
             logger.error("not support comment_answer for now TODO")
             return None
@@ -265,14 +268,17 @@ async def get_site_activities(
     cached_layer: "CachedLayer",
     site,
     limit: int,
+    all_sites = False
     ) -> List[schemas.Activity]:
     db = cached_layer.get_db()
     #site = crud.site.get_by_subdomain(db, subdomain=subdomain)
-    if site is None:
+    if (site is None) and (not all_sites):
         raise ValueError("site not found ")
-    if not site.public_readable:
+    if (not all_sites) and (not site.public_readable):
         raise ValueError("site not allowed ")
-    feeds = db.query(models.Activity).filter_by(site_id=site.id)
+    feeds = db.query(models.Activity)
+    if not all_sites:
+        feeds = feeds.filter_by(site_id=site.id)
     feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
     activities = []
     for feed in feeds:

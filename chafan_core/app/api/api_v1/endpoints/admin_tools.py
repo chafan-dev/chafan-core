@@ -1,13 +1,8 @@
-import datetime
-from typing import Any, Dict, List, Optional, Union
-
 from feedgen.feed import FeedGenerator
 
 from fastapi import APIRouter, Body, Depends, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
-from fastapi.param_functions import Query
-from pydantic.tools import parse_obj_as
 
 from chafan_core.app.config import settings
 from chafan_core.app.api import deps
@@ -16,15 +11,13 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.feed import get_site_activities
 from chafan_core.utils.base import HTTPException_
 
-
-router = APIRouter()
-
-
+from chafan_core.app.feed import get_site_activities
 
 import logging
 logger = logging.getLogger(__name__)
 
 
+router = APIRouter()
 
 
 @router.get("/full_site_activity/{passcode}/rss.xml")
@@ -37,6 +30,10 @@ async def get_site_activity(
     Get full cha.fan activity.
     """
     logger.info("Generating RSS for all sites")
+    activities = await get_site_activities(cached_layer, None, 100, True)
+    logger.info(activities)
+
+
     return ""
     site = cached_layer.get_site_by_subdomain(subdomain)
     if site is None:

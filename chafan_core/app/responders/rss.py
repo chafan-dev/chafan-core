@@ -1,10 +1,8 @@
-from typing import Optional
 from feedgen.feed import FeedGenerator
 
-from typing import Any, Dict, List, Optional, Union
+from typing import List
 
 from chafan_core.app.models import Answer, Question
-
 from chafan_core.app.config import settings
 
 import logging
