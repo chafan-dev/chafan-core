@@ -173,6 +173,7 @@ class CachedLayer(object):
 
     def get_article_by_id(self, article_id:int):
         logger.info(f"get_article cached layer id={article_id}")
+        # TODO not done
         return None
 
     def get_answer_by_id(self, answer_id:int):

@@ -10,9 +10,14 @@ logger = logging.getLogger(__name__)
 
 def build_rss(activities: List, site)->str:
     fg = FeedGenerator()
-    fg.title("ChaFan RSS " + site.name)
-    fg.description("Chafan RSS 圈子 " + site.name)
-    fg.link(href=f"{settings.SERVER_HOST}/sites/{site.subdomain}")
+    if site is not None:
+        fg.title("ChaFan RSS " + site.name)
+        fg.description("Chafan RSS 圈子 " + site.name)
+        fg.link(href=f"{settings.SERVER_HOST}/sites/{site.subdomain}")
+    else:
+        fg.title("ChaFan RSS - no specific site")
+        fg.description("Chafan RSS 不限圈子 ")
+        fg.link(href=f"{settings.SERVER_HOST}")
     fg.id("https://cha.fan/")
 
     for ac in activities:

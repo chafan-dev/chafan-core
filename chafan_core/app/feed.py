@@ -244,6 +244,18 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
             logger.warning("Skip a hidden question: " + str(question))
             return None
         return question
+    if isinstance(c, AnswerQuestionInternal):
+        answer = cached_layer.get_answer_by_id(c.answer_id)
+        if (answer.is_hidden_by_moderator) or \
+            (not answer.is_published):
+            logger.warning("Skip a hidden answer: " + str(answer))
+            return None
+        return answer
+    if isinstance(c, CreateArticleInternal):
+        return None # TODO
+
+    logger.error(f"Not supported event type: {event}")
+    return None #TODO throw exception
 
 async def get_content_from_eventjson(
         cached_layer: "CachedLayer",
@@ -252,29 +264,7 @@ async def get_content_from_eventjson(
     content = retrieve_content(event, cached_layer)
     print("get content:")
     print(content)
-    obj = json.loads(event_json)
-    match obj["content"]["verb"]:
-        case "create_question":
-            return None
-        case "answer_question":
-            answer = cached_layer.get_answer_by_id(int(obj["content"]["answer_id"]))
-            if (answer.is_hidden_by_moderator != False) or \
-                (answer.is_published != True):
-                logger.warning("Skip a hidden answer: " + str(answer))
-                return None
-            return answer
-        case "create_article":
-            article = cached_layer.get_article_by_id(int(obj["content"]["article_id"]))
-            return None
-        case "create_submission":
-            return None
-        case "follow_user":
-            return None
-        case "comment_answer":
-            logger.error("not support comment_answer for now TODO")
-            return None
-        case _:
-            raise ValueError("Unknown content.verb : " + str(obj["content"]))
+    return content
 
 async def get_site_activities(
     cached_layer: "CachedLayer",
