@@ -1,12 +1,10 @@
-import time
 from typing import Dict, List, NamedTuple, Optional, Set, Any
 import sentry_sdk
 import json
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from chafan_core.db.base_class import Base as BaseModel
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import is_dev
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.activity import UserFeedSettings
@@ -236,10 +234,11 @@ def materialize_activity(
             return activity_data
     return None
 
-
 async def get_content_from_eventjson(
         cached_layer: "CachedLayer",
         event_json: str) -> Any:
+    event = EventInternal.parse_raw(event_json)
+    print(event)
     obj = json.loads(event_json)
     match obj["content"]["verb"]:
         case "create_question":
@@ -258,6 +257,10 @@ async def get_content_from_eventjson(
         case "create_article":
             article = cached_layer.get_article_by_id(int(obj["content"]["article_id"]))
             return None
+        case "create_submission":
+            return None
+        case "follow_user":
+            return None
         case "comment_answer":
             logger.error("not support comment_answer for now TODO")
             return None
@@ -268,8 +271,7 @@ async def get_site_activities(
     cached_layer: "CachedLayer",
     site,
     limit: int,
-    all_sites = False
-    ) -> List[schemas.Activity]:
+    all_sites = False) -> List[BaseModel]:
     db = cached_layer.get_db()
     #site = crud.site.get_by_subdomain(db, subdomain=subdomain)
     if (site is None) and (not all_sites):
@@ -284,6 +286,7 @@ async def get_site_activities(
     for feed in feeds:
         obj = await get_content_from_eventjson(cached_layer, feed.event_json)
         if obj is not None:
+            assert isinstance(obj, BaseModel)
             activities.append(obj)
     return activities
 

@@ -31,7 +31,7 @@ async def get_site_activity(
     """
     logger.info("Generating RSS for all sites")
     activities = await get_site_activities(cached_layer, None, 100, True)
-    logger.info(activities)
+    #logger.info(activities)
 
 
     return ""
