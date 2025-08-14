@@ -449,6 +449,6 @@ def get_related(
             )
 
     return [
-        cached_layer.materializer.site_schema_from_orm(s)
+        cached_layer.site_schema_from_orm(s)
         for s in related_sites.values()
     ]

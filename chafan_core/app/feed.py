@@ -298,24 +298,29 @@ async def get_activities_v2(
     db = cached_layer.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
-    if subject_user_uuid is not None:
-        logger.error(f"subject_user_uuid={subject_user_uuid} is not supported!")
-        return []
-        if subject_user_uuid:
-            feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
     # TODO feed_settings not supported yet
-    feeds = db.query(models.Feed).filter_by(receiver_id=receiver_user_id)
+    feeds = db.query(models.Feed)
+    if subject_user_uuid is not None:
+        feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
+    else:
+        feeds = feeds.filter_by(receiver_id=receiver_user_id)
     if before_activity_id:
         feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
-    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
+    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit * 2) # Do we have better idea?
     activities = []
+    activity_ids = set()
     for feed in feeds:
         feed_settings = None # TODO not supported yed
+        if feed.activity_id in activity_ids:
+            continue
         activity = materialize_activity(
             cached_layer.broker, feed.activity, receiver_user_id, feed_settings
         )
         if activity:
+            activity_ids.add(feed.activity_id)
             activities.append(activity)
+        if len(activities) >= limit:
+            break
     logger.info("v2 get " + str(len(activities)))
     return activities
 
