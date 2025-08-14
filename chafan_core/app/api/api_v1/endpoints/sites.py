@@ -189,7 +189,7 @@ def config_site(
         new_site.topics = new_topics
         db.add(new_site)
         db.commit()
-    return cached_layer.materializer.site_schema_from_orm(new_site)
+    return cached_layer.site_schema_from_orm(new_site)
 
 
 from chafan_core.app.common import OperationType
