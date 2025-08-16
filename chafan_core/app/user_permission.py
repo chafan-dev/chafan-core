@@ -1,9 +1,5 @@
-import datetime
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
-import logging
-logger = logging.getLogger(__name__)
 
-from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
@@ -45,3 +41,8 @@ def user_in_site(
         return False
     return True
 
+def article_read_allowed(
+    db: Session, article: models.Article, user_id: Optional[int]) -> bool:
+    logger.error(f"User {user_id} is not allowed to read article {article.id}")
+    # TODO
+    return True

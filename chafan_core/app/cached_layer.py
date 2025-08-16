@@ -16,6 +16,7 @@ from chafan_core.app.feed import get_activities_v2, get_random_activities
 from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
+from chafan_core.app.user_permission import article_read_allowed
 from chafan_core.app.data_broker import DataBroker
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
@@ -170,6 +171,13 @@ class CachedLayer(object):
         return responders.article.article_schema_from_orm(
                 self, article, self.principal_id)
 
+
+    def get_article_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> models.Article:
+        db = self.get_db()
+        article = crud.article.get_by_uuid(db, uuid=uuid)
+        if not article_read_allowed(db, article, current_user_id):
+            return None
+        return article
 
     def get_article_by_id(self, article_id:int)->models.Article:
         logger.info(f"get_article cached layer id={article_id}")

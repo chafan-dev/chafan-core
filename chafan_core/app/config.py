@@ -27,13 +27,6 @@ class Settings(BaseSettings):
     ENABLE_CAPTCHA: bool = False
 
 
-    INVITE_NEW_USER_COIN_PAYMENT_AMOUNT: int = 5
-    CREATE_ARTICLE_COIN_DEDUCTION: int = 2
-    UPVOTE_ARTICLE_COIN_DEDUCTION: int = 2
-    CREATE_SITE_COIN_DEDUCTION: int = 10
-    CREATE_SITE_FORCE_NEED_APPROVAL: bool = True
-
-
     EMAILS_ENABLED: bool = False
     EMAIL_SMTP_HOST: Optional[str] = None
     EMAIL_SMTP_PORT: Optional[int] = None
@@ -50,8 +43,6 @@ class Settings(BaseSettings):
     S3_UPLOADS_BUCKET_NAME: Optional[str] = None
 
     USERS_OPEN_REGISTRATION: bool = True
-    MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
-    MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
 
     ############ Web server only ############
     API_V1_STR: str = "/api/v1"
@@ -70,7 +61,6 @@ class Settings(BaseSettings):
     WELCOME_TEST_FORM_UUID: str = "4CGv4iReMxuWjs3T2PEY"
 
     SEARCH_INDEX_FILESYSTEM_PATH: str = "/tmp/chafan/search_index"
-
 
     EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 1
     EMAIL_SIGNUP_CODE_EXPIRE_HOURS: int = 1
@@ -102,6 +92,16 @@ class Settings(BaseSettings):
     ### Scheduled Tasks
     SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES: int = 5
     SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS: int = 24
+
+    MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
+    MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
+
+    INVITE_NEW_USER_COIN_PAYMENT_AMOUNT: int = 5
+    CREATE_ARTICLE_COIN_DEDUCTION: int = 2
+    UPVOTE_ARTICLE_COIN_DEDUCTION: int = 2
+    CREATE_SITE_COIN_DEDUCTION: int = 10
+    CREATE_SITE_FORCE_NEED_APPROVAL: bool = True
+
 
 
 setting_keys = set(Settings.schema()["properties"].keys())

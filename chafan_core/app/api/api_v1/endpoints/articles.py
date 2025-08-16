@@ -33,7 +33,7 @@ async def get_article(
     uuid: str,
 ) -> Any:
     current_user_id = cached_layer.principal_id
-    article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    article = cached_layer.get_article_by_uuid(uuid, current_user_id)
     if article is None:
         raise HTTPException_(
             status_code=400,
@@ -184,7 +184,6 @@ def create_article(
     Create new article authored by the current user in one of the belonging sites.
     """
     current_user = cached_layer.get_current_active_user()
-    cached_layer.get_db()
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
         ipaddr=client_ip(request),
