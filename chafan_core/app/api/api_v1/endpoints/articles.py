@@ -40,19 +40,12 @@ async def get_article(
             detail="The article doesn't exists in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
-    data: Optional[Union[schemas.Article, schemas.ArticleForVisitor]] = None
-    # TODO here has some dup code with materialize.py
     if article.visibility != ContentVisibility.ANYONE:
         raise HTTPException_(
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
     data = cached_layer.article_schema_from_orm(article)
-    if False: # TODO merge these two workflow 2025-Mar-17
-        if current_user_id:
-            data = cached_layer.materializer.article_schema_from_orm(article)
-        else:
-            data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
     if data is None:
         raise HTTPException_(
             status_code=400,
