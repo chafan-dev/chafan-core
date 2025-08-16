@@ -28,6 +28,7 @@ router = APIRouter()
 
 @router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
 async def get_article(
+    request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
@@ -35,6 +36,8 @@ async def get_article(
     current_user_id = cached_layer.principal_id
     article = cached_layer.get_article_by_uuid(uuid, current_user_id)
     if article is None:
+        cached_layer.create_audit(
+                api=f"get_article {uuid} retrieved None", request=request, user_id=current_user_id)
         raise HTTPException_(
             status_code=400,
             detail="The article doesn't exists in the system.",
