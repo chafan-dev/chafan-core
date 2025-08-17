@@ -18,7 +18,10 @@ from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
 from chafan_core.app.common import client_ip
-from chafan_core.app.user_permission import article_read_allowed
+from chafan_core.app.user_permission import (
+        article_read_allowed,
+        question_read_allowed,
+        )
 from chafan_core.app.data_broker import DataBroker
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
@@ -650,6 +653,14 @@ class CachedLayer(object):
                 status_code=400,
                 detail="The question doesn't exists in the system.",
             )
+        return question
+
+    def get_question_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> models.Question:
+        question = crud.question.get_by_uuid(self.get_db(), uuid=uuid)
+        if question is None:
+            return None
+        if not question_read_allowed(self, question, current_user_id):
+            return None
         return question
 
     def get_question_subscription(
