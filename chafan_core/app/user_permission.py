@@ -51,3 +51,15 @@ def article_read_allowed(
     logger.info(f"User {user_id} is not allowed to read article {article.id}")
     return False
 
+def question_read_allowed(
+    cached_layer, question: models.Question, user_id: Optional[int]) -> bool:
+    if not question.is_hidden:
+        return True
+    if user_id is not None and user_id == question.author_id:
+        return True
+    if user_id is None:
+        return False
+    # TODO we should allow superuser and admin of sites to see hidden questions
+    return False
+
+
