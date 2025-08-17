@@ -1,13 +1,11 @@
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models
 from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
-from chafan_core.app.data_broker import DataBroker
 from chafan_core.utils.base import ContentVisibility
-
 
 
 import logging
@@ -50,6 +48,6 @@ def article_read_allowed(
     if article.author_id == user_id and user_id is not None:
         return True
 
-    logger.error(f"User {user_id} is not allowed to read article {article.id}")
+    logger.info(f"User {user_id} is not allowed to read article {article.id}")
     return False
 
