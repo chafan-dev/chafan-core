@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Uni
 import redis
 import requests
 import sentry_sdk
+import fastapi
 from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
@@ -16,6 +17,8 @@ from chafan_core.app.feed import get_activities_v2, get_random_activities
 from chafan_core.app.config import settings
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import is_dev
+from chafan_core.app.common import client_ip
+from chafan_core.app.user_permission import article_read_allowed
 from chafan_core.app.data_broker import DataBroker
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
@@ -171,10 +174,17 @@ class CachedLayer(object):
                 self, article, self.principal_id)
 
 
-    def get_article_by_id(self, article_id:int)->models.Article:
-        logger.info(f"get_article cached layer id={article_id}")
+    def get_article_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> models.Article:
+        db = self.get_db()
+        article = crud.article.get_by_uuid(db, uuid=uuid)
+        if not article_read_allowed(db, article, current_user_id):
+            return None
+        return article
+
+    def get_article_by_id(self, article_id:int, current_user_id:Optional[int]=None) -> models.Article:
         article = crud.article.get(self.get_db(), id=article_id)
-        # TODO check read permission
+        if not article_read_allowed(self.get_db(), article, current_user_id):
+            return None
         return article
 
     def get_answer_by_id(self, answer_id:int):
@@ -581,6 +591,23 @@ class CachedLayer(object):
                 user_preview.social_annotations.follow_follows = 0
         user_preview.follows = self.get_user_follows(user)
         return user_preview
+
+    def create_audit(self, api:str, request: Optional[fastapi.Request]=None,
+                     user_id:Optional[int]=None,
+                     request_info:dict=dict()):
+        ip = "0.0.0.0"
+        if request is not None:
+            ip = client_ip(request)
+        if user_id is None:
+            user_id = 1
+        crud.audit_log.create_with_user(
+        self.get_db(),
+        ipaddr=ip,
+        user_id=user_id,
+        api=api,
+        request_info=request_info
+    )
+
 
     def update_notification(
         self,

@@ -28,31 +28,27 @@ router = APIRouter()
 
 @router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
 async def get_article(
+    request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
 ) -> Any:
     current_user_id = cached_layer.principal_id
-    article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    article = cached_layer.get_article_by_uuid(uuid, current_user_id)
     if article is None:
+        cached_layer.create_audit(
+                api=f"get_article {uuid} retrieved None", request=request, user_id=current_user_id)
         raise HTTPException_(
             status_code=400,
             detail="The article doesn't exists in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
-    data: Optional[Union[schemas.Article, schemas.ArticleForVisitor]] = None
-    # TODO here has some dup code with materialize.py
     if article.visibility != ContentVisibility.ANYONE:
         raise HTTPException_(
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
     data = cached_layer.article_schema_from_orm(article)
-    if False: # TODO merge these two workflow 2025-Mar-17
-        if current_user_id:
-            data = cached_layer.materializer.article_schema_from_orm(article)
-        else:
-            data = cached_layer.materializer.article_for_visitor_schema_from_orm(article)
     if data is None:
         raise HTTPException_(
             status_code=400,
@@ -184,7 +180,6 @@ def create_article(
     Create new article authored by the current user in one of the belonging sites.
     """
     current_user = cached_layer.get_current_active_user()
-    cached_layer.get_db()
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
         ipaddr=client_ip(request),

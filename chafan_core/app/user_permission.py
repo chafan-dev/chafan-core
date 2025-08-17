@@ -1,15 +1,11 @@
-import datetime
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
-import logging
-logger = logging.getLogger(__name__)
+from typing import Optional
 
-from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models
 from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.utils.base import ContentVisibility
 
 
 import logging
@@ -44,4 +40,14 @@ def user_in_site(
     if op_type == OperationType.AddSiteMember and not site.addable_member:
         return False
     return True
+
+def article_read_allowed(
+    db: Session, article: models.Article, user_id: Optional[int]) -> bool:
+    if article.is_published and article.visibility == ContentVisibility.ANYONE:
+        return True
+    if article.author_id == user_id and user_id is not None:
+        return True
+
+    logger.info(f"User {user_id} is not allowed to read article {article.id}")
+    return False
 
