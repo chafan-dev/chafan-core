@@ -151,9 +151,10 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(key)
         if value is not None:
+            logger.info(f"redis hit for {key}")
             return TypeAdapter(typeObj).validate_json(value)
         data = fallable_fetch()
-        if data and not is_dev():
+        if data:
             redis_cli.set(
                 key,
                 json.dumps(jsonable_encoder(data)),
@@ -723,6 +724,7 @@ class CachedLayer(object):
         def f() -> (
             Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]
         ):
+            logger.info(f"not found in redis, fetch postgresql author={author.id}")
             if self.principal_id:
                 return filter_not_none(
                     [
