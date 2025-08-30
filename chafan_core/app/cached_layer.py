@@ -168,7 +168,7 @@ class CachedLayer(object):
                 self.broker, self.principal_id, question, self)
 
     def submission_schema_from_orm(self, submission: models.Submission) :
-        logger.info("called cached layer for submission")
+        logger.info("called cached layer for submission to wrap submission " + str(submission.id))
         return responders.submission.submission_schema_from_orm(
                 self, submission)
 

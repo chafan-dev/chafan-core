@@ -207,7 +207,7 @@ def get_user_questions(
 @router.get("/{uuid}/submissions/", response_model=List[schemas.Submission])
 def get_user_submissions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(

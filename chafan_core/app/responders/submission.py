@@ -1,6 +1,4 @@
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
-import logging
-logger = logging.getLogger(__name__)
+from typing import Optional
 
 from chafan_core.app import models, schemas
 from chafan_core.app.schemas.richtext import RichText
@@ -10,6 +8,9 @@ from chafan_core.utils.base import (
 
 import chafan_core.app.responders as responders
 from chafan_core.app import view_counters
+
+import logging
+logger = logging.getLogger(__name__)
 
 def submission_schema_from_orm(
     cached_layer,
