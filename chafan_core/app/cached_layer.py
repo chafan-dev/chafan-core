@@ -151,9 +151,10 @@ class CachedLayer(object):
         redis_cli = self.get_redis()
         value = redis_cli.get(key)
         if value is not None:
+            logger.info(f"redis hit for {key}")
             return TypeAdapter(typeObj).validate_json(value)
         data = fallable_fetch()
-        if data and not is_dev():
+        if data:
             redis_cli.set(
                 key,
                 json.dumps(jsonable_encoder(data)),
@@ -167,7 +168,7 @@ class CachedLayer(object):
                 self.broker, self.principal_id, question, self)
 
     def submission_schema_from_orm(self, submission: models.Submission) :
-        logger.info("called cached layer for submission")
+        logger.info("called cached layer for submission to wrap submission " + str(submission.id))
         return responders.submission.submission_schema_from_orm(
                 self, submission)
 
@@ -723,6 +724,7 @@ class CachedLayer(object):
         def f() -> (
             Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]
         ):
+            logger.info(f"not found in redis, fetch postgresql author={author.id}")
             if self.principal_id:
                 return filter_not_none(
                     [
