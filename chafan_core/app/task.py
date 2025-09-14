@@ -60,6 +60,7 @@ from chafan_core.app.webhook_utils import (
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import TaskStatus, get_utc_now
 from chafan_core.app.models.activity import Activity
+import chafan_core.app.rep_manager as rep
 
 
 import logging
@@ -269,17 +270,8 @@ def postprocess_new_question(question_id: int) -> None:
                 question_id=question.id,
             ),
         ).json()
-        if False: # TODO coin
-            crud.coin_payment.make_payment(
-            broker.get_db(),
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=question.site.moderator_id,
-                amount=question.site.create_question_coin_deduction,
-                event_json=event_json,
-            ),
-            payer=question.author,
-            payee=question.site.moderator,
-        )
+        rep.new_question(question)
+
         question_ac = models.Activity(
                 created_at=utc_now,
                 site_id=question.site_id,
@@ -344,17 +336,9 @@ def postprocess_new_submission(submission_id: int) -> None:
                 submission_id=submission.id,
             ),
         ).json()
+        # TODO event to feed? 2025-Sep-14
 
-        crud.coin_payment.make_payment(
-            broker.get_db(),
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=submission.site.moderator_id,
-                amount=submission.site.create_submission_coin_deduction,
-                event_json=event_json,
-            ),
-            payer=submission.author,
-            payee=submission.site.moderator,
-        )
+        rep.new_submission(submission)
         postprocess_submission_common(submission)
         for webhook in submission.site.webhooks:
             call_webhook(
@@ -381,17 +365,8 @@ def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None
                 submission_suggestion_id=submission_suggestion.id,
             ),
         )
-        site = submission_suggestion.submission.site
-        crud.coin_payment.make_payment(
-            broker.get_db(),
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=site.moderator_id,
-                amount=site.create_suggestion_coin_deduction,
-                event_json=event.json(),
-            ),
-            payer=submission_suggestion.author,
-            payee=site.moderator,
-        )
+        rep.new_submission_suggestion(submission_suggestion)
+
         crud.notification.create_with_content(
             broker,
             receiver_id=submission_suggestion.submission.author_id,
@@ -416,16 +391,7 @@ def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> N
                 submission_suggestion_id=submission_suggestion.id,
             ),
         ).json()
-        crud.coin_payment.make_payment(
-            db,
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=submission_suggestion.author_id,
-                amount=submission_suggestion.submission.site.create_suggestion_coin_deduction,
-                event_json=event_json,
-            ),
-            payer=submission_suggestion.submission.author,
-            payee=submission_suggestion.author,
-        )
+        rep.accept_submission_suggestion(submission_suggestion)
 
     execute_with_db(SessionLocal(), runnable)
 
@@ -445,17 +411,7 @@ def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
                 answer_suggest_edit_id=answer_suggest_edit.id,
             ),
         )
-        site = answer_suggest_edit.answer.site
-        crud.coin_payment.make_payment(
-            broker.get_db(),
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=site.moderator_id,
-                amount=site.create_suggestion_coin_deduction,
-                event_json=event.json(),
-            ),
-            payer=answer_suggest_edit.author,
-            payee=site.moderator,
-        )
+        rep.new_answer_suggest(answer_suggest_edit)
         crud.notification.create_with_content(
             broker,
             receiver_id=answer_suggest_edit.answer.author_id,
@@ -480,16 +436,7 @@ def postprocess_accept_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
                 answer_suggest_edit_id=answer_suggest_edit.id,
             ),
         ).json()
-        crud.coin_payment.make_payment(
-            db,
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=answer_suggest_edit.author_id,
-                amount=answer_suggest_edit.answer.site.create_suggestion_coin_deduction,
-                event_json=event_json,
-            ),
-            payer=answer_suggest_edit.answer.author,
-            payee=answer_suggest_edit.author,
-        )
+        rep.accept_answer_suggest(answer_suggest_edit)
 
     execute_with_db(SessionLocal(), runnable)
 
@@ -570,17 +517,7 @@ def postprocess_new_article(article_id: int) -> None:
             created_at=utc_now,
             content=event,
         )
-        if False: # FIXME 2025-Aug-04 found this issue. No plan to fix it yet
-            crud.coin_payment.make_payment(
-            broker.get_db(),
-            obj_in=schemas.CoinPaymentCreate(
-                payee_id=superuser.id,
-                amount=settings.CREATE_ARTICLE_COIN_DEDUCTION,
-                event_json=event_internal.json(),
-            ),
-            payer=article.author,
-            payee=superuser,
-        )
+        rep.new_article(article)
         for subscriber in article.article_column.subscribers:
             crud.notification.create_with_content(
                 broker,
