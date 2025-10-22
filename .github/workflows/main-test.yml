@@ -2,7 +2,7 @@ name: Main test
 
 on:
   push:
-    branches: [ main, better_ci ]
+    branches: [ better_ci ]
   pull_request:
     branches: [ main ]
 
