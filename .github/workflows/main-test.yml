@@ -1,0 +1,105 @@
+name: Main test
+
+on:
+  push:
+    branches: [ main, better_ci ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      rabbitmq:
+        image: rabbitmq:3
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5672:5672
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+
+    - name: Run static analysis
+      env:
+        PGPASSWORD: postgres
+        SERVER_HOST: http://dev.cha.fan:8080
+        SERVER_NAME: dev.cha.fan
+        PROJECT_NAME: Chafan Dev
+        BACKEND_CORS_ORIGINS: '[]'
+        SECRET_KEY: chafandev
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chafan_dev
+        REDIS_URL: redis://localhost:6379
+        FIRST_SUPERUSER: admin@cha.fan
+        FIRST_SUPERUSER_PASSWORD: superuser
+        USERS_OPEN_REGISTRATION: True
+        RABBITMQ_URL: amqp://guest:guest@localhost:5672/%2f
+        EMAILS_FROM_EMAIL: contact@cha.fan
+        EMAILS_ENABLED: True
+        CREATE_SITE_FORCE_NEED_APPROVAL: False
+        ENV: dev
+      run: |
+        nix develop --command bash -c "PYTHONPATH=\$PWD make check"
+
+    - name: Setup database and run tests
+      env:
+        PGPASSWORD: postgres
+        SERVER_HOST: http://dev.cha.fan:8080
+        SERVER_NAME: dev.cha.fan
+        PROJECT_NAME: Chafan Dev
+        BACKEND_CORS_ORIGINS: '[]'
+        SECRET_KEY: chafandev
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chafan_dev
+        REDIS_URL: redis://localhost:6379
+        FIRST_SUPERUSER: admin@cha.fan
+        FIRST_SUPERUSER_PASSWORD: superuser
+        USERS_OPEN_REGISTRATION: True
+        RABBITMQ_URL: amqp://guest:guest@localhost:5672/%2f
+        EMAILS_FROM_EMAIL: contact@cha.fan
+        EMAILS_ENABLED: True
+        CREATE_SITE_FORCE_NEED_APPROVAL: False
+        ENV: dev
+      run: |
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
+          PYTHONPATH=\$PWD pytest chafan_core/tests -v
+        "
