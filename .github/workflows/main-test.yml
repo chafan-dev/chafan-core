@@ -47,6 +47,15 @@ jobs:
       #     - 5672:5672
 
     steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+
     - name: Check PostgreSQL is running
       run: |
         pg_isready -h localhost -p 5432 -U postgres
@@ -54,17 +63,8 @@ jobs:
 
     - name: Check Redis is running
       run: |
-        redis-cli -h localhost -p 6379 ping
+        nix develop --command redis-cli -h localhost -p 6379 ping
         echo "Redis is up and running!"
-
-    # - name: Checkout
-    #   uses: actions/checkout@v4
-
-    # - name: Install Nix
-    #   uses: DeterminateSystems/nix-installer-action@main
-
-    # - name: Setup Nix Cache
-    #   uses: DeterminateSystems/magic-nix-cache-action@main
 
     # - name: Setup database and run tests
     #   run: |
