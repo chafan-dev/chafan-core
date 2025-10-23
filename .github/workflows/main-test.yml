@@ -57,24 +57,10 @@ jobs:
       uses: DeterminateSystems/magic-nix-cache-action@main
 
     - name: Setup database and run tests
-      env:
-        PGPASSWORD: postgres
-        SERVER_HOST: http://dev.cha.fan:8080
-        SERVER_NAME: dev.cha.fan
-        PROJECT_NAME: Chafan Dev
-        BACKEND_CORS_ORIGINS: '[]'
-        SECRET_KEY: chafandev
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/chafan_dev
-        REDIS_URL: redis://localhost:6379
-        FIRST_SUPERUSER: admin@cha.fan
-        FIRST_SUPERUSER_PASSWORD: superuser
-        USERS_OPEN_REGISTRATION: True
-        RABBITMQ_URL: amqp://guest:guest@localhost:5672/%2f
-        EMAILS_FROM_EMAIL: contact@cha.fan
-        EMAILS_ENABLED: True
-        CREATE_SITE_FORCE_NEED_APPROVAL: False
-        ENV: dev
       run: |
+        set -a
+        source env.ci
+        set +a
         nix develop --command bash -c "
           set -e
           psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
