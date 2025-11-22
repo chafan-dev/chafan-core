@@ -14,6 +14,55 @@
       system:
       let
         pkgs = nixpkgs-25.legacyPackages.${system};
+        pythonEnv = pkgs.python312.withPackages (ps: [
+          ps.alembic
+          ps.uvicorn
+          ps.fastapi
+          ps.python-dotenv
+          ps.apscheduler
+          ps.slowapi
+          ps.shortuuid
+          ps.starlette
+          ps.pytz
+          ps.python-jose
+          ps.passlib
+          ps.boto3 # S3 client
+          ps.bcrypt
+          ps.dramatiq
+          ps.sentry-sdk
+
+          ps.pydantic
+          ps.pydantic-settings
+          ps.email-validator
+
+          ps.requests
+          ps.arrow
+          ps.redis
+          ps.html2text
+          ps.jinja2
+
+          ps.jieba
+          ps.whoosh
+
+          ps.sqlalchemy
+          ps.psycopg2
+
+          ps.python-multipart
+          ps.parsel
+
+          ps.websockets
+          ps.feedgen
+
+          # Required for unit test
+          ps.pytest
+          ps.pytest-mock
+          ps.pytest-trio
+          ps.httpx
+
+          # Required for static analysis (lint)
+          ps.mypy
+          ps.flake8
+        ]);
       in
       {
         devShells.default = pkgs.mkShell {
@@ -28,61 +77,11 @@
             pkgs.redis
 
             pkgs.postgresql_14
-            pkgs.python312Packages.alembic
 
-            pkgs.python312
-            pkgs.python312Packages.uvicorn
-            pkgs.python312Packages.fastapi
-            pkgs.python312Packages.python-dotenv
-            pkgs.python312Packages.apscheduler
-            pkgs.python312Packages.slowapi
-            pkgs.python312Packages.shortuuid
-            pkgs.python312Packages.starlette
-            pkgs.python312Packages.pytz
-            pkgs.python312Packages.python-jose
-            pkgs.python312Packages.passlib
-            pkgs.python312Packages.boto3 # S3 client
-	        pkgs.python312Packages.bcrypt
-            pkgs.python312Packages.sentry-sdk
+            pythonEnv
 
-            pkgs.python312Packages.pydantic
-            pkgs.python312Packages.pydantic-settings
-            pkgs.python312Packages.email-validator
-
-            pkgs.python312Packages.requests
-            pkgs.python312Packages.arrow
-            pkgs.python312Packages.redis
-            pkgs.python312Packages.html2text
-            pkgs.python312Packages.jinja2
-
-            pkgs.python312Packages.jieba
-            pkgs.python312Packages.whoosh
-
-            pkgs.python312Packages.sqlalchemy
-            pkgs.python312Packages.psycopg2
-
-            pkgs.python312Packages.python-multipart
-            pkgs.python312Packages.parsel
-
-            pkgs.python312Packages.websockets
-            pkgs.python312Packages.feedgen
-
-            #pkgs.python312Packages.trio
-
-
-
-# Required for unit test
-            pkgs.python312Packages.pytest
-            pkgs.python312Packages.pytest-mock
-            pkgs.python312Packages.pytest-trio
-            pkgs.python312Packages.httpx
-
-# Required for static analysis (lint)
-            pkgs.mypy
-            pkgs.python312Packages.mypy
             pkgs.black
             pkgs.isort
-            pkgs.python312Packages.flake8
           ];
         };
       }
