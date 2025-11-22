@@ -33,19 +33,6 @@ jobs:
         ports:
           - 5432:5432
 
-      # rabbitmq:
-      #   image: rabbitmq:3
-      #   env:
-      #     RABBITMQ_DEFAULT_USER: guest
-      #     RABBITMQ_DEFAULT_PASS: guest
-      #   options: >-
-      #     --health-cmd "rabbitmq-diagnostics -q ping"
-      #     --health-interval 10s
-      #     --health-timeout 5s
-      #     --health-retries 5
-      #   ports:
-      #     - 5672:5672
-
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -66,15 +53,15 @@ jobs:
         nix develop --command redis-cli -h localhost -p 6379 ping
         echo "Redis is up and running!"
 
-    # - name: Setup database and run tests
-    #   run: |
-    #     set -a
-    #     source env.ci
-    #     set +a
-    #     nix develop --command bash -c "
-    #       set -e
-    #       psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
-    #       PYTHONPATH=\$PWD alembic upgrade head
-    #       PYTHONPATH=\$PWD python scripts/initial_data.py
-    #       PYTHONPATH=\$PWD pytest chafan_core/tests -v
-    #     "
+    - name: Setup database and run tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
+          PYTHONPATH=\$PWD pytest chafan_core/tests -v
+        "
