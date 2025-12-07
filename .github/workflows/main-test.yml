@@ -55,7 +55,7 @@ jobs:
         nix develop --command redis-cli -h localhost -p 6379 ping
         echo "Redis is up and running!"
 
-    - name: Setup database and run tests
+    - name: Setup database
       run: |
         set -a
         source env.ci
@@ -65,5 +65,44 @@ jobs:
           psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
           PYTHONPATH=\$PWD alembic upgrade head
           PYTHONPATH=\$PWD python scripts/initial_data.py
-          PYTHONPATH=\$PWD pytest chafan_core/tests -v
+        "
+
+    - name: Run unit tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py -v
+        "
+
+    - name: Run CRUD tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/crud/ -v
+        "
+
+    - name: Run API tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/api/ -v
+        "
+
+    - name: Run email tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/email/ -v
         "
