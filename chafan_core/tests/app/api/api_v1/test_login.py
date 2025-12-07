@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from chafan_core.app.common import (
+from chafan_core.app.security import (
     check_token_validity_impl,
     generate_password_reset_token,
 )
