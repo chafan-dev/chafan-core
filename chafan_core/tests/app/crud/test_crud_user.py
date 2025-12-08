@@ -30,7 +30,7 @@ def test_authenticate_user(db: Session) -> None:
         email=email, password=password, handle=random_short_lower_string()
     )
     user = asyncio.run(crud.user.create(db, obj_in=user_in))
-    authenticated_user = asyncio.run(crud.user.authenticate(db, email=email, password=password))
+    authenticated_user = crud.user.authenticate(db, email=email, password=password)
     assert authenticated_user
     assert user.email == authenticated_user.email
 
@@ -38,7 +38,7 @@ def test_authenticate_user(db: Session) -> None:
 def test_not_authenticate_user(db: Session) -> None:
     email = random_email()
     password = random_password()
-    user = asyncio.run(crud.user.authenticate(db, email=email, password=password))
+    user = crud.user.authenticate(db, email=email, password=password)
     assert user is None
 
 
