@@ -1,5 +1,3 @@
-from pytest_trio.enable_trio_mode import *
-
 # Set Mock env config (only if not already set)
 import os
 mock_env = {
