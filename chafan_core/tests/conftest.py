@@ -14,12 +14,14 @@ for k,v in mock_env.items():
 from chafan_core.app.config import settings
 
 import pytest
-from typing import Generator
+from typing import Dict, Generator
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from chafan_core.app.main import app
 from chafan_core.db.session import SessionLocal
+from chafan_core.tests.utils.user import authentication_token_from_email
+from chafan_core.tests.utils.utils import EMAIL_TEST_USER, get_superuser_token_headers
 
 
 @pytest.fixture(scope="session")
@@ -41,5 +43,23 @@ def client() -> Generator[TestClient, None, None]:
     """
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(scope="module")
+def superuser_token_headers(client: TestClient) -> Dict[str, str]:
+    """
+    Get authentication headers for the superuser.
+    """
+    return get_superuser_token_headers(client)
+
+
+@pytest.fixture(scope="module")
+def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
+    """
+    Get authentication headers for a normal user.
+    """
+    return authentication_token_from_email(
+        client=client, email=EMAIL_TEST_USER, db=db
+    )
 
 
