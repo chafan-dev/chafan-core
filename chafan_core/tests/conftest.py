@@ -54,12 +54,13 @@ def superuser_token_headers(client: TestClient) -> Dict[str, str]:
 
 
 @pytest.fixture(scope="module")
-async def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
+def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
     """
     Get authentication headers for a normal user.
     """
-    return await authentication_token_from_email(
+    import asyncio
+    return asyncio.run(authentication_token_from_email(
         client=client, email=EMAIL_TEST_USER, db=db
-    )
+    ))
 
 
