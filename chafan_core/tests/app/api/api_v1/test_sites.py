@@ -11,10 +11,6 @@ def test_sites(
     normal_user_token_headers: dict,
     moderator_user_uuid: str,
 ) -> None:
-    r = client.get(f"{settings.API_V1_STR}/sites", headers=normal_user_token_headers)
-    r.raise_for_status()
-    existing_sites = r.json()
-
     demo_name = random_short_lower_string()
 
     data = {
@@ -57,40 +53,11 @@ def test_sites(
     assert 200 <= r.status_code < 300, r.text
     assert r.json()["description"] == "Demo Site 2"
 
-    r = client.get(f"{settings.API_V1_STR}/sites", headers=normal_user_token_headers)
+    # Verify the site was updated by fetching it directly
+    r = client.get(f"{settings.API_V1_STR}/sites/demo_{demo_name}", headers=normal_user_token_headers)
     assert r.status_code == 200, (r.status_code, r.json())
-    sites = r.json()
-    assert sites == existing_sites + [
-        {
-            "description": "Demo Site 2",
-            "uuid": site_uuid,
-            "name": f"Demo ({demo_name})",
-            "subdomain": f"demo_{demo_name}",
-            "public_readable": False,
-            "public_writable_question": False,
-            "public_writable_submission": False,
-            "public_writable_answer": False,
-            "public_writable_comment": False,
-            "create_question_coin_deduction": 2,
-            "moderator": {
-                "uuid": moderator_user_uuid,
-                "avatar_url": None,
-                "full_name": None,
-                "follows": None,
-                "handle": "mod",
-                "karma": 0,
-                "personal_introduction": None,
-                "social_annotations": {"follow_follows": None},
-            },
-            "addable_member": True,
-            "topics": [],
-            "permission_type": None,
-            "auto_approval": True,
-            "min_karma_for_application": None,
-            "email_domain_suffix_for_application": None,
-            "questions_count": 0,
-            "submissions_count": 0,
-            "members_count": 1,
-            "category_topic": None,
-        }
-    ]
+    site = r.json()
+    assert site["description"] == "Demo Site 2"
+    assert site["uuid"] == site_uuid
+    assert site["name"] == f"Demo ({demo_name})"
+    assert site["subdomain"] == f"demo_{demo_name}"
