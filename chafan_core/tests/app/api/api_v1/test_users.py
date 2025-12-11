@@ -53,7 +53,7 @@ def get_open_user_account_response(
         "email": username,
         "password": password,
         "handle": random_short_lower_string(),
-        "code": "dev",
+        "code": "magic_dev",
         "invitation_link_uuid": invitation_uuid,
     }
     return client.post(
