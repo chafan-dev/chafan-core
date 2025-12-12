@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import json
 import random
@@ -766,9 +767,9 @@ class CachedLayer(object):
         db = self.get_db()
 
         def f() -> int:
-            return crud.invitation_link.create_invitation(
+            return asyncio.run(crud.invitation_link.create_invitation(
                 db, invited_to_site_id=None, inviter=crud.user.get_superuser(db)
-            ).id
+            )).id
 
         cached_id = self._get_cached(
             key=DAILY_INVITATION_LINK_ID_CACHE_KEY,

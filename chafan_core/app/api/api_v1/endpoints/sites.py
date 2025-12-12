@@ -50,13 +50,13 @@ def create_site(
         needs_approval = True
     if current_user.karma < settings.MIN_KARMA_CREATE_PUBLIC_SITE:
         needs_approval = True
-    if site_in.permission_type != "public":
+    if current_user.is_superuser:
+        needs_approval = False
+    elif site_in.permission_type != "public":
         raise HTTPException_(
             status_code=400,
             detail="Not allowed to create a private site",
         )
-    if current_user.is_superuser:
-        needs_approval = False
     if needs_approval:
         raise HTTPException_(
             status_code=400,

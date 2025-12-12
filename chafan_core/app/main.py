@@ -1,6 +1,7 @@
 from typing import Any, MutableMapping, Optional
 
 import logging
+import logging.config
 log_config = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -122,16 +123,19 @@ logger.info("Server launches")
 
 @app.on_event("startup")
 def set_up_scheduled_tasks():
-    scheduler.add_job(
-            write_view_count_to_db,
-            trigger=IntervalTrigger(minutes=settings.SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES),
-            name="write_new_activities_to_feeds")
-    scheduler.add_job(
-            refresh_search_index,
-            trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS),
-            name="refresh_search_index")
-    scheduler.start()
-    logger.info("Set up scheduled tasks")
+    if not scheduler.running:
+        scheduler.add_job(
+                write_view_count_to_db,
+                trigger=IntervalTrigger(minutes=settings.SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES),
+                name="write_new_activities_to_feeds")
+        scheduler.add_job(
+                refresh_search_index,
+                trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS),
+                name="refresh_search_index")
+        scheduler.start()
+        logger.info("Set up scheduled tasks")
+    else:
+        logger.info("Scheduler already running, skipping scheduled task setup")
 
 
 @app.on_event("shutdown")
