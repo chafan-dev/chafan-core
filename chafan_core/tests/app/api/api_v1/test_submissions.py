@@ -189,11 +189,6 @@ def test_create_submission_success(
         "site_uuid": example_site_uuid,
         "title": f"Test Submission {random_lower_string()}",
         "url": "https://example.com/test",
-        "desc": {
-            "source": "Test description",
-            "rendered_text": "Test description",
-            "editor": "markdown",
-        }
     }
     r = client.post(
         f"{settings.API_V1_STR}/submissions/",

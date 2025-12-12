@@ -205,11 +205,6 @@ def example_submission_uuid(
             "site_uuid": example_site_uuid,
             "title": f"Test Submission ({random_short_lower_string()})",
             "url": "https://example.com/test-submission",
-            "desc": {
-                "source": "Test description for submission",
-                "rendered_text": "Test description for submission",
-                "editor": "markdown",
-            }
         },
     )
     r.raise_for_status()
