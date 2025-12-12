@@ -14,8 +14,8 @@ Coverage Progress:
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud
 from chafan_core.app.config import settings
+from chafan_core.tests.conftest import ensure_user_in_site
 from chafan_core.tests.utils.utils import random_lower_string
 
 
@@ -171,18 +171,10 @@ def test_create_submission_success(
 ) -> None:
     """Test successful submission creation."""
     # Ensure user is member of the site
-    site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
-    assert site is not None
-    profile = crud.profile.get_by_user_and_site(
-        db, owner_id=normal_user_id, site_id=site.id
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
     )
-    if not profile:
-        r = client.post(
-            f"{settings.API_V1_STR}/users/invite",
-            headers=superuser_token_headers,
-            json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
-        )
-        r.raise_for_status()
 
     # Create submission
     data = {
@@ -390,19 +382,11 @@ def test_hide_submission_as_author(
     superuser_token_headers: dict,
 ) -> None:
     """Test author can hide their submission."""
-    # Create a new submission for this test
-    site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
-    assert site is not None
-    profile = crud.profile.get_by_user_and_site(
-        db, owner_id=normal_user_id, site_id=site.id
+    # Ensure user is in site and create a new submission for this test
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
     )
-    if not profile:
-        r = client.post(
-            f"{settings.API_V1_STR}/users/invite",
-            headers=superuser_token_headers,
-            json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
-        )
-        r.raise_for_status()
 
     r = client.post(
         f"{settings.API_V1_STR}/submissions/",
