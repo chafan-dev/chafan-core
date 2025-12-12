@@ -172,3 +172,47 @@ def normal_user_authored_question_uuid(
     return r.json()["uuid"]
 
 
+@pytest.fixture(scope="module")
+def example_submission_uuid(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_uuid: str,
+    normal_user_id: int,
+    example_site_uuid: str,
+) -> str:
+    """Create a test submission for use in tests."""
+    # Ensure user is member of the site
+    site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
+    assert site is not None
+    profile = crud.profile.get_by_user_and_site(
+        db, owner_id=normal_user_id, site_id=site.id
+    )
+    if not profile:
+        r = client.post(
+            f"{settings.API_V1_STR}/users/invite",
+            headers=superuser_token_headers,
+            json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
+        )
+        assert r.status_code == 200, (r.status_code, r.json())
+
+    # Create submission
+    r = client.post(
+        f"{settings.API_V1_STR}/submissions/",
+        headers=normal_user_token_headers,
+        json={
+            "site_uuid": example_site_uuid,
+            "title": f"Test Submission ({random_short_lower_string()})",
+            "url": "https://example.com/test-submission",
+            "desc": {
+                "source": "Test description for submission",
+                "rendered_text": "Test description for submission",
+                "editor": "markdown",
+            }
+        },
+    )
+    r.raise_for_status()
+    return r.json()["uuid"]
+
+
