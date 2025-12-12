@@ -31,17 +31,17 @@ def user_authentication_headers(
     return headers
 
 
-def create_random_user(db: Session) -> User:
+async def create_random_user(db: Session) -> User:
     email = random_email()
     password = random_password()
     user_in = UserCreate(
         email=email, password=password, handle=random_short_lower_string()
     )
-    user = crud.user.create(db=db, obj_in=user_in)
+    user = await crud.user.create(db=db, obj_in=user_in)
     return user
 
 
-def authentication_token_from_email(
+async def authentication_token_from_email(
     *, client: TestClient, email: CaseInsensitiveEmailStr, db: Session
 ) -> Dict[str, str]:
     """
@@ -57,7 +57,7 @@ def authentication_token_from_email(
             password=password,
             handle=StrippedNonEmptyBasicStr(email.split("@")[0]),
         )
-        user = crud.user.create(db, obj_in=user_in_create)
+        user = await crud.user.create(db, obj_in=user_in_create)
     else:
         user_in_update = UserUpdate(password=password)
         user = crud.user.update(db, db_obj=user, obj_in=user_in_update)
