@@ -57,6 +57,7 @@
           ps.pytest
           ps.pytest-mock
           ps.pytest-trio
+          ps.pytest-cov
           ps.httpx
 
           # Required for static analysis (lint)

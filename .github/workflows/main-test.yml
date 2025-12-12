@@ -74,7 +74,7 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py -v
         "
 
     - name: Run CRUD tests
@@ -84,7 +84,7 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest chafan_core/tests/app/crud/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/crud/ -v
         "
 
     - name: Run API tests
@@ -94,7 +94,7 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest chafan_core/tests/app/api/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/api/ -v
         "
 
     - name: Run email tests
@@ -104,5 +104,28 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest chafan_core/tests/app/email/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/email/ -v
         "
+
+    - name: Generate coverage reports
+      run: |
+        nix develop --command bash -c "
+          set -e
+          # Generate HTML report
+          coverage html
+          # Generate XML report
+          coverage xml
+          # Print summary to console
+          coverage report
+        "
+
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: coverage-reports
+        path: |
+          htmlcov/
+          coverage.xml
+          .coverage
+        retention-days: 30
