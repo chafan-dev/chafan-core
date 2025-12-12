@@ -63,6 +63,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def get_all_active_users(self, db: Session) -> List[User]:
         return db.query(User).filter_by(is_active=True).all()
 
+# 2025-Dec-11 This function is synchronized for now. We define it as async to facilitate further improvement
     async def create(self, db: Session, *, obj_in: UserCreate) -> User:
         if obj_in.handle is None:
             handle = StrippedNonEmptyBasicStr(
