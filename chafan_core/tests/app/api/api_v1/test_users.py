@@ -1,3 +1,4 @@
+import asyncio
 from typing import Dict
 
 from fastapi.testclient import TestClient
@@ -52,7 +53,7 @@ def get_open_user_account_response(
         "email": username,
         "password": password,
         "handle": random_short_lower_string(),
-        "code": "dev",
+        "code": "magic_dev",
         "invitation_link_uuid": invitation_uuid,
     }
     return client.post(
@@ -83,7 +84,7 @@ def test_create_user_existing_username(client: TestClient, db: Session) -> None:
     user_in = UserCreate(
         email=username, password=password, handle=random_short_lower_string()
     )
-    crud.user.create(db, obj_in=user_in)
+    asyncio.run(crud.user.create(db, obj_in=user_in))
     r = get_open_user_account_response(
         client, username, password.get_secret_value(), invitation_uuid
     )

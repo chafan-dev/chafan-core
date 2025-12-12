@@ -1,0 +1,108 @@
+name: Main test
+
+on:
+  push:
+    branches: [ better_ci ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false
+
+    - name: Check PostgreSQL is running
+      run: |
+        pg_isready -h localhost -p 5432 -U postgres
+        echo "PostgreSQL is up and running!"
+
+    - name: Check Redis is running
+      run: |
+        nix develop --command redis-cli -h localhost -p 6379 ping
+        echo "Redis is up and running!"
+
+    - name: Setup database
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
+        "
+
+    - name: Run unit tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py -v
+        "
+
+    - name: Run CRUD tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/crud/ -v
+        "
+
+    - name: Run API tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/api/ -v
+        "
+
+    - name: Run email tests
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest chafan_core/tests/app/email/ -v
+        "
