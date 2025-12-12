@@ -54,7 +54,7 @@ def test_sites(
     assert r.json()["description"] == "Demo Site 2"
 
     # Verify the site was updated by fetching it directly
-    r = client.get(f"{settings.API_V1_STR}/sites/demo_{demo_name}", headers=normal_user_token_headers)
+    r = client.get(f"{settings.API_V1_STR}/sites/demo_{demo_name}", headers=moderator_user_token_headers)
     assert r.status_code == 200, (r.status_code, r.json())
     site = r.json()
     assert site["description"] == "Demo Site 2"
