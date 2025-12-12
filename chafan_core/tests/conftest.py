@@ -190,6 +190,27 @@ def example_site_uuid(
 
 
 # =============================================================================
+# Helper Function - Ensure Coin Balance
+# =============================================================================
+
+def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
+    """
+    Ensure a user has sufficient coins for testing.
+    This directly updates the database to give users coins.
+
+    Args:
+        db: Database session
+        user_id: User's database ID
+        coins: Minimum number of coins to ensure (default: 100)
+    """
+    user = crud.user.get(db, id=user_id)
+    assert user is not None, f"User {user_id} not found"
+
+    if user.remaining_coins < coins:
+        crud.user.update(db, db_obj=user, obj_in={"remaining_coins": coins})
+
+
+# =============================================================================
 # Test Content Fixtures
 # =============================================================================
 
