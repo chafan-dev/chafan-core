@@ -1,15 +1,3 @@
-# Set Mock env config (only if not already set)
-# These are overridden by env.ci in GitHub Actions
-import os
-mock_env = {
-    "DATABASE_URL": "stub_url",
-    "REDIS_URL": "stub_url",
-    "SERVER_HOST": "stub_server_host",
-}
-for k, v in mock_env.items():
-    if k not in os.environ:
-        os.environ[k] = v
-
 from chafan_core.app.config import settings
 
 import pytest
