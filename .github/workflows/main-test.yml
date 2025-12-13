@@ -45,6 +45,9 @@ jobs:
       with:
         use-flakehub: false
 
+    - name: Install Nix Dependencies
+      run: |
+        nix profile install .
     - name: Check PostgreSQL is running
       run: |
         pg_isready -h localhost -p 5432 -U postgres
