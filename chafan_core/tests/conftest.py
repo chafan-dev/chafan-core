@@ -1,15 +1,14 @@
 # Set Mock env config (only if not already set)
+# These are overridden by env.ci in GitHub Actions
 import os
 mock_env = {
-"DATABASE_URL" : "stub_url",
-"REDIS_URL" : "stub_url",
-"SERVER_HOST" : "stub_server_host",
+    "DATABASE_URL": "stub_url",
+    "REDIS_URL": "stub_url",
+    "SERVER_HOST": "stub_server_host",
 }
-for k,v in mock_env.items():
+for k, v in mock_env.items():
     if k not in os.environ:
         os.environ[k] = v
-
-# End of Mock env config
 
 from chafan_core.app.config import settings
 
@@ -31,10 +30,15 @@ from chafan_core.tests.utils.utils import (
 )
 
 
+# =============================================================================
+# Core Fixtures - Database, Client, Authentication
+# =============================================================================
+
 @pytest.fixture(scope="session")
 def db() -> Generator[Session, None, None]:
     """
-    Create a fresh database session for testing.
+    Database session using real PostgreSQL (configured via env.ci).
+    Scope: session - shared across all tests.
     """
     session = SessionLocal()
     try:
@@ -46,25 +50,27 @@ def db() -> Generator[Session, None, None]:
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
     """
-    Create a test client for the FastAPI app.
+    FastAPI test client for making HTTP requests.
+    Uses real Redis for caching (configured via env.ci).
+    Scope: module - one client per test module.
     """
     with TestClient(app) as test_client:
         yield test_client
 
 
+# =============================================================================
+# User Authentication Fixtures
+# =============================================================================
+
 @pytest.fixture(scope="module")
 def superuser_token_headers(client: TestClient) -> Dict[str, str]:
-    """
-    Get authentication headers for the superuser.
-    """
+    """Authentication headers for superuser (admin)."""
     return get_superuser_token_headers(client)
 
 
 @pytest.fixture(scope="module")
 def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
-    """
-    Get authentication headers for a normal user.
-    """
+    """Authentication headers for normal test user."""
     import asyncio
     return asyncio.run(authentication_token_from_email(
         client=client, email=EMAIL_TEST_USER, db=db
@@ -73,6 +79,7 @@ def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]
 
 @pytest.fixture(scope="module")
 def normal_user_id(client: TestClient, normal_user_token_headers: dict) -> int:
+    """Normal user's database ID."""
     return client.get(
         f"{settings.API_V1_STR}/me", headers=normal_user_token_headers
     ).json()["id"]
@@ -80,6 +87,7 @@ def normal_user_id(client: TestClient, normal_user_token_headers: dict) -> int:
 
 @pytest.fixture(scope="module")
 def normal_user_uuid(client: TestClient, normal_user_token_headers: dict) -> str:
+    """Normal user's UUID."""
     return client.get(
         f"{settings.API_V1_STR}/me", headers=normal_user_token_headers
     ).json()["uuid"]
@@ -87,6 +95,7 @@ def normal_user_uuid(client: TestClient, normal_user_token_headers: dict) -> str
 
 @pytest.fixture(scope="module")
 def moderator_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
+    """Authentication headers for moderator test user."""
     import asyncio
     return asyncio.run(authentication_token_from_email(
         client=client, email=EMAIL_TEST_MODERATOR, db=db
@@ -95,6 +104,7 @@ def moderator_user_token_headers(client: TestClient, db: Session) -> Dict[str, s
 
 @pytest.fixture(scope="module")
 def moderator_user_id(client: TestClient, moderator_user_token_headers: dict) -> int:
+    """Moderator user's database ID."""
     return client.get(
         f"{settings.API_V1_STR}/me", headers=moderator_user_token_headers
     ).json()["id"]
@@ -102,37 +112,107 @@ def moderator_user_id(client: TestClient, moderator_user_token_headers: dict) ->
 
 @pytest.fixture(scope="module")
 def moderator_user_uuid(client: TestClient, moderator_user_token_headers: dict) -> str:
+    """Moderator user's UUID."""
     return client.get(
         f"{settings.API_V1_STR}/me", headers=moderator_user_token_headers
     ).json()["uuid"]
 
 
+# =============================================================================
+# Helper Function - Reduce Duplication
+# =============================================================================
+
+def ensure_user_in_site(
+    client: TestClient,
+    db: Session,
+    user_id: int,
+    user_uuid: str,
+    site_uuid: str,
+    superuser_token_headers: dict,
+) -> None:
+    """
+    Ensure a user is a member of a site. If not, invite them.
+    This helper reduces duplication across fixtures.
+    """
+    site = crud.site.get_by_uuid(db, uuid=site_uuid)
+    assert site is not None, f"Site {site_uuid} not found"
+
+    profile = crud.profile.get_by_user_and_site(
+        db, owner_id=user_id, site_id=site.id
+    )
+
+    if not profile:
+        r = client.post(
+            f"{settings.API_V1_STR}/users/invite",
+            headers=superuser_token_headers,
+            json={"site_uuid": site_uuid, "user_uuid": user_uuid},
+        )
+        assert r.status_code == 200, f"Failed to invite user: {r.json()}"
+
+
+# =============================================================================
+# Test Site Fixture
+# =============================================================================
+
 @pytest.fixture(scope="module")
 def example_site_uuid(
-    client: TestClient, superuser_token_headers: dict, moderator_user_uuid: str
+    client: TestClient,
+    superuser_token_headers: dict,
+    moderator_user_uuid: str,
 ) -> str:
+    """
+    Create a test site with moderator assigned.
+    Scope: module - one site per test module.
+    """
+    # Create site
     r = client.post(
         f"{settings.API_V1_STR}/sites/",
         headers=superuser_token_headers,
         json={
-            "name": f"Demo ({random_short_lower_string()})",
-            "description": "Demo Site",
-            "subdomain": f"demo_{random_short_lower_string()}",
+            "name": f"Test Site ({random_short_lower_string()})",
+            "description": "Automated test site",
+            "subdomain": f"test_{random_short_lower_string()}",
             "permission_type": "private",
         },
     )
     r.raise_for_status()
     site_uuid = r.json()["created_site"]["uuid"]
+
+    # Assign moderator
     r = client.put(
         f"{settings.API_V1_STR}/sites/{site_uuid}/config",
-        json={
-            "moderator_uuid": moderator_user_uuid,
-        },
+        json={"moderator_uuid": moderator_user_uuid},
         headers=superuser_token_headers,
     )
-    assert r.status_code == 200, (r.status_code, r.json())
+    assert r.status_code == 200, f"Failed to set moderator: {r.json()}"
+
     return site_uuid
 
+
+# =============================================================================
+# Helper Function - Ensure Coin Balance
+# =============================================================================
+
+def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
+    """
+    Ensure a user has sufficient coins for testing.
+    This directly updates the database to give users coins.
+
+    Args:
+        db: Database session
+        user_id: User's database ID
+        coins: Minimum number of coins to ensure (default: 100)
+    """
+    user = crud.user.get(db, id=user_id)
+    assert user is not None, f"User {user_id} not found"
+
+    if user.remaining_coins < coins:
+        crud.user.update(db, db_obj=user, obj_in={"remaining_coins": coins})
+
+
+# =============================================================================
+# Test Content Fixtures
+# =============================================================================
 
 @pytest.fixture(scope="module")
 def normal_user_authored_question_uuid(
@@ -140,31 +220,27 @@ def normal_user_authored_question_uuid(
     db: Session,
     superuser_token_headers: dict,
     normal_user_token_headers: dict,
-    example_site_uuid: str,
     normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
 ) -> str:
-    site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
-    assert site is not None
-    profile = crud.profile.get_by_user_and_site(
-        db, owner_id=normal_user_id, site_id=site.id
+    """
+    Create a test question authored by normal_user.
+    Ensures user is a site member first.
+    """
+    # Ensure user is in site
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
     )
-    normal_user_uuid = client.get(
-        f"{settings.API_V1_STR}/me", headers=normal_user_token_headers
-    ).json()["uuid"]
-    if not profile:
-        r = client.post(
-            f"{settings.API_V1_STR}/users/invite",
-            headers=superuser_token_headers,
-            json={"site_uuid": example_site_uuid, "user_uuid": normal_user_uuid},
-        )
-        assert r.status_code == 200, (r.status_code, r.json())
 
+    # Create question
     r = client.post(
         f"{settings.API_V1_STR}/questions/",
         headers=normal_user_token_headers,
         json={
             "site_uuid": example_site_uuid,
-            "title": "test question",
+            "title": f"Test Question ({random_short_lower_string()})",
             "description": random_lower_string(),
         },
     )
@@ -172,3 +248,35 @@ def normal_user_authored_question_uuid(
     return r.json()["uuid"]
 
 
+@pytest.fixture(scope="module")
+def example_submission_uuid(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+) -> str:
+    """
+    Create a test submission authored by normal_user.
+    Ensures user is a site member first.
+    """
+    # Ensure user is in site
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+
+    # Create submission
+    r = client.post(
+        f"{settings.API_V1_STR}/submissions/",
+        headers=normal_user_token_headers,
+        json={
+            "site_uuid": example_site_uuid,
+            "title": f"Test Submission ({random_short_lower_string()})",
+            "url": "https://example.com/test-submission",
+        },
+    )
+    r.raise_for_status()
+    return r.json()["uuid"]

@@ -302,7 +302,7 @@ def get_submission_suggestions(
     )
 
 
-@router.put("/{uuid}/hide", response_model=schemas.Submission)
+@router.put("/{uuid}/hide", response_model=Optional[schemas.Submission])
 def hide_submission(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
