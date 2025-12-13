@@ -141,12 +141,15 @@ def submission_archive_schema_from_orm(
     d["created_at"] = submission.created_at
     d["title"] = submission.title
     d["topic_uuids"] = submission.topic_uuids
+    d["url"] = submission.submission.url if submission.submission else None
     if submission.description is not None:
         d["desc"] = RichText(
             source=submission.description,
             rendered_text=submission.description_text,
             editor=submission.description_editor,
         )
+    else:
+        d["desc"] = None
     return schemas.SubmissionArchive(**d)
 
 

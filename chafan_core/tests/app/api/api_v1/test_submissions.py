@@ -292,10 +292,19 @@ def test_upvote_submission_success(
     client: TestClient,
     db: Session,
     example_submission_uuid: str,
+    example_site_uuid: str,
+    superuser_token_headers: dict,
     moderator_user_token_headers: dict,
     moderator_user_id: int,
+    moderator_user_uuid: str,
 ) -> None:
     """Test upvoting a submission."""
+    # Ensure moderator is a member of the site (not just site moderator)
+    ensure_user_in_site(
+        client, db, moderator_user_id, moderator_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+
     # Ensure moderator has sufficient coins for upvoting
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
@@ -320,10 +329,19 @@ def test_upvote_submission_idempotent(
     client: TestClient,
     db: Session,
     example_submission_uuid: str,
+    example_site_uuid: str,
+    superuser_token_headers: dict,
     moderator_user_token_headers: dict,
     moderator_user_id: int,
+    moderator_user_uuid: str,
 ) -> None:
     """Test upvoting same submission twice is idempotent."""
+    # Ensure moderator is a member of the site
+    ensure_user_in_site(
+        client, db, moderator_user_id, moderator_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+
     # Ensure moderator has sufficient coins
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
@@ -364,10 +382,19 @@ def test_cancel_upvote_submission(
     client: TestClient,
     db: Session,
     example_submission_uuid: str,
+    example_site_uuid: str,
+    superuser_token_headers: dict,
     moderator_user_token_headers: dict,
     moderator_user_id: int,
+    moderator_user_uuid: str,
 ) -> None:
     """Test canceling an upvote."""
+    # Ensure moderator is a member of the site
+    ensure_user_in_site(
+        client, db, moderator_user_id, moderator_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+
     # Ensure moderator has sufficient coins
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
