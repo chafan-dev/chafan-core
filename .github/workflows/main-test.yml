@@ -7,9 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  test:
+  unit-tests:
     runs-on: ubuntu-latest
-
     services:
       redis:
         image: redis
@@ -20,7 +19,6 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-
       postgres:
         image: postgres:14
         env:
@@ -45,16 +43,6 @@ jobs:
       with:
         use-flakehub: false
 
-    - name: Check PostgreSQL is running
-      run: |
-        pg_isready -h localhost -p 5432 -U postgres
-        echo "PostgreSQL is up and running!"
-
-    - name: Check Redis is running
-      run: |
-        nix develop --command redis-cli -h localhost -p 6379 ping
-        echo "Redis is up and running!"
-
     - name: Setup database
       run: |
         set -a
@@ -74,7 +62,61 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-unit.xml chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py -v
+        "
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-unit
+        path: coverage-unit.xml
+
+  crud-tests:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false
+
+    - name: Setup database
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
         "
 
     - name: Run CRUD tests
@@ -84,7 +126,61 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/crud/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud.xml chafan_core/tests/app/crud/ -v
+        "
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-crud
+        path: coverage-crud.xml
+
+  api-tests:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false
+
+    - name: Setup database
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
         "
 
     - name: Run API tests
@@ -94,7 +190,61 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/api/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-api.xml chafan_core/tests/app/api/ -v
+        "
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-api
+        path: coverage-api.xml
+
+  email-tests:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false
+
+    - name: Setup database
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
         "
 
     - name: Run email tests
@@ -104,28 +254,41 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-append --cov-report= chafan_core/tests/app/email/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-email.xml chafan_core/tests/app/email/ -v
         "
 
-    - name: Generate coverage reports
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-email
+        path: coverage-email.xml
+
+  coverage-report:
+    needs: [unit-tests, crud-tests, api-tests, email-tests]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Download all coverage reports
+      uses: actions/download-artifact@v4
+      with:
+        pattern: coverage-*
+        merge-multiple: true
+
+    - name: Install coverage tool
+      run: pip install coverage
+
+    - name: Combine and report coverage
       run: |
-        nix develop --command bash -c "
-          set -e
-          # Generate HTML report
-          coverage html
-          # Generate XML report
-          coverage xml
-          # Print summary to console
-          coverage report
-        "
+        coverage combine --keep coverage-*.xml || true
+        coverage report || true
+        coverage xml -o coverage-combined.xml || true
 
-    - name: Upload coverage reports
+    - name: Upload combined coverage
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: coverage-reports
-        path: |
-          htmlcov/
-          coverage.xml
-          .coverage
+        name: coverage-combined
+        path: coverage-combined.xml
         retention-days: 30
