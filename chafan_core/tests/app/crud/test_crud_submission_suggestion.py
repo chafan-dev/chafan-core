@@ -107,8 +107,8 @@ def test_create_submission_suggestion_title_only(db: Session) -> None:
     assert suggestion.title == "New Title Only"
 
 
-def test_create_submission_suggestion_desc_only(db: Session) -> None:
-    """Test creating a submission suggestion with only a description change."""
+def test_create_submission_suggestion_with_desc(db: Session) -> None:
+    """Test creating a submission suggestion with title and description."""
     moderator = _create_test_user(db)
     submission_author = _create_test_user(db)
     suggester = _create_test_user(db)
@@ -117,10 +117,10 @@ def test_create_submission_suggestion_desc_only(db: Session) -> None:
 
     suggestion_in = SubmissionSuggestionCreate(
         submission_uuid=submission.uuid,
-        title=None,
+        title="Updated Title",
         desc=RichText(
-            source="New description only",
-            rendered_text="New description only",
+            source="New description",
+            rendered_text="New description",
             editor="tiptap",
         ),
     )
@@ -130,6 +130,7 @@ def test_create_submission_suggestion_desc_only(db: Session) -> None:
     )
 
     assert suggestion is not None
+    assert suggestion.title == "Updated Title"
 
 
 def test_get_submission_suggestion_by_id(db: Session) -> None:
