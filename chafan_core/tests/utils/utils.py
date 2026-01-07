@@ -1,5 +1,6 @@
 import random
 import string
+import uuid
 from typing import Dict
 
 from fastapi.testclient import TestClient
@@ -17,8 +18,10 @@ EMAIL_TEST_MODERATOR = "mod@example.com"
 
 
 def random_short_lower_string() -> StrippedNonEmptyBasicStr:
+    # Use UUID suffix to ensure uniqueness across parallel tests
+    unique_suffix = uuid.uuid4().hex[:8]
     return StrippedNonEmptyBasicStr(
-        "".join(random.choices(string.ascii_lowercase, k=4))
+        "".join(random.choices(string.ascii_lowercase, k=4)) + unique_suffix
     )
 
 
