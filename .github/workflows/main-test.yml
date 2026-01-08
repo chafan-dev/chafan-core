@@ -126,21 +126,7 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud-1.xml -v \
-            chafan_core/tests/app/crud/test_crud_activity.py \
-            chafan_core/tests/app/crud/test_crud_answer.py \
-            chafan_core/tests/app/crud/test_crud_answer_suggest_edit.py \
-            chafan_core/tests/app/crud/test_crud_application.py \
-            chafan_core/tests/app/crud/test_crud_article.py \
-            chafan_core/tests/app/crud/test_crud_article_column.py \
-            chafan_core/tests/app/crud/test_crud_audit_log.py \
-            chafan_core/tests/app/crud/test_crud_channel.py \
-            chafan_core/tests/app/crud/test_crud_coin_deposit.py \
-            chafan_core/tests/app/crud/test_crud_coin_payment.py \
-            chafan_core/tests/app/crud/test_crud_comment.py \
-            chafan_core/tests/app/crud/test_crud_feedback.py \
-            chafan_core/tests/app/crud/test_crud_form.py \
-            chafan_core/tests/app/crud/test_crud_form_response.py
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud-1.xml -v chafan_core/tests/app/crud/a/
         "
 
     - name: Upload coverage
@@ -204,21 +190,7 @@ jobs:
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud-2.xml -v \
-            chafan_core/tests/app/crud/test_crud_invitation.py \
-            chafan_core/tests/app/crud/test_crud_invitation_link.py \
-            chafan_core/tests/app/crud/test_crud_message.py \
-            chafan_core/tests/app/crud/test_crud_notification.py \
-            chafan_core/tests/app/crud/test_crud_profile.py \
-            chafan_core/tests/app/crud/test_crud_question.py \
-            chafan_core/tests/app/crud/test_crud_report.py \
-            chafan_core/tests/app/crud/test_crud_reward.py \
-            chafan_core/tests/app/crud/test_crud_site.py \
-            chafan_core/tests/app/crud/test_crud_submission.py \
-            chafan_core/tests/app/crud/test_crud_submission_suggestion.py \
-            chafan_core/tests/app/crud/test_crud_topic.py \
-            chafan_core/tests/app/crud/test_crud_user.py \
-            chafan_core/tests/app/crud/test_crud_webhook.py
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud-2.xml -v chafan_core/tests/app/crud/b/
         "
 
     - name: Upload coverage
