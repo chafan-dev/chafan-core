@@ -21,21 +21,25 @@ def _create_test_user(db: Session):
     return asyncio.run(crud.user.create(db, obj_in=user_in))
 
 
-def _create_test_site(db: Session):
+def _create_test_site(db: Session, moderator):
     """Helper to create a test site."""
     from chafan_core.app.schemas.site import SiteCreate
 
     site_in = SiteCreate(
         name=f"Test Site {random_short_lower_string()}",
         subdomain=random_short_lower_string(),
+        description="Test site",
+        permission_type="private",
     )
-    return crud.site.create(db, obj_in=site_in)
+    return crud.site.create_with_permission_type(
+        db, obj_in=site_in, moderator=moderator, category_topic_id=None
+    )
 
 
 def test_create_submission_with_author(db: Session) -> None:
     """Test creating a submission with an author."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -60,7 +64,7 @@ def test_create_submission_with_author(db: Session) -> None:
 def test_create_submission_without_url(db: Session) -> None:
     """Test creating a submission without a URL."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -78,7 +82,7 @@ def test_create_submission_without_url(db: Session) -> None:
 def test_get_submission_by_uuid(db: Session) -> None:
     """Test retrieving a submission by UUID."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -100,7 +104,7 @@ def test_submission_upvote(db: Session) -> None:
     """Test upvoting a submission."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -127,7 +131,7 @@ def test_submission_cancel_upvote(db: Session) -> None:
     """Test canceling an upvote on a submission."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -156,7 +160,7 @@ def test_submission_reupvote_after_cancel(db: Session) -> None:
     """Test re-upvoting a submission after canceling."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -184,7 +188,7 @@ def test_submission_reupvote_after_cancel(db: Session) -> None:
 def test_update_submission_topics(db: Session) -> None:
     """Test updating submission topics."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -219,7 +223,7 @@ def test_update_submission_topics(db: Session) -> None:
 def test_update_submission_topics_clear(db: Session) -> None:
     """Test clearing submission topics."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -248,7 +252,7 @@ def test_update_submission_topics_clear(db: Session) -> None:
 def test_get_all_valid(db: Session) -> None:
     """Test getting all valid (not hidden) submissions."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     # Create a normal submission
     normal_submission_in = SubmissionCreate(
@@ -285,7 +289,7 @@ def test_count_upvotes(db: Session) -> None:
     author = _create_test_user(db)
     voter1 = _create_test_user(db)
     voter2 = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -312,7 +316,7 @@ def test_count_upvotes_excludes_cancelled(db: Session) -> None:
     """Test that count_upvotes excludes cancelled upvotes."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,
@@ -335,7 +339,7 @@ def test_count_upvotes_excludes_cancelled(db: Session) -> None:
 def test_update_submission(db: Session) -> None:
     """Test updating a submission."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     submission_in = SubmissionCreate(
         site_uuid=site.uuid,

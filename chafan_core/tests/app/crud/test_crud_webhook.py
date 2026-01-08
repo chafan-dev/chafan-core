@@ -160,8 +160,9 @@ def test_update_webhook_callback_url(db: Session) -> None:
 
     webhook = crud.webhook.create_with_site(db, obj_in=webhook_in, site_id=site.id)
 
+    # Use dict instead of WebhookUpdate to avoid HttpUrl type conversion issue
     updated = crud.webhook.update(
-        db, db_obj=webhook, obj_in=WebhookUpdate(callback_url="https://new.example.com/webhook")
+        db, db_obj=webhook, obj_in={"callback_url": "https://new.example.com/webhook"}
     )
 
     assert updated.callback_url == "https://new.example.com/webhook"
