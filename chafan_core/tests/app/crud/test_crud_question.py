@@ -21,21 +21,25 @@ def _create_test_user(db: Session):
     return asyncio.run(crud.user.create(db, obj_in=user_in))
 
 
-def _create_test_site(db: Session):
+def _create_test_site(db: Session, moderator):
     """Helper to create a test site."""
     from chafan_core.app.schemas.site import SiteCreate
 
     site_in = SiteCreate(
         name=f"Test Site {random_short_lower_string()}",
         subdomain=random_short_lower_string(),
+        description="Test site",
+        permission_type="private",
     )
-    return crud.site.create(db, obj_in=site_in)
+    return crud.site.create_with_permission_type(
+        db, obj_in=site_in, moderator=moderator, category_topic_id=None
+    )
 
 
 def test_create_question_with_author(db: Session) -> None:
     """Test creating a question with an author."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -59,7 +63,7 @@ def test_create_question_with_author(db: Session) -> None:
 def test_get_question_by_uuid(db: Session) -> None:
     """Test retrieving a question by UUID."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -79,7 +83,7 @@ def test_get_question_by_uuid(db: Session) -> None:
 def test_get_question_by_id(db: Session) -> None:
     """Test retrieving a question by ID."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -99,7 +103,7 @@ def test_question_upvote(db: Session) -> None:
     """Test upvoting a question."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -125,7 +129,7 @@ def test_question_cancel_upvote(db: Session) -> None:
     """Test canceling an upvote on a question."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -153,7 +157,7 @@ def test_question_reupvote_after_cancel(db: Session) -> None:
     """Test re-upvoting a question after canceling."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -180,7 +184,7 @@ def test_question_reupvote_after_cancel(db: Session) -> None:
 def test_update_question_topics(db: Session) -> None:
     """Test updating question topics."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -214,7 +218,7 @@ def test_update_question_topics(db: Session) -> None:
 def test_update_question_topics_clear(db: Session) -> None:
     """Test clearing question topics."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
@@ -242,7 +246,7 @@ def test_update_question_topics_clear(db: Session) -> None:
 def test_get_placed_at_home(db: Session) -> None:
     """Test getting questions placed at home."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     # Create a question and place it at home
     question_in = QuestionCreate(
@@ -266,7 +270,7 @@ def test_get_placed_at_home(db: Session) -> None:
 def test_get_all_valid(db: Session) -> None:
     """Test getting all valid (not hidden) questions."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     # Create a normal question
     question_in = QuestionCreate(
@@ -299,7 +303,7 @@ def test_get_all_valid(db: Session) -> None:
 def test_update_question(db: Session) -> None:
     """Test updating a question."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
 
     question_in = QuestionCreate(
         site_uuid=site.uuid,
