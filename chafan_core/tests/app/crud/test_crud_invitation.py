@@ -136,12 +136,6 @@ def test_get_invitation_returns_none_for_nonexistent(db: Session) -> None:
     assert result is None
 
 
-def test_get_by_email_returns_none_when_not_found(db: Session) -> None:
-    """Test that get_by_email returns None when not found."""
-    result = crud.invitation.get_by_email(db, email="nonexistent@example.com")
-    assert result is None
-
-
 def test_invitation_timestamps(db: Session) -> None:
     """Test that invitations have correct timestamps."""
     import datetime

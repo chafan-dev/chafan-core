@@ -71,7 +71,8 @@ def test_get_profile_by_user_and_site(db: Session) -> None:
         db, owner_id=user.id, site_id=site.id
     )
     assert retrieved_profile is not None
-    assert retrieved_profile.id == profile.id
+    assert retrieved_profile.owner_id == profile.owner_id
+    assert retrieved_profile.site_id == profile.site_id
     assert retrieved_profile.owner_id == user.id
     assert retrieved_profile.site_id == site.id
 
@@ -101,14 +102,16 @@ def test_remove_profile_by_user_and_site(db: Session) -> None:
     )
 
     profile = crud.profile.create_with_owner(db, obj_in=profile_in)
-    profile_id = profile.id
+    profile_owner_id = profile.owner_id
+    profile_site_id = profile.site_id
 
     # Remove the profile
     removed_profile = crud.profile.remove_by_user_and_site(
         db, owner_id=user.id, site_id=site.id
     )
     assert removed_profile is not None
-    assert removed_profile.id == profile_id
+    assert removed_profile.owner_id == profile_owner_id
+    assert removed_profile.site_id == profile_site_id
 
     # Verify it's removed
     retrieved_profile = crud.profile.get_by_user_and_site(
@@ -159,9 +162,12 @@ def test_user_can_have_multiple_profiles_in_different_sites(db: Session) -> None
 
     assert retrieved_profile1 is not None
     assert retrieved_profile2 is not None
-    assert retrieved_profile1.id == profile1.id
-    assert retrieved_profile2.id == profile2.id
-    assert retrieved_profile1.id != retrieved_profile2.id
+    assert retrieved_profile1.owner_id == profile1.owner_id
+    assert retrieved_profile1.site_id == profile1.site_id
+    assert retrieved_profile2.owner_id == profile2.owner_id
+    assert retrieved_profile2.site_id == profile2.site_id
+    # Different profiles have different site_ids (same owner)
+    assert retrieved_profile1.site_id != retrieved_profile2.site_id
 
 
 def test_multiple_users_can_have_profiles_in_same_site(db: Session) -> None:
@@ -193,8 +199,10 @@ def test_multiple_users_can_have_profiles_in_same_site(db: Session) -> None:
 
     assert retrieved_profile1 is not None
     assert retrieved_profile2 is not None
-    assert retrieved_profile1.id == profile1.id
-    assert retrieved_profile2.id == profile2.id
+    assert retrieved_profile1.owner_id == profile1.owner_id
+    assert retrieved_profile1.site_id == profile1.site_id
+    assert retrieved_profile2.owner_id == profile2.owner_id
+    assert retrieved_profile2.site_id == profile2.site_id
 
 
 def test_update_profile(db: Session) -> None:
@@ -218,7 +226,7 @@ def test_update_profile(db: Session) -> None:
 
 
 def test_get_profile(db: Session) -> None:
-    """Test getting a profile by ID."""
+    """Test getting a profile by user and site."""
     user = _create_test_user(db)
     moderator = _create_test_user(db)
     site = _create_test_site(db, moderator)
@@ -230,9 +238,13 @@ def test_get_profile(db: Session) -> None:
 
     profile = crud.profile.create_with_owner(db, obj_in=profile_in)
 
-    retrieved_profile = crud.profile.get(db, id=profile.id)
+    # Profile uses composite primary key (owner_id, site_id), so use get_by_user_and_site
+    retrieved_profile = crud.profile.get_by_user_and_site(
+        db, owner_id=profile.owner_id, site_id=profile.site_id
+    )
     assert retrieved_profile is not None
-    assert retrieved_profile.id == profile.id
+    assert retrieved_profile.owner_id == profile.owner_id
+    assert retrieved_profile.site_id == profile.site_id
 
 
 def test_remove_only_removes_specific_profile(db: Session) -> None:
@@ -265,4 +277,5 @@ def test_remove_only_removes_specific_profile(db: Session) -> None:
         db, owner_id=user.id, site_id=site2.id
     )
     assert profile2_retrieved is not None
-    assert profile2_retrieved.id == profile2.id
+    assert profile2_retrieved.owner_id == profile2.owner_id
+    assert profile2_retrieved.site_id == profile2.site_id

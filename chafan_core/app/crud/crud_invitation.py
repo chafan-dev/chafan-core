@@ -42,8 +42,4 @@ class CRUDComment(object):
         db.refresh(db_obj)
         return db_obj
 
-    def get_by_email(self, db: Session, *, email: str) -> Optional[Invitation]:
-        return db.query(Invitation).filter_by(invited_email=email).first()
-
-
 invitation = CRUDComment()
