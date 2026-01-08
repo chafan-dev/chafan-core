@@ -71,7 +71,7 @@ jobs:
         name: coverage-unit
         path: coverage-unit.xml
 
-  crud-tests:
+  crud-tests-1:
     runs-on: ubuntu-latest
     services:
       redis:
@@ -119,21 +119,113 @@ jobs:
           PYTHONPATH=\$PWD python scripts/initial_data.py
         "
 
-    - name: Run CRUD tests
+    - name: Run CRUD tests (part 1)
       run: |
         set -a
         source env.ci
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud.xml chafan_core/tests/app/crud/ -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud-1.xml -v \
+            chafan_core/tests/app/crud/test_crud_activity.py \
+            chafan_core/tests/app/crud/test_crud_answer.py \
+            chafan_core/tests/app/crud/test_crud_answer_suggest_edit.py \
+            chafan_core/tests/app/crud/test_crud_application.py \
+            chafan_core/tests/app/crud/test_crud_article.py \
+            chafan_core/tests/app/crud/test_crud_article_column.py \
+            chafan_core/tests/app/crud/test_crud_audit_log.py \
+            chafan_core/tests/app/crud/test_crud_channel.py \
+            chafan_core/tests/app/crud/test_crud_coin_deposit.py \
+            chafan_core/tests/app/crud/test_crud_coin_payment.py \
+            chafan_core/tests/app/crud/test_crud_comment.py \
+            chafan_core/tests/app/crud/test_crud_feedback.py \
+            chafan_core/tests/app/crud/test_crud_form.py \
+            chafan_core/tests/app/crud/test_crud_form_response.py
         "
 
     - name: Upload coverage
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-crud
-        path: coverage-crud.xml
+        name: coverage-crud-1
+        path: coverage-crud-1.xml
+
+  crud-tests-2:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false
+
+    - name: Setup database
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+          PYTHONPATH=\$PWD alembic upgrade head
+          PYTHONPATH=\$PWD python scripts/initial_data.py
+        "
+
+    - name: Run CRUD tests (part 2)
+      run: |
+        set -a
+        source env.ci
+        set +a
+        nix develop --command bash -c "
+          set -e
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-crud-2.xml -v \
+            chafan_core/tests/app/crud/test_crud_invitation.py \
+            chafan_core/tests/app/crud/test_crud_invitation_link.py \
+            chafan_core/tests/app/crud/test_crud_message.py \
+            chafan_core/tests/app/crud/test_crud_notification.py \
+            chafan_core/tests/app/crud/test_crud_profile.py \
+            chafan_core/tests/app/crud/test_crud_question.py \
+            chafan_core/tests/app/crud/test_crud_report.py \
+            chafan_core/tests/app/crud/test_crud_reward.py \
+            chafan_core/tests/app/crud/test_crud_site.py \
+            chafan_core/tests/app/crud/test_crud_submission.py \
+            chafan_core/tests/app/crud/test_crud_submission_suggestion.py \
+            chafan_core/tests/app/crud/test_crud_topic.py \
+            chafan_core/tests/app/crud/test_crud_user.py \
+            chafan_core/tests/app/crud/test_crud_webhook.py
+        "
+
+    - name: Upload coverage
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-crud-2
+        path: coverage-crud-2.xml
 
   api-tests:
     runs-on: ubuntu-latest
@@ -264,7 +356,7 @@ jobs:
         path: coverage-email.xml
 
   coverage-report:
-    needs: [unit-tests, crud-tests, api-tests, email-tests]
+    needs: [unit-tests, crud-tests-1, crud-tests-2, api-tests, email-tests]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
