@@ -25,15 +25,19 @@ def _create_test_user(db: Session):
     return asyncio.run(crud.user.create(db, obj_in=user_in))
 
 
-def _create_test_site(db: Session):
+def _create_test_site(db: Session, moderator):
     """Helper to create a test site."""
     from chafan_core.app.schemas.site import SiteCreate
 
     site_in = SiteCreate(
         name=f"Test Site {random_short_lower_string()}",
         subdomain=random_short_lower_string(),
+        description="Test site",
+        permission_type="private",
     )
-    return crud.site.create(db, obj_in=site_in)
+    return crud.site.create_with_permission_type(
+        db, obj_in=site_in, moderator=moderator, category_topic_id=None
+    )
 
 
 def _create_test_question(db: Session, author_id: int, site_id: int):
@@ -48,7 +52,7 @@ def _create_test_question(db: Session, author_id: int, site_id: int):
 def test_create_answer_with_author(db: Session) -> None:
     """Test creating an answer with an author."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -78,7 +82,7 @@ def test_create_answer_with_author(db: Session) -> None:
 def test_get_answer_by_uuid(db: Session) -> None:
     """Test retrieving an answer by UUID."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -107,7 +111,7 @@ def test_answer_upvote(db: Session) -> None:
     """Test upvoting an answer."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
     question = _create_test_question(db, author_id=author.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -141,7 +145,7 @@ def test_answer_cancel_upvote(db: Session) -> None:
     """Test canceling an upvote on an answer."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
     question = _create_test_question(db, author_id=author.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -176,7 +180,7 @@ def test_answer_cancel_upvote(db: Session) -> None:
 def test_get_one_as_search_result_published(db: Session) -> None:
     """Test getting a published answer as search result."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -203,7 +207,7 @@ def test_get_one_as_search_result_published(db: Session) -> None:
 def test_get_one_as_search_result_unpublished(db: Session) -> None:
     """Test that unpublished answers are not returned as search results."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -229,7 +233,7 @@ def test_get_one_as_search_result_unpublished(db: Session) -> None:
 def test_get_one_as_search_result_hidden_by_moderator(db: Session) -> None:
     """Test that answers hidden by moderator are not returned as search results."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -258,7 +262,7 @@ def test_get_one_as_search_result_hidden_by_moderator(db: Session) -> None:
 def test_get_all_published(db: Session) -> None:
     """Test getting all published answers."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     # Create a published answer
@@ -305,7 +309,7 @@ def test_get_all_published(db: Session) -> None:
 def test_delete_forever(db: Session) -> None:
     """Test permanently deleting an answer."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -337,7 +341,7 @@ def test_delete_forever(db: Session) -> None:
 def test_update_checked_cannot_unpublish(db: Session) -> None:
     """Test that update_checked prevents unpublishing a published answer."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(
@@ -369,7 +373,7 @@ def test_get_all(db: Session) -> None:
     initial_count = len(crud.answer.get_all(db))
 
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     answer_in = AnswerCreate(

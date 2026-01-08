@@ -23,15 +23,19 @@ def _create_test_user(db: Session):
     return asyncio.run(crud.user.create(db, obj_in=user_in))
 
 
-def _create_test_site(db: Session):
+def _create_test_site(db: Session, moderator):
     """Helper to create a test site."""
     from chafan_core.app.schemas.site import SiteCreate
 
     site_in = SiteCreate(
         name=f"Test Site {random_short_lower_string()}",
         subdomain=random_short_lower_string(),
+        description="Test site",
+        permission_type="private",
     )
-    return crud.site.create(db, obj_in=site_in)
+    return crud.site.create_with_permission_type(
+        db, obj_in=site_in, moderator=moderator, category_topic_id=None
+    )
 
 
 def _create_test_question(db: Session, author_id: int, site_id: int):
@@ -51,7 +55,7 @@ def _noop_check_site(site: models.Site) -> None:
 def test_create_comment_on_question(db: Session) -> None:
     """Test creating a comment on a question."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -82,7 +86,7 @@ def test_create_comment_on_question(db: Session) -> None:
 def test_get_comment_by_uuid(db: Session) -> None:
     """Test retrieving a comment by UUID."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -111,7 +115,7 @@ def test_comment_upvote(db: Session) -> None:
     """Test upvoting a comment."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
     question = _create_test_question(db, author_id=author.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -145,7 +149,7 @@ def test_comment_cancel_upvote(db: Session) -> None:
     """Test canceling an upvote on a comment."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
     question = _create_test_question(db, author_id=author.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -181,7 +185,7 @@ def test_comment_reupvote_after_cancel(db: Session) -> None:
     """Test re-upvoting a comment after canceling."""
     author = _create_test_user(db)
     voter = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=author)
     question = _create_test_question(db, author_id=author.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -216,7 +220,7 @@ def test_comment_reupvote_after_cancel(db: Session) -> None:
 def test_delete_forever(db: Session) -> None:
     """Test permanently deleting a comment."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -248,7 +252,7 @@ def test_delete_forever(db: Session) -> None:
 def test_get_all_valid(db: Session) -> None:
     """Test getting all valid (not deleted) comments."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     # Create a normal comment
@@ -298,7 +302,7 @@ def test_get_all(db: Session) -> None:
     initial_count = len(crud.comment.get_all(db))
 
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     comment_in = CommentCreate(
@@ -324,7 +328,7 @@ def test_get_all(db: Session) -> None:
 def test_create_reply_comment(db: Session) -> None:
     """Test creating a reply to a comment."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     # Create parent comment
@@ -375,7 +379,7 @@ def test_get_comment_by_uuid_returns_none_for_nonexistent(db: Session) -> None:
 def test_comment_shared_to_timeline(db: Session) -> None:
     """Test creating a comment with shared_to_timeline flag."""
     user = _create_test_user(db)
-    site = _create_test_site(db)
+    site = _create_test_site(db, moderator=user)
     question = _create_test_question(db, author_id=user.id, site_id=site.id)
 
     comment_in = CommentCreate(
