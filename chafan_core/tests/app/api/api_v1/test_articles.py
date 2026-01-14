@@ -28,8 +28,9 @@ def test_get_article_unauthenticated(
     assert "article_column" in data
 
     # Verify data exists in database
+    db.expire_all()
     db_article = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article is not None
+    assert db_article is not None, f"Article {example_article_uuid} not found in database"
     assert db_article.uuid == example_article_uuid
     assert db_article.title == data["title"]
     assert db_article.is_published is True
@@ -56,8 +57,9 @@ def test_get_article_authenticated(
     assert "view_times" in data
 
     # Verify data in database matches response
+    db.expire_all()
     db_article = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article is not None
+    assert db_article is not None, f"Article {example_article_uuid} not found in database"
     assert db_article.title == data["title"]
     assert db_article.body == data["content"]["source"]
 
@@ -331,7 +333,9 @@ def test_update_article_as_non_author(
 ) -> None:
     """Test that non-authors cannot update articles they don't own."""
     # Get original data from database
+    db.expire_all()
     db_article_before = crud.article.get_by_uuid(db, uuid=example_article_uuid)
+    assert db_article_before is not None, f"Article {example_article_uuid} not found"
     original_title = db_article_before.title
     original_body = db_article_before.body
 
@@ -579,8 +583,9 @@ def test_get_article_archives_unauthorized(
     assert "Unauthorized" in r.json()["detail"]
 
     # Verify the article exists but access is denied (not a data issue)
+    db.expire_all()
     db_article = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article is not None
+    assert db_article is not None, f"Article {example_article_uuid} not found in database"
 
 
 # =============================================================================
@@ -645,8 +650,9 @@ def test_delete_article_unauthorized(
 ) -> None:
     """Test that non-authors cannot delete articles."""
     # Verify article exists and is not deleted
+    db.expire_all()
     db_article_before = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article_before is not None
+    assert db_article_before is not None, f"Article {example_article_uuid} not found in database"
     assert db_article_before.is_deleted is False
 
     r = client.delete(
