@@ -105,7 +105,7 @@ def test_create_comment_success(
 
     # Verify site relationship
     site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
-    assert site is not None
+    assert site is not None, f"Site {example_site_uuid} not found"
     assert db_comment.site_id == site.id
 
 

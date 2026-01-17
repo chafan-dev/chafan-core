@@ -13,8 +13,9 @@ def test_profiles(
     example_site_uuid: str,
     normal_user_id: int,
 ) -> None:
+    db.expire_all()
     site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
-    assert site is not None
+    assert site is not None, f"Site {example_site_uuid} not found"
     crud.profile.remove_by_user_and_site(db, owner_id=normal_user_id, site_id=site.id)
     normal_user_uuid = client.get(
         f"{settings.API_V1_STR}/me", headers=normal_user_token_headers

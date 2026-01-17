@@ -55,8 +55,9 @@ def test_create_question_not_site_member(
 ) -> None:
     """Test that non-members cannot create questions in a site."""
     # Remove user from site if they are a member
+    db.expire_all()
     site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
-    assert site is not None
+    assert site is not None, f"Site {example_site_uuid} not found"
     crud.profile.remove_by_user_and_site(db, owner_id=normal_user_id, site_id=site.id)
 
     data = {
@@ -120,6 +121,7 @@ def test_create_question_success(
 
     # Verify site relationship
     site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
+    assert site is not None, f"Site {example_site_uuid} not found"
     assert db_question.site_id == site.id
 
 

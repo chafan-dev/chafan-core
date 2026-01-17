@@ -29,6 +29,7 @@ def test_get_submission_upvotes_unauthenticated(
     assert "submission_uuid" in data
 
     # Verify submission exists in database with matching upvotes count
+    db.expire_all()
     db_submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
     assert db_submission is not None
     assert db_submission.upvotes_count == data["count"]
@@ -52,6 +53,7 @@ def test_get_submission_upvotes_authenticated(
     assert data["submission_uuid"] == example_submission_uuid
 
     # Verify database matches response
+    db.expire_all()
     db_submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
     assert db_submission is not None
     assert db_submission.upvotes_count == data["count"]
@@ -90,6 +92,7 @@ def test_bump_views_counter(
     assert r.status_code == 200
 
     # Verify submission still exists in database
+    db.expire_all()
     db_submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
     assert db_submission is not None
 
@@ -133,6 +136,7 @@ def test_get_submission_authenticated(
     assert "site" in data
 
     # Verify response matches database
+    db.expire_all()
     db_submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
     assert db_submission is not None
     assert db_submission.title == data["title"]
@@ -247,6 +251,7 @@ def test_create_submission_success(
 
     # Verify site relationship
     site = crud.site.get_by_uuid(db, uuid=example_site_uuid)
+    assert site is not None, f"Site {example_site_uuid} not found"
     assert db_submission.site_id == site.id
 
 
@@ -263,7 +268,9 @@ def test_update_submission_as_author(
 ) -> None:
     """Test updating a submission as author and verify in PostgreSQL."""
     # Get original title from database
+    db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
     original_title = db_submission_before.title
 
     new_title = f"Updated Title {random_lower_string()}"
@@ -294,7 +301,9 @@ def test_update_submission_as_non_author(
 ) -> None:
     """Test that non-authors cannot update submissions."""
     # Get original title from database
+    db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
     original_title = db_submission_before.title
 
     data = {
@@ -348,7 +357,9 @@ def test_get_submission_archives(
 ) -> None:
     """Test getting submission archives after update and verify in PostgreSQL."""
     # Get original title
+    db.expire_all()
     db_submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission is not None, f"Submission {example_submission_uuid} not found"
     original_title = db_submission.title
 
     # Update to create an archive
@@ -418,7 +429,9 @@ def test_upvote_submission_success(
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
     # Get initial upvote count from database
+    db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
     initial_db_count = db_submission_before.upvotes_count
 
     r = client.get(
@@ -494,7 +507,9 @@ def test_upvote_submission_author_cannot_upvote(
 ) -> None:
     """Test that authors cannot upvote their own submissions."""
     # Get initial count from database
+    db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
     initial_count = db_submission_before.upvotes_count
 
     r = client.post(
@@ -668,6 +683,7 @@ def test_get_submission_suggestions(
     assert isinstance(data, list)
 
     # Verify the submission exists in database
+    db.expire_all()
     db_submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
     assert db_submission is not None
 
