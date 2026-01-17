@@ -122,6 +122,7 @@ def ensure_user_in_site(
     Ensure a user is a member of a site. If not, invite them.
     This helper reduces duplication across fixtures.
     """
+    db.expire_all()  # Clear cache to get fresh data from database
     site = crud.site.get_by_uuid(db, uuid=site_uuid)
     assert site is not None, f"Site {site_uuid} not found"
 
@@ -191,6 +192,7 @@ def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
         user_id: User's database ID
         coins: Minimum number of coins to ensure (default: 100)
     """
+    db.expire_all()  # Clear cache to get fresh data from database
     user = crud.user.get(db, id=user_id)
     assert user is not None, f"User {user_id} not found"
 
