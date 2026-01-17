@@ -122,6 +122,7 @@ def ensure_user_in_site(
     Ensure a user is a member of a site. If not, invite them.
     This helper reduces duplication across fixtures.
     """
+    db.expire_all()  # Clear cache to get fresh data from database
     site = crud.site.get_by_uuid(db, uuid=site_uuid)
     assert site is not None, f"Site {site_uuid} not found"
 
@@ -191,6 +192,7 @@ def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
         user_id: User's database ID
         coins: Minimum number of coins to ensure (default: 100)
     """
+    db.expire_all()  # Clear cache to get fresh data from database
     user = crud.user.get(db, id=user_id)
     assert user is not None, f"User {user_id} not found"
 
@@ -201,6 +203,66 @@ def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
 # =============================================================================
 # Test Content Fixtures
 # =============================================================================
+
+# =============================================================================
+# Article Column and Article Fixtures
+# =============================================================================
+
+@pytest.fixture(scope="module")
+def example_article_column_uuid(
+    client: TestClient,
+    normal_user_token_headers: dict,
+) -> str:
+    """
+    Create a test article column owned by normal_user.
+    Scope: module - one article column per test module.
+    """
+    r = client.post(
+        f"{settings.API_V1_STR}/article-columns/",
+        headers=normal_user_token_headers,
+        json={
+            "name": f"Test Column ({random_short_lower_string()})",
+            "description": "Automated test article column",
+        },
+    )
+    r.raise_for_status()
+    return r.json()["uuid"]
+
+
+@pytest.fixture(scope="module")
+def example_article_uuid(
+    client: TestClient,
+    db: Session,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    example_article_column_uuid: str,
+) -> str:
+    """
+    Create a test article authored by normal_user.
+    Scope: module - one article per test module.
+    """
+    from chafan_core.utils.base import get_uuid
+
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+
+    r = client.post(
+        f"{settings.API_V1_STR}/articles/",
+        headers=normal_user_token_headers,
+        json={
+            "title": f"Test Article ({random_short_lower_string()})",
+            "content": {
+                "source": "This is test article content.",
+                "editor": "tiptap",
+            },
+            "article_column_uuid": example_article_column_uuid,
+            "is_published": True,
+            "writing_session_uuid": get_uuid(),
+            "visibility": "anyone",
+        },
+    )
+    r.raise_for_status()
+    return r.json()["uuid"]
+
 
 @pytest.fixture(scope="module")
 def normal_user_authored_question_uuid(

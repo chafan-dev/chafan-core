@@ -72,8 +72,9 @@ def test_create_user_new_email(client: TestClient, db: Session) -> None:
     assert 200 <= r.status_code < 300, r.text
     created_user = r.json()
 
+    db.expire_all()
     user = crud.user.get_by_email(db, email=username)
-    assert user
+    assert user is not None, f"User {username} not found in database"
     assert user.email == created_user["email"]
 
 
