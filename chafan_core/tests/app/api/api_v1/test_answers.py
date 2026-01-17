@@ -262,6 +262,7 @@ def test_update_answer_as_author(
     # Verify original content in database
     db.expire_all()
     db_answer_before = crud.answer.get_by_uuid(db, uuid=answer_uuid)
+    assert db_answer_before is not None, f"Answer {answer_uuid} not found"
     assert db_answer_before.body == original_content
 
     # Update the answer
@@ -348,6 +349,7 @@ def test_update_answer_as_non_author(
     # Verify data was NOT changed in PostgreSQL
     db.expire_all()
     db_answer = crud.answer.get_by_uuid(db, uuid=answer_uuid)
+    assert db_answer is not None, f"Answer {answer_uuid} not found"
     assert db_answer.body == original_content
 
 

@@ -320,6 +320,7 @@ def test_update_submission_as_non_author(
     # Verify data was NOT changed in PostgreSQL
     db.expire_all()
     db_submission_after = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_after is not None, f"Submission {example_submission_uuid} not found"
     assert db_submission_after.title == original_title
 
 
@@ -452,6 +453,7 @@ def test_upvote_submission_success(
     # Verify upvote is recorded in PostgreSQL
     db.expire_all()
     db_submission_after = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_after is not None, f"Submission {example_submission_uuid} not found"
     assert db_submission_after.upvotes_count >= initial_db_count
 
 
@@ -482,6 +484,7 @@ def test_upvote_submission_idempotent(
     # Get database count after first upvote
     db.expire_all()
     db_submission_1 = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_1 is not None, f"Submission {example_submission_uuid} not found"
     db_count1 = db_submission_1.upvotes_count
 
     # Second upvote (should not increase count)
@@ -496,6 +499,7 @@ def test_upvote_submission_idempotent(
     # Verify database count unchanged
     db.expire_all()
     db_submission_2 = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_2 is not None, f"Submission {example_submission_uuid} not found"
     assert db_submission_2.upvotes_count == db_count1
 
 
@@ -522,6 +526,7 @@ def test_upvote_submission_author_cannot_upvote(
     # Verify count unchanged in database
     db.expire_all()
     db_submission_after = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_after is not None, f"Submission {example_submission_uuid} not found"
     assert db_submission_after.upvotes_count == initial_count
 
 
@@ -553,6 +558,7 @@ def test_cancel_upvote_submission(
     # Get database count after upvote
     db.expire_all()
     db_submission_upvoted = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_upvoted is not None, f"Submission {example_submission_uuid} not found"
     db_count_upvoted = db_submission_upvoted.upvotes_count
 
     # Cancel upvote
@@ -568,6 +574,7 @@ def test_cancel_upvote_submission(
     # Verify count decreased in database
     db.expire_all()
     db_submission_cancelled = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert db_submission_cancelled is not None, f"Submission {example_submission_uuid} not found"
     assert db_submission_cancelled.upvotes_count <= db_count_upvoted
 
 

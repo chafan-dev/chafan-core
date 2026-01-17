@@ -356,6 +356,7 @@ def test_update_article_as_non_author(
     # Verify data was NOT changed in PostgreSQL
     db.expire_all()
     db_article_after = crud.article.get_by_uuid(db, uuid=example_article_uuid)
+    assert db_article_after is not None, f"Article {example_article_uuid} not found"
     assert db_article_after.title == original_title
     assert db_article_after.body == original_body
 

@@ -237,6 +237,7 @@ def test_update_question_as_author(
     # Verify original description in database
     db.expire_all()
     db_question_before = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert db_question_before is not None, f"Question {question_uuid} not found"
     assert original_description in db_question_before.description
 
     # Update the question
@@ -299,6 +300,7 @@ def test_update_question_as_non_author(
     # Verify data was NOT changed in PostgreSQL
     db.expire_all()
     db_question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert db_question is not None, f"Question {question_uuid} not found"
     assert original_description in db_question.description
 
 

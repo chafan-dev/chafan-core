@@ -217,6 +217,7 @@ def test_update_comment_as_author(
     # Verify original content in database
     db.expire_all()
     db_comment_before = crud.comment.get_by_uuid(db, uuid=comment_uuid)
+    assert db_comment_before is not None, f"Comment {comment_uuid} not found"
     assert db_comment_before.body == original_content
 
     # Update the comment
@@ -276,6 +277,7 @@ def test_update_comment_as_non_author(
     # Verify data was NOT changed in PostgreSQL
     db.expire_all()
     db_comment = crud.comment.get_by_uuid(db, uuid=comment_uuid)
+    assert db_comment is not None, f"Comment {comment_uuid} not found"
     assert db_comment.body == original_content
 
 
