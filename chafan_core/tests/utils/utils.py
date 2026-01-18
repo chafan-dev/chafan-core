@@ -8,21 +8,16 @@ from pydantic.types import SecretStr
 
 from chafan_core.app.config import settings
 from chafan_core.utils.base import unwrap
-from chafan_core.utils.validators import (
-    CaseInsensitiveEmailStr,
-    StrippedNonEmptyBasicStr,
-)
+from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 EMAIL_TEST_USER = "test@example.com"
 EMAIL_TEST_MODERATOR = "mod@example.com"
 
 
-def random_short_lower_string() -> StrippedNonEmptyBasicStr:
+def random_short_lower_string() -> str:
     # Use UUID suffix to ensure uniqueness across parallel tests
     unique_suffix = uuid.uuid4().hex[:8]
-    return StrippedNonEmptyBasicStr(
-        "".join(random.choices(string.ascii_lowercase, k=4)) + unique_suffix
-    )
+    return "".join(random.choices(string.ascii_lowercase, k=4)) + unique_suffix
 
 
 def random_lower_string() -> str:

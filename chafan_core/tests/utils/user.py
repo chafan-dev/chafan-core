@@ -13,10 +13,7 @@ from chafan_core.tests.utils.utils import (
     random_password,
     random_short_lower_string,
 )
-from chafan_core.utils.validators import (
-    CaseInsensitiveEmailStr,
-    StrippedNonEmptyBasicStr,
-)
+from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 
 def user_authentication_headers(
@@ -55,7 +52,7 @@ async def authentication_token_from_email(
         user_in_create = UserCreate(
             email=email,
             password=password,
-            handle=StrippedNonEmptyBasicStr(email.split("@")[0]),
+            handle=email.split("@")[0],
         )
         user = await crud.user.create(db, obj_in=user_in_create)
     else:

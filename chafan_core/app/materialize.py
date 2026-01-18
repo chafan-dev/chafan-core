@@ -47,11 +47,9 @@ from chafan_core.utils.constants import (
     unknown_user_handle,
     unknown_user_uuid,
 )
-from chafan_core.utils.validators import StrippedNonEmptyBasicStr
-
 _ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
     uuid=unknown_user_uuid,
-    handle=StrippedNonEmptyBasicStr(unknown_user_handle),
+    handle=unknown_user_handle,
     full_name=unknown_user_full_name,
 )
 
