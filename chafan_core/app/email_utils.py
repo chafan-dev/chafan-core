@@ -4,6 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
+from urllib.parse import urlencode
 
 #from emails.template import JinjaTemplate  # type: ignore
 
@@ -52,7 +53,7 @@ def send_notification_email(
     subject = f"{project_name} 未读通知"
     if first_title:
         subject += f"：{first_title}..."
-    host = settings.API_SERVER_SCHEME + "://" + settings.SERVER_NAME
+    host = settings.API_SERVER_SCHEME + "://" + settings.SERVER_HOST
     params = {
         "email": email,
         "type": "unread_notifications",

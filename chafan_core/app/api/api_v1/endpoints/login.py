@@ -310,18 +310,7 @@ async def create_user_open(
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
     user = await crud.user.create(db, obj_in=user_in)
 
-    # TODO auto add site
-    if False and invitation_link.invited_to_site is not None:
-        existing_profile = crud.profile.get_by_user_and_site(
-            db, owner_id=user.id, site_id=invitation_link.invited_to_site.id
-        )
-        if not existing_profile:
-            cached_layer.create_site_profile(
-                owner=user, site_uuid=invitation_link.invited_to_site.uuid
-            )
-
-
-    # TODO bonus for invite new user, new user's initial coins
+    # TODO auto add site, bonus for invite new user, new user's initial coins
     return user_schema_from_orm(user)
 
 
