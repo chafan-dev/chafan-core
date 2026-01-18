@@ -1,7 +1,6 @@
 import datetime
-from typing import TYPE_CHECKING, Any, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
-from pydantic import AnyHttpUrl
 from sqlalchemy import (
     CHAR,
     Boolean,
