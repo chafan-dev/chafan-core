@@ -4,12 +4,14 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
-
-#from emails.template import JinjaTemplate  # type: ignore
+from urllib.parse import urlencode
 
 from chafan_core.app import schemas
 from chafan_core.app.common import from_now, is_dev, render_notif_content
 from chafan_core.app.config import settings
+
+# from emails.template import JinjaTemplate  # type: ignore
+
 
 # TODO this file should be moved into chafan_core/app/email_util
 
@@ -22,9 +24,6 @@ def send_email(
     environment: Dict[str, Any] = {},
 ) -> None:
     return
-
-
-
 
 
 def send_notification_email(
@@ -73,7 +72,6 @@ def send_notification_email(
 
 def send_verification_code_phone_number(_phone_number: str, _code: str) -> None:
     raise NotImplementedError("No longer support SMS")
-
 
 
 def send_new_account_email(email_to: str, username: str, password: str) -> None:

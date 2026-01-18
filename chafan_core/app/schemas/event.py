@@ -473,9 +473,9 @@ class InviteJoinSite(BaseModel):
         Site
     ]  # TODO: Must be not-null. Delete non-conformant data after a while.
     user: Optional[UserPreview]
-    invited_email: Optional[
-        CaseInsensitiveEmailStr
-    ] = None  # Deprecated, see `InviteNewUser`
+    invited_email: Optional[CaseInsensitiveEmailStr] = (
+        None  # Deprecated, see `InviteNewUser`
+    )
 
     def _string_args(self) -> Mapping[str, StringArg]:
         return {
@@ -493,9 +493,9 @@ class InviteJoinSiteInternal(BaseModel):
         int
     ]  # TODO: Must be not-null. Delete non-conformant data after a while.
     user_id: Optional[int]
-    invited_email: Optional[
-        CaseInsensitiveEmailStr
-    ] = None  # Deprecated, see `InviteNewUser`
+    invited_email: Optional[CaseInsensitiveEmailStr] = (
+        None  # Deprecated, see `InviteNewUser`
+    )
 
 
 class SystemSendInvitation(BaseModel):

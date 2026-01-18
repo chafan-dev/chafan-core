@@ -1,10 +1,12 @@
-from chafan_core.app.config import settings
-from chafan_core.app.email.mock_client import MockEmailClient
+import logging
 import smtplib
 import ssl
 
-import logging
+from chafan_core.app.config import settings
+from chafan_core.app.email.mock_client import MockEmailClient
+
 logger = logging.getLogger(__name__)
+
 
 class SmtpClient(MockEmailClient):
     smtp = None
@@ -13,6 +15,7 @@ class SmtpClient(MockEmailClient):
     username = None
     password = None
     debug = False
+
     def login(self):
         server = smtplib.SMTP(self.host, self.port, timeout=30)
         if self.debug:
@@ -23,6 +26,7 @@ class SmtpClient(MockEmailClient):
         server.login(self.username, self.password)
         server.ehlo()
         self.smtp = server
+
     def __init__(self, debug=False):
         self.host = settings.EMAIL_SMTP_HOST
         self.port = settings.EMAIL_SMTP_PORT
@@ -46,5 +50,3 @@ class SmtpClient(MockEmailClient):
             return
         self.smtp.quit()
         self.smtp = None
-
-

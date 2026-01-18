@@ -1,14 +1,15 @@
-
 import logging
+
 logger = logging.getLogger(__name__)
 
+
+import logging
 
 from chafan_core.app import models
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.mq import WsUserMsg
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -25,9 +26,8 @@ def push_notification(data_broker: DataBroker, *, notif: models.Notification) ->
         return
     queue_name = get_ws_queue_for_user(notif.receiver_id)
     msg = WsUserMsg(
-                type="notification",
-                data=n,
+        type="notification",
+        data=n,
     )
     redis = data_broker.get_redis()
     redis.rpush(queue_name, msg.json())
-

@@ -1,11 +1,11 @@
 import datetime
+import logging
 from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-import logging
 logger = logging.getLogger(__name__)
 
 

@@ -127,9 +127,7 @@ def test_remove_profile_returns_none_for_nonexistent(db: Session) -> None:
     site = _create_test_site(db, moderator)
 
     # Don't create a profile, just try to remove it
-    result = crud.profile.remove_by_user_and_site(
-        db, owner_id=user.id, site_id=site.id
-    )
+    result = crud.profile.remove_by_user_and_site(db, owner_id=user.id, site_id=site.id)
     assert result is None
 
 
@@ -270,7 +268,10 @@ def test_remove_only_removes_specific_profile(db: Session) -> None:
     crud.profile.remove_by_user_and_site(db, owner_id=user.id, site_id=site1.id)
 
     # Profile in site1 should be gone
-    assert crud.profile.get_by_user_and_site(db, owner_id=user.id, site_id=site1.id) is None
+    assert (
+        crud.profile.get_by_user_and_site(db, owner_id=user.id, site_id=site1.id)
+        is None
+    )
 
     # Profile in site2 should still exist
     profile2_retrieved = crud.profile.get_by_user_and_site(

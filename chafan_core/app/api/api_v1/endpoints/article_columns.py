@@ -1,11 +1,11 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from chafan_core.app.config import settings
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.config import settings
 from chafan_core.utils.base import HTTPException_, filter_not_none
 
 router = APIRouter()
@@ -42,7 +42,7 @@ async def get_article_column_articles(
         )
     articles = article_column.articles
     if not current_user_id:
-        articles = articles[:settings.VISITORS_READ_ARTICLE_LIMIT]
+        articles = articles[: settings.VISITORS_READ_ARTICLE_LIMIT]
     return filter_not_none(
         [cached_layer.materializer.preview_of_article(a) for a in articles]
     )

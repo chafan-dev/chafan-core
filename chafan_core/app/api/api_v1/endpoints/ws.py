@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import secrets
 from datetime import timedelta
 from typing import Any
@@ -7,13 +8,11 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-
 from chafan_core.app import schemas, ws_connections
 from chafan_core.app.api import deps
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.mq import get_ws_queue_for_user
 
-import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -33,7 +32,7 @@ async def get_ws_token(
     return schemas.WsAuthResponse(token=token)
 
 
-async def _read_message_queue(redis, queue_name:str):
+async def _read_message_queue(redis, queue_name: str):
     item = redis.lpop(queue_name)
     return item
 

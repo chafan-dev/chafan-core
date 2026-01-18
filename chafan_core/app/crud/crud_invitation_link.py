@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -11,7 +12,6 @@ from chafan_core.app.schemas.invitation_link import (
     InvitationLinkUpdate,
 )
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -38,7 +38,6 @@ class CRUDInvitationLink(
         db.commit()
         db.refresh(db_obj)
         return db_obj
-
 
 
 invitation_link = CRUDInvitationLink(InvitationLink)

@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -20,7 +21,6 @@ from chafan_core.app.schemas.event import (
 from chafan_core.app.task import postprocess_new_question, postprocess_updated_question
 from chafan_core.utils.base import HTTPException_, filter_not_none
 
-import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -61,12 +61,12 @@ def _get_question_data(
 ) -> Union[schemas.Question, schemas.QuestionForVisitor]:
     # TODO removed the check for principle id 2025-07-23
     question_data = cached_layer.question_schema_from_orm(question)
-#    if cached_layer.principal_id is None:
-#        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
-#            question
-#        )
-#    else:
-#        question_data = cached_layer.materializer.question_schema_from_orm(question)
+    #    if cached_layer.principal_id is None:
+    #        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
+    #            question
+    #        )
+    #    else:
+    #        question_data = cached_layer.materializer.question_schema_from_orm(question)
     if question_data is None:
         raise HTTPException_(
             status_code=400,
@@ -92,8 +92,8 @@ def get_question(
     question = cached_layer.get_question_by_uuid(uuid)
     if question.is_hidden:
         raise HTTPException_(
-                status_code=403,
-                detail="Not allowed to access this quesion",
+            status_code=403,
+            detail="Not allowed to access this quesion",
         )
     return _get_question_data(cached_layer, question)
 
@@ -108,8 +108,8 @@ async def bump_views_counter(
     question = cached_layer.get_question_model_http(uuid)
     if question is None:
         raise HTTPException_(
-                status_code=404,
-                detail="No such question",
+            status_code=404,
+            detail="No such question",
         )
     assert isinstance(question, models.Question)
     await view_counters.add_view_async(cached_layer, "question", question.id)
@@ -504,11 +504,11 @@ async def get_question_page(
     question = cached_layer.get_question_by_uuid(uuid, current_user_id)
     if question is None:
         cached_layer.create_audit(
-                api=f"get_question_page {uuid} retrieved None", request=request, user_id=current_user_id)
-        raise HTTPException_(
-                status_code=404,
-                detail="No such question"
-            )
+            api=f"get_question_page {uuid} retrieved None",
+            request=request,
+            user_id=current_user_id,
+        )
+        raise HTTPException_(status_code=404, detail="No such question")
     question_data = _get_question_data(cached_layer, question)
     flags = schemas.QuestionPageFlags()
     if cached_layer.principal_id:

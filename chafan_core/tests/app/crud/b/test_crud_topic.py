@@ -81,7 +81,9 @@ def test_get_category_topics(db: Session) -> None:
     regular_topic = crud.topic.create(db, obj_in=regular_topic_in)
 
     # Create a category topic
-    category_topic_in = TopicCreate(name=f"Category Topic {random_short_lower_string()}")
+    category_topic_in = TopicCreate(
+        name=f"Category Topic {random_short_lower_string()}"
+    )
     category_topic = crud.topic.create(db, obj_in=category_topic_in)
     crud.topic.update(db, db_obj=category_topic, obj_in={"is_category": True})
 

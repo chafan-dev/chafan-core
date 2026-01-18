@@ -1,16 +1,15 @@
+import logging
 from typing import Any, List
-
 
 from fastapi import APIRouter, Depends, Request, Response
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
+from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.utils.base import filter_not_none
 
-import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -77,7 +76,7 @@ async def search_questions(
     if q == "":
         return []
     questions = crud.question.search(cached_layer.get_db(), q=q)
-# TODO no search hit limit
+    # TODO no search hit limit
     return filter_not_none(
         [await preview_of_question_as_search_hit(q) for q in questions]
     )

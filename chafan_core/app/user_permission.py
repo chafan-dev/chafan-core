@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -7,8 +8,6 @@ from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
 from chafan_core.utils.base import ContentVisibility
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 # TODO everything about user permission, including if they can create a site (KARMA), invite a user, write an answer, etc, should be moved into this file. 2025-07-08
@@ -18,6 +17,7 @@ def get_active_site_profile(
     db: Session, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
     return crud.profile.get_by_user_and_site(db, owner_id=user_id, site_id=site.id)
+
 
 def user_in_site(
     db: Session,
@@ -41,8 +41,10 @@ def user_in_site(
         return False
     return True
 
+
 def article_read_allowed(
-    db: Session, article: models.Article, user_id: Optional[int]) -> bool:
+    db: Session, article: models.Article, user_id: Optional[int]
+) -> bool:
     if article.is_published and article.visibility == ContentVisibility.ANYONE:
         return True
     if article.author_id == user_id and user_id is not None:
@@ -51,8 +53,10 @@ def article_read_allowed(
     logger.info(f"User {user_id} is not allowed to read article {article.id}")
     return False
 
+
 def question_read_allowed(
-    cached_layer, question: models.Question, user_id: Optional[int]) -> bool:
+    cached_layer, question: models.Question, user_id: Optional[int]
+) -> bool:
     if not question.is_hidden:
         return True
     if user_id is not None and user_id == question.author_id:
@@ -61,5 +65,3 @@ def question_read_allowed(
         return False
     # TODO we should allow superuser and admin of sites to see hidden questions
     return False
-
-

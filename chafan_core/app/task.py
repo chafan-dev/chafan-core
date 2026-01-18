@@ -1,25 +1,23 @@
 import datetime
+import logging
+from collections import Counter
 from typing import List, Optional
 
-from collections import Counter
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
 
-
-
+import chafan_core.app.rep_manager as rep
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
+from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, CachedLayer
 from chafan_core.app.config import settings
-from chafan_core.app.feed import (
-        new_activity_into_feed,
-)
 from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
     create_article_activity,
 )
 from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.feed import new_activity_into_feed
+from chafan_core.app.models.activity import Activity
 from chafan_core.app.recs.indexing import (
     compute_interesting_questions_ids_for_normal_user,
     compute_interesting_questions_ids_for_visitor_user,
@@ -59,11 +57,7 @@ from chafan_core.app.webhook_utils import (
 )
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import TaskStatus, get_utc_now
-from chafan_core.app.models.activity import Activity
-import chafan_core.app.rep_manager as rep
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -72,7 +66,6 @@ redis_url = settings.REDIS_URL
 logger.info(f"Create DramatiqBroker with redis {redis_url}")
 dramatiq_broker = RedisBroker(url=redis_url, namespace="dramatiq")
 dramatiq.set_broker(dramatiq_broker)
-
 
 
 def notify_mentioned_users(
@@ -273,10 +266,10 @@ def postprocess_new_question(question_id: int) -> None:
         rep.new_question(question)
 
         question_ac = models.Activity(
-                created_at=utc_now,
-                site_id=question.site_id,
-                event_json=event_json,
-            )
+            created_at=utc_now,
+            site_id=question.site_id,
+            event_json=event_json,
+        )
         db = broker.get_db()
         db.add(question_ac)
         db.flush()
@@ -455,7 +448,9 @@ def postprocess_updated_submission(submission_id: int) -> None:
 def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
     def runnable(broker: DataBroker) -> None:
         answer = crud.answer.get(broker.get_db(), id=answer_id)
-        logger.info(f"postprocess_new_answer id={answer_id}, was_published={was_published}")
+        logger.info(
+            f"postprocess_new_answer id={answer_id}, was_published={was_published}"
+        )
         assert answer is not None and answer.is_published
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         if not was_published:
@@ -471,10 +466,10 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
                     receiver_id=answer.question.author.id,
                 )
             answer_ac: Activity = create_answer_activity(
-                    answer=answer,
-                    site_id=answer.question.site.id,
-                    created_at=utc_now,
-                )
+                answer=answer,
+                site_id=answer.question.site.id,
+                created_at=utc_now,
+            )
             db = broker.get_db()
             db.add(answer_ac)
             db.flush()
@@ -524,7 +519,9 @@ def postprocess_new_article(article_id: int) -> None:
                 event=event_internal,
                 receiver_id=subscriber.id,
             )
-        article_ac: Activity = create_article_activity(article=article, created_at=utc_now)
+        article_ac: Activity = create_article_activity(
+            article=article, created_at=utc_now
+        )
         db = broker.get_db()
         db.add(article_ac)
         db.flush()
@@ -600,7 +597,13 @@ def refresh_interesting_user_ids_for_user(user_id: int) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-from chafan_core.app.models.viewcount import ViewCountQuestion, ViewCountAnswer, ViewCountArticle, ViewCountSubmission
+from chafan_core.app.models.viewcount import (
+    ViewCountAnswer,
+    ViewCountArticle,
+    ViewCountQuestion,
+    ViewCountSubmission,
+)
+
 
 # TODO Should I move this function to another file? 2025-07-23
 def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
@@ -611,7 +614,11 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
     db = broker.get_db()
 
     def bump_question():
-        prev = db.query(ViewCountQuestion).filter(ViewCountQuestion.question_id == row_id).first()
+        prev = (
+            db.query(ViewCountQuestion)
+            .filter(ViewCountQuestion.question_id == row_id)
+            .first()
+        )
         if prev is None:
             prev = ViewCountQuestion()
             prev.question_id = row_id
@@ -622,7 +629,11 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
         db.commit()
 
     def bump_answer():
-        prev = db.query(ViewCountAnswer).filter(ViewCountAnswer.answer_id == row_id).first()
+        prev = (
+            db.query(ViewCountAnswer)
+            .filter(ViewCountAnswer.answer_id == row_id)
+            .first()
+        )
         if prev is None:
             prev = ViewCountAnswer()
             prev.answer_id = row_id
@@ -630,8 +641,13 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
         prev.view_count += count
         db.add(prev)
         db.commit()
+
     def bump_article():
-        prev = db.query(ViewCountArticle).filter(ViewCountArticle.article_id == row_id).first()
+        prev = (
+            db.query(ViewCountArticle)
+            .filter(ViewCountArticle.article_id == row_id)
+            .first()
+        )
         if prev is None:
             prev = ViewCountArticle()
             prev.article_id = row_id
@@ -641,7 +657,11 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
         db.commit()
 
     def bump_submission():
-        prev = db.query(ViewCountSubmission).filter(ViewCountSubmission.submission_id == row_id).first()
+        prev = (
+            db.query(ViewCountSubmission)
+            .filter(ViewCountSubmission.submission_id == row_id)
+            .first()
+        )
         if prev is None:
             prev = ViewCountSubmission()
             prev.submission_id = row_id
@@ -662,18 +682,19 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
         logger.error(f"Unhandled viewcount key: {key}")
 
 
-
-
 def write_view_count_to_db() -> None:
     def runnable(broker: DataBroker):
         logger.debug("write_view_count_to_db called")
         redis = broker.get_redis()
         views = redis.lrange(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, 0, -1)
-        redis.delete(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY) # Race condition here. But losing a few view counts is okay
+        redis.delete(
+            BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
+        )  # Race condition here. But losing a few view counts is okay
         view_dict = Counter(views)
         logger.debug("get views " + str(view_dict))
-        for k,v in view_dict.items():
+        for k, v in view_dict.items():
             _add_viewcount_to_db(broker, k, v)
+
     execute_with_broker(runnable)
     return None
 
@@ -693,6 +714,7 @@ from chafan_core.app.search import schemas
 from chafan_core.app.task_utils import execute_with_db
 from chafan_core.db.session import ReadSessionLocal
 from chafan_core.utils.constants import indexed_object_T
+
 
 @contextmanager
 def _index_rewriter(index_type: indexed_object_T) -> Iterator[writing.IndexWriter]:

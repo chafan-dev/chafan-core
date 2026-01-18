@@ -1,36 +1,33 @@
 import asyncio
 import datetime
 import json
+import logging
 import random
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union
 
-
+import fastapi
 import redis
 import requests
 import sentry_sdk
-import fastapi
 from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
-from chafan_core.app.feed import get_activities_v2, get_random_activities
-from chafan_core.app.config import settings
+import chafan_core.app.responders as responders
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import is_dev
-from chafan_core.app.common import client_ip
-from chafan_core.app.user_permission import (
-        article_read_allowed,
-        question_read_allowed,
-        )
+from chafan_core.app.common import client_ip, is_dev
+from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.feed import get_activities_v2, get_random_activities
+
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
-import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.site import SiteCreate
+from chafan_core.app.user_permission import article_read_allowed, question_read_allowed
 from chafan_core.utils.base import (
     ContentVisibility,
     EntityType,
@@ -39,7 +36,6 @@ from chafan_core.utils.base import (
     unwrap,
 )
 
-import logging
 logger = logging.getLogger(__name__)
 
 MatrixType = Dict[int, List[int]]
@@ -79,6 +75,7 @@ REQUEST_TEXT_CACHE_KEY = "chafan:request-text:{url}"
 
 BUMP_VIEW_COUNT_QUEUE_CACHE_KEY = "chafan:bump-view-count"
 
+
 class CachedLayer(object):
     def __init__(self, broker: DataBroker, principal_id: Optional[int] = None) -> None:
         self.broker = broker
@@ -89,11 +86,9 @@ class CachedLayer(object):
         self._follow_follow_fanout: Optional[WeightedMatrixType] = None
         self._entity_similarity_matrices: Dict[EntityType, MatrixType] = {}
 
-    def bump_view(self, object_type: str, obj_id:int):
+    def bump_view(self, object_type: str, obj_id: int):
         obj_str = f"{object_type}:{obj_id}"
         self.get_redis().rpush(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, obj_str)
-
-
 
     def unwrapped_principal_id(self) -> int:
         return unwrap(self.principal_id)
@@ -163,45 +158,57 @@ class CachedLayer(object):
             )
         return data
 
-    def question_schema_from_orm(self, question: models.Question) -> Optional[schemas.Question]:
+    def question_schema_from_orm(
+        self, question: models.Question
+    ) -> Optional[schemas.Question]:
         logger.info("called cached.layer for question " + str(question))
         return responders.question.question_schema_from_orm(
-                self.broker, self.principal_id, question, self)
+            self.broker, self.principal_id, question, self
+        )
 
-    def submission_schema_from_orm(self, submission: models.Submission) :
-        logger.info("called cached layer for submission to wrap submission " + str(submission.id))
-        return responders.submission.submission_schema_from_orm(
-                self, submission)
+    def submission_schema_from_orm(self, submission: models.Submission):
+        logger.info(
+            "called cached layer for submission to wrap submission "
+            + str(submission.id)
+        )
+        return responders.submission.submission_schema_from_orm(self, submission)
 
     def article_schema_from_orm(self, article: models.Article):
         logger.info("called cached layer for article")
         return responders.article.article_schema_from_orm(
-                self, article, self.principal_id)
+            self, article, self.principal_id
+        )
 
-
-    def get_article_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> models.Article:
+    def get_article_by_uuid(
+        self, uuid: str, current_user_id: Optional[int] = None
+    ) -> models.Article:
         db = self.get_db()
         article = crud.article.get_by_uuid(db, uuid=uuid)
         if not article_read_allowed(db, article, current_user_id):
             return None
         return article
 
-    def get_article_by_id(self, article_id:int, current_user_id:Optional[int]=None) -> models.Article:
+    def get_article_by_id(
+        self, article_id: int, current_user_id: Optional[int] = None
+    ) -> models.Article:
         article = crud.article.get(self.get_db(), id=article_id)
         if not article_read_allowed(self.get_db(), article, current_user_id):
             return None
         return article
 
-    def get_answer_by_id(self, answer_id:int):
+    def get_answer_by_id(self, answer_id: int):
         db = self.get_db()
         answer = crud.answer.get_by_id(db, uid=answer_id)
         return answer
 
     def answer_schema_from_orm(self, answer):
-        answer_data = responders.answer.answer_schema_from_orm(self, answer, self.principal_id)
+        answer_data = responders.answer.answer_schema_from_orm(
+            self, answer, self.principal_id
+        )
         if answer_data:
             answer_data.upvotes = self.get_answer_upvotes(answer.uuid)
         return answer_data
+
     def get_answer(
         self, uuid: str
     ) -> Optional[Union[schemas.Answer, schemas.AnswerForVisitor]]:
@@ -209,7 +216,9 @@ class CachedLayer(object):
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
             return None
-        answer_data = responders.answer.answer_schema_from_orm(self, answer, self.principal_id)
+        answer_data = responders.answer.answer_schema_from_orm(
+            self, answer, self.principal_id
+        )
         if answer_data:
             answer_data.upvotes = self.get_answer_upvotes(uuid)
         return answer_data
@@ -352,7 +361,9 @@ class CachedLayer(object):
             )
         else:
             # FIXME: compute rank async
-            logger.error("TODO submission list for visitors are turned off due to `desc` missing") #2025-Jul-30
+            logger.error(
+                "TODO submission list for visitors are turned off due to `desc` missing"
+            )  # 2025-Jul-30
             submissions = []
             # submissions = rank_submissions(
             #     filter_not_none(
@@ -401,7 +412,8 @@ class CachedLayer(object):
             sites_without_topics=sites_without_topics,
         )
         redis_cli.set(
-            SITEMAPS_CACHE_KEY, data.json(), ex=settings.CACHE_SITEMAP_VALID_HOURS)
+            SITEMAPS_CACHE_KEY, data.json(), ex=settings.CACHE_SITEMAP_VALID_HOURS
+        )
         return data
 
     def create_site(
@@ -597,22 +609,25 @@ class CachedLayer(object):
         user_preview.follows = self.get_user_follows(user)
         return user_preview
 
-    def create_audit(self, api:str, request: Optional[fastapi.Request]=None,
-                     user_id:Optional[int]=None,
-                     request_info:dict=dict()):
+    def create_audit(
+        self,
+        api: str,
+        request: Optional[fastapi.Request] = None,
+        user_id: Optional[int] = None,
+        request_info: dict = dict(),
+    ):
         ip = "0.0.0.0"
         if request is not None:
             ip = client_ip(request)
         if user_id is None:
             user_id = 1
         crud.audit_log.create_with_user(
-        self.get_db(),
-        ipaddr=ip,
-        user_id=user_id,
-        api=api,
-        request_info=request_info
-    )
-
+            self.get_db(),
+            ipaddr=ip,
+            user_id=user_id,
+            api=api,
+            request_info=request_info,
+        )
 
     def update_notification(
         self,
@@ -657,7 +672,9 @@ class CachedLayer(object):
             )
         return question
 
-    def get_question_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> models.Question:
+    def get_question_by_uuid(
+        self, uuid: str, current_user_id: Optional[int] = None
+    ) -> models.Question:
         question = crud.question.get_by_uuid(self.get_db(), uuid=uuid)
         if question is None:
             return None
@@ -767,9 +784,11 @@ class CachedLayer(object):
         db = self.get_db()
 
         def f() -> int:
-            return asyncio.run(crud.invitation_link.create_invitation(
-                db, invited_to_site_id=None, inviter=crud.user.get_superuser(db)
-            )).id
+            return asyncio.run(
+                crud.invitation_link.create_invitation(
+                    db, invited_to_site_id=None, inviter=crud.user.get_superuser(db)
+                )
+            ).id
 
         cached_id = self._get_cached(
             key=DAILY_INVITATION_LINK_ID_CACHE_KEY,
@@ -833,26 +852,27 @@ class CachedLayer(object):
         return ret
 
     async def get_user_activity(
-            self,
-            current_user_id: int,
-            before_activity_id:Optional[int],
-            limit:int,
-            random:bool,
-            subject_user_uuid: Optional[str]):
+        self,
+        current_user_id: int,
+        before_activity_id: Optional[int],
+        limit: int,
+        random: bool,
+        subject_user_uuid: Optional[str],
+    ):
         logger.info(f"cached_layer get_user_activity for {current_user_id}")
         redis = self.get_redis()
         key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
         value = redis.get(key)
         value = None
-        if value: # TODO redis cache is broken for now 2025-08-04
+        if value:  # TODO redis cache is broken for now 2025-08-04
             return None
-#            return _update_feed_seq(
-#                cached_layer,
-#                schemas.FeedSequence.model_validate_json(value),
-#                full_answers=full_answers,
-#            )
+        #            return _update_feed_seq(
+        #                cached_layer,
+        #                schemas.FeedSequence.model_validate_json(value),
+        #                full_answers=full_answers,
+        #            )
         activities = await get_activities_v2(
-            cached_layer = self,
+            cached_layer=self,
             before_activity_id=before_activity_id,
             limit=limit,
             receiver_user_id=current_user_id,
@@ -864,11 +884,7 @@ class CachedLayer(object):
         if random:
             tolerate_order = True
 
-        if (
-            tolerate_order
-            and insufficient > 0
-            and subject_user_uuid is None
-        ):
+        if tolerate_order and insufficient > 0 and subject_user_uuid is None:
             random = True
             extra_activities = get_random_activities(
                 receiver_user_id=current_user_id,
@@ -878,14 +894,12 @@ class CachedLayer(object):
             activities.extend(extra_activities)
 
         redis.delete(key)
-        redis.set( # TODO fixme
+        redis.set(  # TODO fixme
             key,
             json.dumps(jsonable_encoder(1)),
             ex=datetime.timedelta(minutes=1),
         )
         return activities
-
-
 
     def get_user_contributions(self, user: models.User) -> UserContributions:
         if user.id in self._user_contributions_map:
@@ -1000,10 +1014,8 @@ class CachedLayer(object):
         )
         self.get_redis().delete(USER_SITE_PROFILES.format(user_id=owner_id))
 
-
     # TODO maybe this is not the best place to put it  2025-Jul-06
-    async def try_consume_invitation_link_by_uuid(
-            self, invitation_uuid:str) -> bool:
+    async def try_consume_invitation_link_by_uuid(self, invitation_uuid: str) -> bool:
         logger.info(f"Consumed invitation link uuid=${invitation_uuid}")
         db = self.get_db()
         invitation_link = crud.invitation_link.get_by_uuid(db, uuid=invitation_uuid)

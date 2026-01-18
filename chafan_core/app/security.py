@@ -1,24 +1,17 @@
 import datetime
-from typing import Any, Optional, Union
-
+import logging
 import random
+from typing import Any, Optional, Union
 
 from jose import jwt
 from passlib.context import CryptContext  # type: ignore
 from pydantic.types import SecretStr
 
-from chafan_core.utils.validators import CaseInsensitiveEmailStr
+from chafan_core.app.common import check_email, client_ip, get_redis_cli, is_dev
 from chafan_core.app.config import settings
 from chafan_core.utils.base import unwrap
+from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
-from chafan_core.app.common import (
-    check_email,
-    client_ip,
-    get_redis_cli,
-    is_dev,
-)
-
-import logging
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -27,11 +20,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
 
-async def check_digit_verification_code(email:str, code:str) -> bool:
-    #logger.info("Check verification code")
+async def check_digit_verification_code(email: str, code: str) -> bool:
+    # logger.info("Check verification code")
     bypass = settings.DEBUG_BYPASS_REDIS_VERIFICATION_CODE
     if bypass is not None and bypass.startswith("magic") and bypass == code:
-        logger.warning("Using magic bypass code for email="+email)
+        logger.warning("Using magic bypass code for email=" + email)
         return True
     redis_cli = get_redis_cli()
     key = f"chafan:verification-code:{email}"
@@ -43,7 +36,8 @@ async def check_digit_verification_code(email:str, code:str) -> bool:
     redis_cli.delete(key)
     return True
 
-async def register_digit_verification_code(email:str, code:str) -> None:
+
+async def register_digit_verification_code(email: str, code: str) -> None:
     redis_cli = get_redis_cli()
     key = f"chafan:verification-code:{email}"
     redis_cli.delete(key)
@@ -51,12 +45,12 @@ async def register_digit_verification_code(email:str, code:str) -> None:
     redis_cli.expire(
         key, time=datetime.timedelta(hours=settings.EMAIL_SIGNUP_CODE_EXPIRE_HOURS)
     )
-    #logger.info("Register verification code")
+    # logger.info("Register verification code")
 
 
-
-def create_digit_verification_code(length:int) -> str:
+def create_digit_verification_code(length: int) -> str:
     return "".join([str(random.randint(0, 9)) for _ in range(length)])
+
 
 def create_access_token(
     subject: Union[str, Any], expires_delta: Optional[datetime.timedelta] = None
@@ -110,4 +104,3 @@ def verify_password_reset_token(token: str) -> Optional[str]:
         return decoded_token["email"]
     except Exception:
         return None
-

@@ -1,6 +1,7 @@
 import datetime
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
 import logging
+from typing import Any, Dict, Mapping, Optional, Tuple, Union
+
 logger = logging.getLogger(__name__)
 
 import sentry_sdk
@@ -28,10 +29,7 @@ from chafan_core.app.schemas.event import (
     EventInternal,
 )
 from chafan_core.app.schemas.notification import Notification, NotificationInDBBase
-from chafan_core.app.schemas.question import (
-        QuestionInDBBase,
-        QuestionPreviewForSearch
-)
+from chafan_core.app.schemas.question import QuestionInDBBase, QuestionPreviewForSearch
 from chafan_core.app.schemas.reward import AnsweredQuestionCondition, RewardCondition
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.security import IntlPhoneNumber
@@ -57,6 +55,8 @@ _ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
 
 
 import chafan_core.app.user_permission as user_permission
+
+
 def get_active_site_profile(
     db: Session, *, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
@@ -271,12 +271,8 @@ def user_schema_from_orm(user: models.User) -> schemas.User:
 async def preview_of_question_as_search_hit(question: models.Question):
     if not question.site.public_readable:
         return None
-    r = QuestionPreviewForSearch(
-        uuid = question.uuid,
-        title = question.title
-    )
+    r = QuestionPreviewForSearch(uuid=question.uuid, title=question.title)
     return r
-
 
 
 class Materializer(object):
@@ -301,7 +297,7 @@ class Materializer(object):
         )
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
-        #logger.error("TODO materialize site_schema_from_orm to be removed")
+        # logger.error("TODO materialize site_schema_from_orm to be removed")
         # This function SHOULD be removed. However, it's error log is so annoying. Turn it off for now. 2025-Aug-16
         base = schemas.SiteInDBBase.from_orm(site)
         site_dict = base.dict()
@@ -576,7 +572,7 @@ class Materializer(object):
         d["bookmarked"] = article in principal.bookmarked_articles
         d["author"] = self.preview_of_user(article.author)
         d["upvoted"] = upvoted
-        d["view_times"] = 0#view_counters.get_views(article.uuid, "article")
+        d["view_times"] = 0  # view_counters.get_views(article.uuid, "article")
         d["archives_count"] = len(article.archives)
         if article.is_published:
             body = article.body
@@ -786,7 +782,7 @@ class Materializer(object):
             return None
         d["question"] = q
         d["author"] = self.preview_of_user(answer.author)
-        d["view_times"] = 0 #view_counters.get_views(answer.uuid, "answer")
+        d["view_times"] = 0  # view_counters.get_views(answer.uuid, "answer")
         d["content"] = RichText(
             source=answer.body,
             rendered_text=answer.body_prerendered_text,
@@ -828,7 +824,7 @@ class Materializer(object):
         principal = crud.user.get(db, id=self.principal_id)
         assert principal is not None
         d["bookmarked"] = answer in principal.bookmarked_answers
-        d["view_times"] = 0 #view_counters.get_views(answer.uuid, "answer")
+        d["view_times"] = 0  # view_counters.get_views(answer.uuid, "answer")
         if answer.is_published:
             body = answer.body
         else:
@@ -875,7 +871,7 @@ class Materializer(object):
         d["author"] = self.preview_of_user(question.author)
         d["editor"] = map_(question.editor, self.preview_of_user)
         d["upvoted"] = upvoted
-        d["view_times"] = 0 #view_counters.get_views(question.uuid, "question")
+        d["view_times"] = 0  # view_counters.get_views(question.uuid, "question")
         d["answers_count"] = len(get_live_answers_of_question(question))
         if question.description is not None:
             d["desc"] = RichText(
@@ -944,7 +940,7 @@ class Materializer(object):
     def submission_schema_from_orm(
         self, submission: models.Submission
     ) -> Optional[schemas.Submission]:
-        #logger.error("TODO submission_schema_from_orm in materialize.py is deprecated")
+        # logger.error("TODO submission_schema_from_orm in materialize.py is deprecated")
         # 2025-Sep-14 This log it too noisy
         if self.principal_id and not user_in_site(
             self.broker.get_db(),
@@ -963,7 +959,7 @@ class Materializer(object):
         )
         d["author"] = self.preview_of_user(submission.author)
         d["contributors"] = [self.preview_of_user(u) for u in submission.contributors]
-        d["view_times"] = 0 #view_counters.get_views(submission.uuid, "submission")
+        d["view_times"] = 0  # view_counters.get_views(submission.uuid, "submission")
         if submission.description is not None:
             d["desc"] = RichText(
                 source=submission.description,

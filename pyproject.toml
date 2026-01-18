@@ -1,0 +1,6 @@
+[tool.isort]
+profile = "black"
+skip = ["chafan_core/e2e_tests/main.py"]
+
+[tool.black]
+line-length = 88

@@ -57,7 +57,9 @@ def _create_test_submission(db: Session, author_id: int, site):
         title=f"Test Submission {random_short_lower_string()}",
         url="https://example.com/test",
     )
-    return crud.submission.create_with_author(db, obj_in=submission_in, author_id=author_id)
+    return crud.submission.create_with_author(
+        db, obj_in=submission_in, author_id=author_id
+    )
 
 
 def _create_test_answer(db: Session, author_id: int, question, site):

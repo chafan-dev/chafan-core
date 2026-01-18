@@ -135,7 +135,11 @@ def test_audit_log_with_request_info(db: Session) -> None:
     request_info = {"user_agent": "Mozilla/5.0", "method": "POST"}
 
     audit_log = _create_audit_log_directly(
-        db, user_id=user.id, ipaddr="192.168.1.1", api="action", request_info=request_info
+        db,
+        user_id=user.id,
+        ipaddr="192.168.1.1",
+        api="action",
+        request_info=request_info,
     )
 
     retrieved = crud.audit_log.get(db, id=audit_log.id)
@@ -183,9 +187,7 @@ def test_multiple_audit_logs_same_ip(db: Session) -> None:
 
     logs = []
     for _ in range(3):
-        log = _create_audit_log_directly(
-            db, user_id=user.id, ipaddr=ip, api="action"
-        )
+        log = _create_audit_log_directly(db, user_id=user.id, ipaddr=ip, api="action")
         logs.append(log)
 
     assert len(logs) == 3

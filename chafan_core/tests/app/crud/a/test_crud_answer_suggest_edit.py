@@ -77,7 +77,9 @@ def test_create_answer_suggest_edit_with_author(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -109,7 +111,9 @@ def test_create_answer_suggest_edit_without_comment(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -136,7 +140,9 @@ def test_get_answer_suggest_edit_by_id(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -163,7 +169,9 @@ def test_get_answer_suggest_edit_by_uuid(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -196,7 +204,9 @@ def test_update_answer_suggest_edit_status_to_accepted(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -227,7 +237,9 @@ def test_update_answer_suggest_edit_status_to_rejected(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -256,7 +268,9 @@ def test_update_answer_suggest_edit_status_to_retracted(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edit_in = AnswerSuggestEditCreate(
         answer_uuid=answer.uuid,
@@ -285,7 +299,9 @@ def test_answer_suggest_edit_timestamps(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     before_create = datetime.datetime.now(tz=datetime.timezone.utc)
 
@@ -314,7 +330,9 @@ def test_multiple_suggest_edits_for_same_answer(db: Session) -> None:
     answer_author = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edits = []
     for i in range(3):
@@ -344,7 +362,9 @@ def test_same_user_multiple_suggest_edits(db: Session) -> None:
     suggester = _create_test_user(db)
     site = _create_test_site(db, moderator=moderator)
     question = _create_test_question(db, author_id=answer_author.id, site=site)
-    answer = _create_test_answer(db, author_id=answer_author.id, question=question, site=site)
+    answer = _create_test_answer(
+        db, author_id=answer_author.id, question=question, site=site
+    )
 
     suggest_edits = []
     for i in range(2):

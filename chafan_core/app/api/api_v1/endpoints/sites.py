@@ -1,13 +1,13 @@
 import datetime
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
+
 import chafan_core.app.responders as responders
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +27,6 @@ from chafan_core.app.schemas.event import (
     EventInternal,
 )
 from chafan_core.app.user_permission import user_in_site
-
 from chafan_core.utils.base import EntityType, HTTPException_, filter_not_none, unwrap
 from chafan_core.utils.constants import MAX_SITE_QUESTIONS_PAGINATION_LIMIT
 
@@ -104,9 +103,9 @@ def create_site(
     category_topic_id: Optional[int] = None
     if site_in.category_topic_uuid:
         raise HTTPException_(
-                status_code=400,
-                detail="Attach a category topic id when creating a site is disabled.",
-            )
+            status_code=400,
+            detail="Attach a category topic id when creating a site is disabled.",
+        )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     super_user = crud.user.get_superuser(db)
     new_site = cached_layer.create_site(
@@ -194,18 +193,19 @@ def config_site(
 
 from chafan_core.app.common import OperationType
 
+
 @router.get("/{subdomain}", response_model=schemas.Site)
 async def get_site_info(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
-    subdomain: str
+    subdomain: str,
 ) -> Any:
     """
     Get a site's basic info.
     """
     logger.info(f"user {current_user_id} requesting site {subdomain}")
-    #site_data = cached_layer.get_site_info(subdomain=subdomain)
+    # site_data = cached_layer.get_site_info(subdomain=subdomain)
     db = cached_layer.get_db()
     site = crud.site.get_by_subdomain(db, subdomain=subdomain)
 
@@ -216,7 +216,7 @@ async def get_site_info(
         )
     if not user_in_site(db, site, current_user_id, OperationType.ReadSite):
         logger.info("user has no permission")
-        #TODO add audit
+        # TODO add audit
         raise HTTPException_(
             status_code=404,
             detail="The site with this id does not exist in the system",
@@ -255,9 +255,7 @@ def get_site_questions(
         )
     max_questions = settings.API_LIMIT_SITES_GET_QUESTIONS_LIMIT
     limit = min(limit, max_questions)
-    questions = crud.site.get_multi_questions(
-        db, db_obj=site, skip=skip, limit=limit
-    )
+    questions = crud.site.get_multi_questions(db, db_obj=site, skip=skip, limit=limit)
     return filter_not_none(
         [cached_layer.materializer.preview_of_question(q) for q in questions]
     )
@@ -448,7 +446,4 @@ def get_related(
                 crud.site.get(cached_layer.get_db(), site_id)
             )
 
-    return [
-        cached_layer.site_schema_from_orm(s)
-        for s in related_sites.values()
-    ]
+    return [cached_layer.site_schema_from_orm(s) for s in related_sites.values()]

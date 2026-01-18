@@ -1,9 +1,9 @@
 import datetime
 import json
+import logging
 from typing import Any, List, Literal, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
-import logging
 logger = logging.getLogger(__name__)
 
 import requests
@@ -19,20 +19,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas, security
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import (
-    check_email,
-    client_ip,
-    get_redis_cli,
-    is_dev,
-)
-from chafan_core.app.security import (
-    check_token_validity_impl,
-    generate_password_reset_token,
-    verify_password_reset_token,
-    create_digit_verification_code,
-    register_digit_verification_code,
-    check_digit_verification_code,
-)
+from chafan_core.app.common import check_email, client_ip, get_redis_cli, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.email.utils import (
     send_reset_password_email,
@@ -57,8 +44,15 @@ from chafan_core.app.schemas.security import (
     LoginWithVerificationCode,
     VerificationCodeRequest,
 )
-
-from chafan_core.app.security import get_password_hash
+from chafan_core.app.security import (
+    check_digit_verification_code,
+    check_token_validity_impl,
+    create_digit_verification_code,
+    generate_password_reset_token,
+    get_password_hash,
+    register_digit_verification_code,
+    verify_password_reset_token,
+)
 from chafan_core.app.task_utils import execute_with_db
 from chafan_core.db.session import ReadSessionLocal
 from chafan_core.utils.base import HTTPException_
@@ -69,6 +63,7 @@ from chafan_core.utils.validators import (
 )
 
 router = APIRouter()
+
 
 # The user's authentication MUST be passed when calling this function
 def _login_user(db: Session, *, request: Request, user: models.User) -> schemas.Token:
@@ -213,7 +208,7 @@ async def recover_password(
     """
     Password Recovery
     """
-    user = crud.user.get_by_email(db, email=email) #Optional[User]
+    user = crud.user.get_by_email(db, email=email)  # Optional[User]
 
     if not user:
         raise HTTPException_(
@@ -221,7 +216,10 @@ async def recover_password(
             detail="The user with this email does not exist in the system.",
         )
     crud.audit_log.create_with_user(
-        db, ipaddr=client_ip(request), user_id=user.id, api=f"Password reset email sent to {email}"
+        db,
+        ipaddr=client_ip(request),
+        user_id=user.id,
+        api=f"Password reset email sent to {email}",
     )
     password_reset_token = generate_password_reset_token(email=email)
     await send_reset_password_email(email=user.email, token=password_reset_token)
@@ -231,8 +229,11 @@ async def recover_password(
 @router.post("/send-verification-code", response_model=schemas.GenericResponse)
 @limiter.limit("1/minute")
 async def send_verification_code(
-    response: Response, request: Request, *, request_in: VerificationCodeRequest,
-    db: Session = Depends(deps.get_db)
+    response: Response,
+    request: Request,
+    *,
+    request_in: VerificationCodeRequest,
+    db: Session = Depends(deps.get_db),
 ) -> Any:
 
     logger.info(str(request_in))
@@ -244,13 +245,16 @@ async def send_verification_code(
         )
     # TODO audit log should support user_id is NULL. 2025-Jul-06
     crud.audit_log.create_with_user(
-        db, ipaddr=client_ip(request), user_id=1, api="send_verification_code to email " + request_in.email
+        db,
+        ipaddr=client_ip(request),
+        user_id=1,
+        api="send_verification_code to email " + request_in.email,
     )
     code = create_digit_verification_code(6)
     await send_verification_code_email(email=request_in.email, code=code)
     await register_digit_verification_code(request_in.email, code)
     # We may switch to trio + hypercorn in future 2025-Jul-06
-    #async with trio.open_nursery() as nursery:
+    # async with trio.open_nursery() as nursery:
     #    nursery.start_soon(send_verification_code_email,email=request_in.email, code=code)
     #    nursery.start_soon(register_digit_verification_code, request_in.email, code)
     return schemas.GenericResponse()
@@ -266,7 +270,7 @@ async def create_user_open(
     code: str = Body(...),
     invitation_link_uuid: str = Body(...),
 ) -> Any:
-    if (not settings.USERS_OPEN_REGISTRATION):
+    if not settings.USERS_OPEN_REGISTRATION:
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Open user registration is forbidden on this server",
@@ -280,7 +284,9 @@ async def create_user_open(
     crud.audit_log.create_with_user(
         db, ipaddr="0.0.0.0", user_id=1, api="Open new account email " + email
     )
-    invitation_link_valid = await cached_layer.try_consume_invitation_link_by_uuid(invitation_link_uuid)
+    invitation_link_valid = await cached_layer.try_consume_invitation_link_by_uuid(
+        invitation_link_uuid
+    )
     if not invitation_link_valid:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -304,22 +310,21 @@ async def create_user_open(
     ver_code = await check_digit_verification_code(email, code)
     if not ver_code:
         raise HTTPException_(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="The verification code is not present in the system.",
-                )
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="The verification code is not present in the system.",
+        )
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
     user = await crud.user.create(db, obj_in=user_in)
 
     # TODO auto add site
-    if False and invitation_link.invited_to_site is not None:
+    if False and invitation_link.invited_to_site is not None:  # type: ignore[name-defined]  # noqa: F821
         existing_profile = crud.profile.get_by_user_and_site(
-            db, owner_id=user.id, site_id=invitation_link.invited_to_site.id
+            db, owner_id=user.id, site_id=invitation_link.invited_to_site.id  # type: ignore[name-defined]  # noqa: F821
         )
         if not existing_profile:
             cached_layer.create_site_profile(
-                owner=user, site_uuid=invitation_link.invited_to_site.uuid
+                owner=user, site_uuid=invitation_link.invited_to_site.uuid  # type: ignore[name-defined]  # noqa: F821
             )
-
 
     # TODO bonus for invite new user, new user's initial coins
     return user_schema_from_orm(user)

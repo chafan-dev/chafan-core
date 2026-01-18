@@ -299,13 +299,19 @@ def test_get_multi_submissions(db: Session) -> None:
             title=f"Submission {i} {random_short_lower_string()}",
             url=f"https://example.com/submission-{i}",
         )
-        crud.submission.create_with_author(db, obj_in=submission_in, author_id=moderator.id)
+        crud.submission.create_with_author(
+            db, obj_in=submission_in, author_id=moderator.id
+        )
 
     # Test pagination
-    submissions_page1 = crud.site.get_multi_submissions(db, db_obj=site, skip=0, limit=2)
+    submissions_page1 = crud.site.get_multi_submissions(
+        db, db_obj=site, skip=0, limit=2
+    )
     assert len(submissions_page1) == 2
 
-    submissions_page2 = crud.site.get_multi_submissions(db, db_obj=site, skip=2, limit=2)
+    submissions_page2 = crud.site.get_multi_submissions(
+        db, db_obj=site, skip=2, limit=2
+    )
     assert len(submissions_page2) == 2
 
     submissions_all = crud.site.get_multi_submissions(db, db_obj=site, skip=0, limit=10)
@@ -347,7 +353,9 @@ def test_get_all_with_category_topic_ids(db: Session) -> None:
         db, obj_in=other_site_in, moderator=moderator, category_topic_id=None
     )
 
-    sites_with_category = crud.site.get_all_with_category_topic_ids(db, category_topic_id=topic.id)
+    sites_with_category = crud.site.get_all_with_category_topic_ids(
+        db, category_topic_id=topic.id
+    )
     site_ids = [s.id for s in sites_with_category]
 
     assert site.id in site_ids

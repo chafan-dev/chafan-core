@@ -1,13 +1,14 @@
-from typing import Any, Dict, List, Literal, Optional
+import logging
+from typing import Any, Dict, List, Literal, Optional, Self
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, model_validator
 
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.topic import Topic
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr, StrippedNonEmptyStr
 
-import logging
 logger = logging.getLogger(__name__)
+
 
 # Shared properties
 class SiteBase(BaseModel):
@@ -63,25 +64,30 @@ class Site(SiteInDBBase):
     members_count: int
     category_topic: Optional[Topic] = None
 
-    @validator("permission_type")
-    def get_permission_type(cls, v: Optional[str], values: Dict[str, Any]) -> str:
+    @model_validator(mode="after")
+    def compute_permission_type(self) -> Self:
         if (
-            values["public_readable"]
-            and values["public_writable_question"]
-            and values["public_writable_answer"]
-            and values["public_writable_comment"]
+            self.public_readable
+            and self.public_writable_question
+            and self.public_writable_answer
+            and self.public_writable_comment
         ):
-            return "public"
-        if (
-            (not values["public_readable"])
-            and (not values["public_writable_question"])
-            and (not values["public_writable_answer"])
-            and (not values["public_writable_comment"])
+            self.permission_type = "public"
+        elif (
+            (not self.public_readable)
+            and (not self.public_writable_question)
+            and (not self.public_writable_answer)
+            and (not self.public_writable_comment)
         ):
-            return "private"
-        logger.error("site permission broken, name={},subdomain={}".format(values["name"], values["subdomain"]))
-        return "private"
-        #raise Exception(f"Incompatible site flags: {values}")
+            self.permission_type = "private"
+        else:
+            logger.error(
+                "site permission broken, name={},subdomain={}".format(
+                    self.name, self.subdomain
+                )
+            )
+            self.permission_type = "private"
+        return self
 
 
 # Additional properties stored in DB

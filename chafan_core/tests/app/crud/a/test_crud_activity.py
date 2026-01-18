@@ -69,7 +69,9 @@ def _create_test_submission(db: Session, author_id: int, site):
         title=f"Test Submission {random_short_lower_string()}",
         url="https://example.com/test",
     )
-    return crud.submission.create_with_author(db, obj_in=submission_in, author_id=author_id)
+    return crud.submission.create_with_author(
+        db, obj_in=submission_in, author_id=author_id
+    )
 
 
 def _create_test_answer(db: Session, author_id: int, question, site):
@@ -96,7 +98,9 @@ def _create_test_article_column(db: Session, owner_id: int):
         name=f"Test Column {random_short_lower_string()}",
         description="Test column description",
     )
-    return crud.article_column.create_with_owner(db, obj_in=column_in, owner_id=owner_id)
+    return crud.article_column.create_with_owner(
+        db, obj_in=column_in, owner_id=owner_id
+    )
 
 
 def _create_test_article(db: Session, author_id: int, column):
@@ -138,7 +142,9 @@ def test_get_multi_by_id_range_with_max_id(db: Session) -> None:
         # Test with max_id
         max_id = all_activities[0].id + 1
         min_id = all_activities[-1].id - 1
-        range_activities = list(activity.get_multi_by_id_range(db, min_id=min_id, max_id=max_id))
+        range_activities = list(
+            activity.get_multi_by_id_range(db, min_id=min_id, max_id=max_id)
+        )
         assert len(range_activities) <= len(all_activities)
 
 

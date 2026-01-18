@@ -42,4 +42,5 @@ class CRUDComment(object):
         db.refresh(db_obj)
         return db_obj
 
+
 invitation = CRUDComment()

@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from pydantic.networks import AnyHttpUrl
 
 from chafan_core.app.schemas.comment import Comment, CommentForVisitor
@@ -9,7 +9,7 @@ from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.site import Site
 from chafan_core.app.schemas.topic import Topic
-from chafan_core.utils.validators import StrippedNonEmptyStr, validate_submission_title
+from chafan_core.utils.validators import StrippedNonEmptyStr, SubmissionTitle
 
 
 # Shared properties
@@ -20,28 +20,15 @@ class SubmissionBase(BaseModel):
 # Properties to receive via API on creation
 class SubmissionCreate(SubmissionBase):
     site_uuid: str
-    title: StrippedNonEmptyStr
+    title: SubmissionTitle
     url: Optional[AnyHttpUrl] = None
-
-    @validator("title")
-    def _valid_title(cls, v: str) -> str:
-        validate_submission_title(v)
-        return v
 
 
 # Properties to receive via API on update
 class SubmissionUpdate(SubmissionBase):
-    title: Optional[StrippedNonEmptyStr] = None
+    title: Optional[SubmissionTitle] = None
     desc: Optional[RichText] = None
     topic_uuids: Optional[List[str]] = None
-
-    @validator("title")
-    def _valid_title(
-        cls, v: Optional[StrippedNonEmptyStr]
-    ) -> Optional[StrippedNonEmptyStr]:
-        if v is not None:
-            validate_submission_title(v)
-        return v
 
 
 class SubmissionInDB(SubmissionBase):

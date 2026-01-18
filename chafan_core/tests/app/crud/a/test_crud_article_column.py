@@ -2,7 +2,10 @@ import asyncio
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
-from chafan_core.app.schemas.article_column import ArticleColumnCreate, ArticleColumnUpdate
+from chafan_core.app.schemas.article_column import (
+    ArticleColumnCreate,
+    ArticleColumnUpdate,
+)
 from chafan_core.app.schemas.user import UserCreate
 from chafan_core.tests.utils.utils import (
     random_email,
@@ -137,7 +140,9 @@ def test_update_article_column_partial(db: Session) -> None:
 
     # Update only description
     new_description = "New description only"
-    crud.article_column.update(db, db_obj=column, obj_in={"description": new_description})
+    crud.article_column.update(
+        db, db_obj=column, obj_in={"description": new_description}
+    )
 
     db.refresh(column)
     assert column.name == original_name  # Name unchanged
@@ -219,9 +224,7 @@ def test_get_all_article_columns(db: Session) -> None:
         description="Test column",
     )
 
-    crud.article_column.create_with_owner(
-        db, obj_in=column_in, owner_id=user.id
-    )
+    crud.article_column.create_with_owner(db, obj_in=column_in, owner_id=user.id)
 
     all_columns = crud.article_column.get_all(db)
     assert len(all_columns) == initial_count + 1

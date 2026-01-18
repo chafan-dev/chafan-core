@@ -93,3 +93,42 @@ def validate_UUID(value: str) -> str:
 
 
 UUID = Annotated[str, validate_UUID]
+
+
+# Title validators as Annotated types
+ArticleTitle = Annotated[str, AfterValidator(validate_article_title)]
+QuestionTitle = Annotated[str, AfterValidator(validate_question_title)]
+SubmissionTitle = Annotated[str, AfterValidator(validate_submission_title)]
+
+# Body validators as Annotated types
+MessageBody = Annotated[str, AfterValidator(validate_message_body)]
+
+# Password validator as Annotated type
+ValidPassword = Annotated[SecretStr, AfterValidator(validate_password)]
+
+
+# Phone number validators
+def validate_country_code(v: str) -> str:
+    if v.isdigit() and len(v) >= 1 and len(v) <= 3:
+        return v
+    raise ValueError(f"Invalid country code: {v}")
+
+
+def validate_subscriber_number(v: str) -> str:
+    if v.isdigit() and len(v) >= 1 and len(v) <= 12:
+        return v
+    raise ValueError(f"Invalid subscriber number: {v}")
+
+
+CountryCode = Annotated[str, AfterValidator(validate_country_code)]
+SubscriberNumber = Annotated[str, AfterValidator(validate_subscriber_number)]
+
+
+# Positive integer validator
+def validate_positive_int(v: int) -> int:
+    if v <= 0:
+        raise ValueError("Value must be positive.")
+    return v
+
+
+PositiveInt = Annotated[int, AfterValidator(validate_positive_int)]

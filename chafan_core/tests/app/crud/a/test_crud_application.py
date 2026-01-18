@@ -224,8 +224,12 @@ def test_applications_to_different_sites(db: Session) -> None:
             db, create_in=application_in, applicant_id=applicant.id
         )
 
-    app1 = crud.application.get_by_applicant_and_site(db, applicant=applicant, site=site1)
-    app2 = crud.application.get_by_applicant_and_site(db, applicant=applicant, site=site2)
+    app1 = crud.application.get_by_applicant_and_site(
+        db, applicant=applicant, site=site1
+    )
+    app2 = crud.application.get_by_applicant_and_site(
+        db, applicant=applicant, site=site2
+    )
 
     assert app1 is not None
     assert app2 is not None

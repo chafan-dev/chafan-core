@@ -1,9 +1,9 @@
-from typing import Dict, List, NamedTuple, Optional, Set, Any
-import sentry_sdk
 import json
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Set
+
+import sentry_sdk
 from sqlalchemy.orm import Session
 
-from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
@@ -27,14 +27,15 @@ from chafan_core.app.schemas.event import (
     UpvoteSubmissionInternal,
 )
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
+from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from chafan_core.app.cached_layer import CachedLayer
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,9 +44,9 @@ class ActivityDistributionInfo(NamedTuple):
     subject_user_uuid: Optional[str]
 
 
-
-
-def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)->ActivityDistributionInfo:
+def lookup_activity_receiver_list(
+    broker: DataBroker, activity: models.Activity
+) -> ActivityDistributionInfo:
     try:
         event = EventInternal.parse_raw(activity.event_json)
     except Exception:
@@ -66,16 +67,19 @@ def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)
         receiver_ids=set(receivers.keys()), subject_user_uuid=subject_user_uuid
     )
 
-def new_activity_into_feed(broker: DataBroker, activity:models.Activity) -> None:
-    logger.info("generating feed for activity "  + str(activity.id))
+
+def new_activity_into_feed(broker: DataBroker, activity: models.Activity) -> None:
+    logger.info("generating feed for activity " + str(activity.id))
     assert activity.id is not None
     assert isinstance(activity.id, int)
     receivers = lookup_activity_receiver_list(broker, activity)
     write_db = broker.get_db()
     for receiver_id in receivers.receiver_ids:
-        feed = write_db.query(models.Feed)  \
-            .filter_by(receiver_id=receiver_id, activity_id=activity.id) \
+        feed = (
+            write_db.query(models.Feed)
+            .filter_by(receiver_id=receiver_id, activity_id=activity.id)
             .first()
+        )
         if feed is None:
             write_db.add(
                 models.Feed(
@@ -85,7 +89,6 @@ def new_activity_into_feed(broker: DataBroker, activity:models.Activity) -> None
                 )
             )
             write_db.commit()
-
 
 
 # TODO This is the v1 api. To be removed. 2025-07-19
@@ -234,6 +237,7 @@ def materialize_activity(
             return activity_data
     return None
 
+
 # This is not good OOP practice, but doing it here can avoid making event.py too complex. 2025-Aug-13
 def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudModel]:
     assert isinstance(event, EventInternal)
@@ -246,8 +250,7 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
         return question
     if isinstance(c, AnswerQuestionInternal):
         answer = cached_layer.get_answer_by_id(c.answer_id)
-        if (answer.is_hidden_by_moderator) or \
-            (not answer.is_published):
+        if (answer.is_hidden_by_moderator) or (not answer.is_published):
             logger.warning("Skip a hidden answer: " + str(answer))
             return None
         return answer
@@ -256,20 +259,20 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
         return art
 
     logger.error(f"Not supported event type: {event}")
-    return None #TODO throw exception
+    return None  # TODO throw exception
+
 
 async def get_content_from_eventjson(
-        cached_layer: "CachedLayer",
-        event_json: str) -> Optional[BaseCrudModel]:
+    cached_layer: "CachedLayer", event_json: str
+) -> Optional[BaseCrudModel]:
     event = EventInternal.parse_raw(event_json)
     content = retrieve_content(event, cached_layer)
     return content
 
+
 async def get_site_activities(
-    cached_layer: "CachedLayer",
-    site,
-    limit: int,
-    all_sites = False) -> List[BaseCrudModel]:
+    cached_layer: "CachedLayer", site, limit: int, all_sites=False
+) -> List[BaseCrudModel]:
     db = cached_layer.get_db()
     if (site is None) and (not all_sites):
         raise ValueError("site not found ")
@@ -286,6 +289,7 @@ async def get_site_activities(
             assert isinstance(obj, BaseCrudModel)
             activities.append(obj)
     return activities
+
 
 async def get_activities_v2(
     *,
@@ -306,11 +310,13 @@ async def get_activities_v2(
         feeds = feeds.filter_by(receiver_id=receiver_user_id)
     if before_activity_id:
         feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
-    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit * 2) # Do we have better idea?
+    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(
+        limit * 2
+    )  # Do we have better idea?
     activities = []
     activity_ids = set()
     for feed in feeds:
-        feed_settings = None # TODO not supported yed
+        feed_settings = None  # TODO not supported yed
         if feed.activity_id in activity_ids:
             continue
         activity = materialize_activity(
@@ -325,7 +331,7 @@ async def get_activities_v2(
     return activities
 
 
-def get_activities( # TODO to remove this function
+def get_activities(  # TODO to remove this function
     *,
     before_activity_id: Optional[int],
     limit: int,
@@ -408,6 +414,3 @@ def get_random_activities(
 
 
 CACHE_REWIND_SIZE = 1000
-
-
-

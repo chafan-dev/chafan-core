@@ -33,5 +33,10 @@ from .submission_suggestion import SubmissionSuggestion
 from .task import Task
 from .topic import Topic
 from .user import User
+from .viewcount import (
+    ViewCountAnswer,
+    ViewCountArticle,
+    ViewCountQuestion,
+    ViewCountSubmission,
+)
 from .webhook import Webhook
-from .viewcount import ViewCountArticle, ViewCountAnswer, ViewCountQuestion, ViewCountSubmission

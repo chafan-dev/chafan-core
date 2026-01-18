@@ -30,7 +30,9 @@ def _create_test_article_column(db: Session, owner_id: int):
         name=f"Test Column {random_short_lower_string()}",
         description="Test column description",
     )
-    return crud.article_column.create_with_owner(db, obj_in=column_in, owner_id=owner_id)
+    return crud.article_column.create_with_owner(
+        db, obj_in=column_in, owner_id=owner_id
+    )
 
 
 def test_create_article_with_author(db: Session) -> None:
@@ -51,9 +53,7 @@ def test_create_article_with_author(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    article = crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    article = crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     assert article is not None
     assert article.author_id == user.id
@@ -83,9 +83,7 @@ def test_create_unpublished_article(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    article = crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    article = crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     assert article is not None
     assert article.is_published is False
@@ -109,9 +107,7 @@ def test_get_article_by_uuid(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    article = crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    article = crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     retrieved_article = crud.article.get_by_uuid(db, uuid=article.uuid)
     assert retrieved_article is not None
@@ -243,9 +239,7 @@ def test_update_article_topics(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    article = crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    article = crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     # Create test topics
     from chafan_core.app.schemas.topic import TopicCreate
@@ -285,9 +279,7 @@ def test_delete_forever(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    article = crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    article = crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     crud.article.delete_forever(db, article=article)
 
@@ -316,9 +308,7 @@ def test_update_checked_cannot_unpublish(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    article = crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    article = crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     # Should raise assertion error when trying to unpublish
     try:
@@ -396,9 +386,7 @@ def test_get_all(db: Session) -> None:
         visibility=ContentVisibility.ANYONE,
     )
 
-    crud.article.create_with_author(
-        db, obj_in=article_in, author_id=user.id
-    )
+    crud.article.create_with_author(db, obj_in=article_in, author_id=user.id)
 
     all_articles = crud.article.get_all(db)
     assert len(all_articles) == initial_count + 1

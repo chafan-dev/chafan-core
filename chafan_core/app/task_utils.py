@@ -9,6 +9,7 @@ T = TypeVar("T")
 
 # TODO This file should be removed. These patterns provide little benefit today 2025-Jul-11
 
+
 def execute_with_db(
     db: Session, runnable: Callable[[Session], T], auto_commit: bool = True
 ) -> Optional[T]:

@@ -31,7 +31,9 @@ def test_get_article_unauthenticated(
     # Verify data exists in database
     db.expire_all()
     db_article = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article is not None, f"Article {example_article_uuid} not found in database"
+    assert (
+        db_article is not None
+    ), f"Article {example_article_uuid} not found in database"
     assert db_article.uuid == example_article_uuid
     assert db_article.title == data["title"]
     assert db_article.is_published is True
@@ -60,12 +62,16 @@ def test_get_article_authenticated(
     # Verify data in database matches response
     db.expire_all()
     db_article = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article is not None, f"Article {example_article_uuid} not found in database"
+    assert (
+        db_article is not None
+    ), f"Article {example_article_uuid} not found in database"
     assert db_article.title == data["title"]
     assert db_article.body == data["content"]["source"]
 
 
-@pytest.mark.skip(reason="TODO: get_article endpoint doesn't handle None article before accessing is_published")
+@pytest.mark.skip(
+    reason="TODO: get_article endpoint doesn't handle None article before accessing is_published"
+)
 def test_get_article_nonexistent(
     client: TestClient,
     db: Session,
@@ -588,7 +594,9 @@ def test_get_article_archives_unauthorized(
     # Verify the article exists but access is denied (not a data issue)
     db.expire_all()
     db_article = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article is not None, f"Article {example_article_uuid} not found in database"
+    assert (
+        db_article is not None
+    ), f"Article {example_article_uuid} not found in database"
 
 
 # =============================================================================
@@ -655,7 +663,9 @@ def test_delete_article_unauthorized(
     # Verify article exists and is not deleted
     db.expire_all()
     db_article_before = crud.article.get_by_uuid(db, uuid=example_article_uuid)
-    assert db_article_before is not None, f"Article {example_article_uuid} not found in database"
+    assert (
+        db_article_before is not None
+    ), f"Article {example_article_uuid} not found in database"
     assert db_article_before.is_deleted is False
 
     r = client.delete(

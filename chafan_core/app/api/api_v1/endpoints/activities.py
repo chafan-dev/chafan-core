@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, Request
@@ -12,8 +13,6 @@ from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.utils.base import unwrap
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -46,10 +45,13 @@ async def get_feed(
     Get activity feed.
     """
     current_user_id: int = unwrap(cached_layer.principal_id)
-    logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
+    logger.info(
+        f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}"
+    )
 
     activities = await cached_layer.get_user_activity(
-            current_user_id, before_activity_id, limit, random, subject_user_uuid)
+        current_user_id, before_activity_id, limit, random, subject_user_uuid
+    )
 
     data = schemas.FeedSequence(activities=activities, random=random)
     return _update_feed_seq(cached_layer, data, full_answers=full_answers)

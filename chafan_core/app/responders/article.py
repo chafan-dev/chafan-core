@@ -1,18 +1,13 @@
-from typing import Optional
 import logging
+from typing import Optional
+
 logger = logging.getLogger(__name__)
 
-from chafan_core.app import crud, models, schemas
-from chafan_core.app.schemas.richtext import RichText
-from chafan_core.utils.base import (
-    filter_not_none,
-)
-
+from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.schemas.article import ArticleInDB
 from chafan_core.app.schemas.article_archive import ArticleArchiveInDB
-
-
-from chafan_core.app import view_counters
+from chafan_core.app.schemas.richtext import RichText
+from chafan_core.utils.base import filter_not_none
 
 
 def article_schema_from_orm(
@@ -22,9 +17,7 @@ def article_schema_from_orm(
     upvoted = (
         cached_layer.broker.get_db()
         .query(models.ArticleUpvotes)
-        .filter_by(
-            article_id=article.id, voter_id=principal_id, cancelled=False
-        )
+        .filter_by(article_id=article.id, voter_id=principal_id, cancelled=False)
         .first()
         is not None
     )
@@ -38,12 +31,14 @@ def article_schema_from_orm(
     )
     d["bookmark_count"] = article.bookmarkers.count()
     principal = crud.user.get(cached_layer.broker.get_db(), id=principal_id)
-    #assert principal is not None
-    #d["bookmarked"] = article in principal.bookmarked_articles
-    d["bookmarked"] = True # TODO leave it for now 2025-07-24
+    # assert principal is not None
+    # d["bookmarked"] = article in principal.bookmarked_articles
+    d["bookmarked"] = True  # TODO leave it for now 2025-07-24
     d["author"] = cached_layer.materializer.preview_of_user(article.author)
     d["upvoted"] = upvoted
-    d["view_times"] = view_counters.get_viewcount_article(cached_layer.broker, article.id)
+    d["view_times"] = view_counters.get_viewcount_article(
+        cached_layer.broker, article.id
+    )
     d["archives_count"] = len(article.archives)
     if article.is_published:
         body = article.body
