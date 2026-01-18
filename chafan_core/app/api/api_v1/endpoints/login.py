@@ -317,13 +317,13 @@ async def create_user_open(
     user = await crud.user.create(db, obj_in=user_in)
 
     # TODO auto add site
-    if False and invitation_link.invited_to_site is not None:
+    if False and invitation_link.invited_to_site is not None:  # type: ignore[name-defined]
         existing_profile = crud.profile.get_by_user_and_site(
-            db, owner_id=user.id, site_id=invitation_link.invited_to_site.id
+            db, owner_id=user.id, site_id=invitation_link.invited_to_site.id  # type: ignore[name-defined]
         )
         if not existing_profile:
             cached_layer.create_site_profile(
-                owner=user, site_uuid=invitation_link.invited_to_site.uuid
+                owner=user, site_uuid=invitation_link.invited_to_site.uuid  # type: ignore[name-defined]
             )
 
     # TODO bonus for invite new user, new user's initial coins
