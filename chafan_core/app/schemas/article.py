@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from chafan_core.app.schemas.article_column import ArticleColumn
 from chafan_core.app.schemas.comment import Comment, CommentForVisitor
@@ -9,7 +9,7 @@ from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.topic import Topic
 from chafan_core.utils.base import ContentVisibility
-from chafan_core.utils.validators import StrippedNonEmptyStr, validate_article_title
+from chafan_core.utils.validators import ArticleTitle, StrippedNonEmptyStr
 
 
 # Shared properties
@@ -19,31 +19,20 @@ class ArticleBase(BaseModel):
 
 # Properties to receive via API on creation
 class ArticleCreate(ArticleBase):
-    title: StrippedNonEmptyStr
+    title: ArticleTitle
     content: RichText
     article_column_uuid: str
     is_published: bool
     writing_session_uuid: str
     visibility: ContentVisibility
 
-    @validator("title")
-    def _valid_title(cls, v: str) -> str:
-        validate_article_title(v)
-        return v
-
 
 # Properties to receive via API on update
 class ArticleUpdate(ArticleBase):
-    updated_title: StrippedNonEmptyStr
+    updated_title: ArticleTitle
     updated_content: RichText
     is_draft: bool
     visibility: ContentVisibility
-
-    @validator("updated_title")
-    def _valid_title(cls, v: Optional[str]) -> Optional[str]:
-        if v is not None:
-            validate_article_title(v)
-        return v
 
 
 # Properties to receive via API on update

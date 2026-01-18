@@ -1,20 +1,15 @@
 import datetime
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from chafan_core.app.schemas.preview import UserPreview
-from chafan_core.utils.validators import validate_message_body
+from chafan_core.utils.validators import MessageBody
 
 
 # Shared properties
 class MessageBase(BaseModel):
     channel_id: int
-    body: str
-
-    @validator("body")
-    def _valid_body(cls, v: str) -> str:
-        validate_message_body(v)
-        return v
+    body: MessageBody
 
 
 # Properties to receive via API on creation

@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Literal, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 from chafan_core.app.schemas.form import Form
 from chafan_core.app.schemas.preview import UserPreview
@@ -48,11 +48,13 @@ class FormResponseCreate(FormResponseBase):
     form_uuid: str
     response_fields: List[FormResponseField]
 
-    @validator("response_fields")
+    @field_validator("response_fields")
+    @classmethod
     def _valid_response_fields(
         cls, v: List[FormResponseField]
     ) -> List[FormResponseField]:
-        assert len(set(f.unique_name for f in v)) == len(v)
+        if len(set(f.unique_name for f in v)) != len(v):
+            raise ValueError("Response field names must be unique")
         return v
 
 

@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from pydantic.networks import AnyHttpUrl
 from pydantic.types import SecretStr
 
@@ -17,7 +17,7 @@ from chafan_core.utils.validators import (
     CaseInsensitiveEmailStr,
     StrippedNonEmptyBasicStr,
     StrippedNonEmptyStr,
-    validate_password,
+    ValidPassword,
 )
 
 
@@ -31,13 +31,8 @@ class UserBase(BaseModel):
 # Properties to receive via API on creation
 class UserCreate(UserBase):
     email: CaseInsensitiveEmailStr
-    password: SecretStr
+    password: ValidPassword
     handle: Optional[StrippedNonEmptyBasicStr]
-
-    @validator("password")
-    def _valid_password(cls, v: SecretStr) -> SecretStr:
-        validate_password(v)
-        return v
 
 
 class UserInvite(BaseModel):
@@ -67,14 +62,8 @@ class InviteIn(BaseModel):
 
 # Properties to receive via API on update
 class UserUpdate(UserBase):
-    password: Optional[SecretStr] = None
+    password: Optional[ValidPassword] = None
     handle: Optional[StrippedNonEmptyStr] = None
-
-    @validator("password")
-    def _valid_password(cls, v: Optional[SecretStr]) -> Optional[SecretStr]:
-        if v is not None:
-            validate_password(v)
-        return v
 
 
 class UserWorkExperience(BaseModel):
@@ -223,7 +212,7 @@ class UserUpdateMe(BaseModel):
     handle: Optional[str] = None
     about: Optional[str] = None
     default_editor_mode: Optional[editor_T] = None
-    password: Optional[SecretStr] = None
+    password: Optional[ValidPassword] = None
     residency_topic_uuids: Optional[List[str]] = None
     profession_topic_uuids: Optional[List[str]] = None
     education_experiences: Optional[List[UserEducationExperienceInternal]] = None
@@ -238,9 +227,3 @@ class UserUpdateMe(BaseModel):
     avatar_url: Optional[AnyHttpUrl] = None
     gif_avatar_url: Optional[AnyHttpUrl] = None
     enable_deliver_unread_notifications: Optional[bool] = None
-
-    @validator("password")
-    def _valid_password(cls, v: Optional[SecretStr]) -> Optional[SecretStr]:
-        if v is not None:
-            validate_password(v)
-        return v

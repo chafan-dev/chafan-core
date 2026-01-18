@@ -1,14 +1,14 @@
 import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 
 from chafan_core.app.schemas.comment import Comment, CommentForVisitor
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.site import Site
 from chafan_core.app.schemas.topic import Topic
-from chafan_core.utils.validators import StrippedNonEmptyStr, validate_question_title
+from chafan_core.utils.validators import QuestionTitle, StrippedNonEmptyStr
 
 
 # Shared properties
@@ -19,27 +19,14 @@ class QuestionBase(BaseModel):
 # Properties to receive via API on creation
 class QuestionCreate(QuestionBase):
     site_uuid: str
-    title: StrippedNonEmptyStr
-
-    @validator("title")
-    def _valid_title(cls, v: StrippedNonEmptyStr) -> StrippedNonEmptyStr:
-        validate_question_title(v)
-        return v
+    title: QuestionTitle
 
 
 # Properties to receive via API on update
 class QuestionUpdate(QuestionBase):
-    title: Optional[StrippedNonEmptyStr] = None
+    title: Optional[QuestionTitle] = None
     desc: Optional[RichText] = None
     topic_uuids: Optional[List[str]] = None
-
-    @validator("title")
-    def _valid_title(
-        cls, v: Optional[StrippedNonEmptyStr]
-    ) -> Optional[StrippedNonEmptyStr]:
-        if v is not None:
-            validate_question_title(v)
-        return v
 
 
 class QuestionInDBBase(QuestionBase):

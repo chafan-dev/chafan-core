@@ -1,7 +1,7 @@
 import datetime
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator
 
 from chafan_core.app.schemas.preview import UserPreview
 
@@ -63,9 +63,11 @@ class FormCreate(FormBase):
     title: str
     form_fields: List[FormField]
 
-    @validator("form_fields")
+    @field_validator("form_fields")
+    @classmethod
     def _valid_form_fields(cls, v: List[FormField]) -> List[FormField]:
-        assert len(set(f.unique_name for f in v)) == len(v)
+        if len(set(f.unique_name for f in v)) != len(v):
+            raise ValueError("Form field names must be unique")
         return v
 
 

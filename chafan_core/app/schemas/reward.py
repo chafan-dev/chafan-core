@@ -1,7 +1,7 @@
 import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, Field
 
 from chafan_core.app.schemas.preview import UserPreview
 
@@ -22,23 +22,11 @@ class RewardCondition(BaseModel):
 
 # Properties to receive via API on creation
 class RewardCreate(RewardBase):
-    expired_after_days: int
+    expired_after_days: Annotated[int, Field(gt=0, description="Expiry days")]
     receiver_uuid: str
-    coin_amount: int
+    coin_amount: Annotated[int, Field(gt=0, description="Coin amount")]
     note_to_receiver: Optional[str] = None
     condition: Optional[RewardCondition] = None
-
-    @validator("coin_amount")
-    def _valid_coin_amount(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError("Invalid coin amount.")
-        return v
-
-    @validator("expired_after_days")
-    def _valid_expired_after_days(cls, v: int) -> int:
-        if v <= 0:
-            raise ValueError("Invalid expiry days.")
-        return v
 
 
 class RewardUpdate(BaseModel):
