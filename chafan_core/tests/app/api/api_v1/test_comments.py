@@ -187,7 +187,9 @@ def test_get_comment_nonexistent(
 # =============================================================================
 
 
-@pytest.mark.skip(reason="TODO: Comment update API uses different payload format (content RichText, not body string)")
+@pytest.mark.skip(
+    reason="TODO: Comment update API uses different payload format (content RichText, not body string)"
+)
 def test_update_comment_as_author(
     client: TestClient,
     db: Session,

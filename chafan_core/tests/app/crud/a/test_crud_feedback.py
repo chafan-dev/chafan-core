@@ -66,7 +66,10 @@ def test_feedback_with_different_statuses(db: Session) -> None:
 
     for status in statuses:
         feedback = _create_feedback_directly(
-            db, description=f"Feedback with status {status}", status=status, user_id=user.id
+            db,
+            description=f"Feedback with status {status}",
+            status=status,
+            user_id=user.id,
         )
 
         retrieved = crud.feedback.get(db, id=feedback.id)
@@ -98,9 +101,7 @@ def test_get_multi_feedback(db: Session) -> None:
 
     # Create several feedback entries
     for i in range(5):
-        _create_feedback_directly(
-            db, description=f"Feedback {i}", user_id=user.id
-        )
+        _create_feedback_directly(db, description=f"Feedback {i}", user_id=user.id)
 
     feedbacks = crud.feedback.get_multi(db, skip=0, limit=10)
     assert len(feedbacks) >= 5

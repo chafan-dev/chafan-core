@@ -12,6 +12,7 @@ from chafan_core.app.config import settings
 from chafan_core.utils.constants import indexed_object_T
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 _analyzer = ChineseAnalyzer()

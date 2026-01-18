@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
-#from emails.template import JinjaTemplate  # type: ignore
+# from emails.template import JinjaTemplate  # type: ignore
 
 from chafan_core.app import schemas
 from chafan_core.app.common import from_now, is_dev, render_notif_content
@@ -23,9 +23,6 @@ def send_email(
     environment: Dict[str, Any] = {},
 ) -> None:
     return
-
-
-
 
 
 def send_notification_email(
@@ -74,7 +71,6 @@ def send_notification_email(
 
 def send_verification_code_phone_number(_phone_number: str, _code: str) -> None:
     raise NotImplementedError("No longer support SMS")
-
 
 
 def send_new_account_email(email_to: str, username: str, password: str) -> None:

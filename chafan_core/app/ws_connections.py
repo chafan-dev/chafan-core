@@ -3,7 +3,9 @@ from typing import MutableMapping
 from fastapi.websockets import WebSocket
 
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 class ConnectionManager:
     def __init__(self) -> None:
@@ -26,4 +28,3 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
-

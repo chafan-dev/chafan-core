@@ -26,14 +26,12 @@ class Settings(BaseSettings):
 
     ENABLE_CAPTCHA: bool = False
 
-
     EMAILS_ENABLED: bool = False
     EMAIL_SMTP_HOST: Optional[str] = None
     EMAIL_SMTP_PORT: Optional[int] = None
     EMAIL_SMTP_LOGIN_USERNAME: Optional[str] = None
     EMAIL_SMTP_LOGIN_PASSWORD: Optional[str] = None
     EMAIL_TEMPLATES_DIR: str = "chafan_core/app/email-templates/build"
-
 
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
@@ -82,7 +80,7 @@ class Settings(BaseSettings):
         case_sensitive = True
 
     ### Limit settings
-    VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
+    VISITORS_READ_ARTICLE_LIMIT: int = 100  # previous 5
     LIMIT_RSS_RESPONSE_ITEMS: int = 200
     LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS: int = 500
 
@@ -101,7 +99,6 @@ class Settings(BaseSettings):
     UPVOTE_ARTICLE_COIN_DEDUCTION: int = 2
     CREATE_SITE_COIN_DEDUCTION: int = 10
     CREATE_SITE_FORCE_NEED_APPROVAL: bool = True
-
 
 
 setting_keys = set(Settings.schema()["properties"].keys())

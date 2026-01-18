@@ -35,14 +35,15 @@ async def create_invitation_link(
         )
         invited_to_site_id = invited_to_site.id
     invitation_link = await crud.invitation_link.create_invitation(
-            db, invited_to_site_id=invited_to_site_id, inviter=current_user
-        )
+        db, invited_to_site_id=invited_to_site_id, inviter=current_user
+    )
     crud.audit_log.create_with_user(
-        db, ipaddr="0.0.0.0", user_id=current_user.id, api=f"Created invitation link {invitation_link.uuid}"
+        db,
+        ipaddr="0.0.0.0",
+        user_id=current_user.id,
+        api=f"Created invitation link {invitation_link.uuid}",
     )
-    return cached_layer.materializer.invitation_link_schema_from_orm(
-            invitation_link
-    )
+    return cached_layer.materializer.invitation_link_schema_from_orm(invitation_link)
 
 
 @router.get("/daily", response_model=schemas.InvitationLink)

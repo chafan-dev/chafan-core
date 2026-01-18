@@ -11,6 +11,7 @@ from chafan_core.app.limiter import limiter
 from chafan_core.utils.base import filter_not_none
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -77,7 +78,7 @@ async def search_questions(
     if q == "":
         return []
     questions = crud.question.search(cached_layer.get_db(), q=q)
-# TODO no search hit limit
+    # TODO no search hit limit
     return filter_not_none(
         [await preview_of_question_as_search_hit(q) for q in questions]
     )

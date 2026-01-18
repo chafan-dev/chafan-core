@@ -42,7 +42,7 @@ async def get_article_column_articles(
         )
     articles = article_column.articles
     if not current_user_id:
-        articles = articles[:settings.VISITORS_READ_ARTICLE_LIMIT]
+        articles = articles[: settings.VISITORS_READ_ARTICLE_LIMIT]
     return filter_not_none(
         [cached_layer.materializer.preview_of_article(a) for a in articles]
     )

@@ -55,7 +55,9 @@ def test_sites(
 
     # Verify the site was updated by fetching it directly
     # Use superuser headers since they created the site and have a site profile
-    r = client.get(f"{settings.API_V1_STR}/sites/demo_{demo_name}", headers=superuser_token_headers)
+    r = client.get(
+        f"{settings.API_V1_STR}/sites/demo_{demo_name}", headers=superuser_token_headers
+    )
     assert r.status_code == 200, (r.status_code, r.json())
     site = r.json()
     assert site["description"] == "Demo Site 2"

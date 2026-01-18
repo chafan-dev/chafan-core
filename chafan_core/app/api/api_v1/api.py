@@ -99,7 +99,9 @@ api_router.include_router(
     coin_payments.router, prefix="/coin-payments", tags=["coin_payments"]
 )
 api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["audit_logs"])
-api_router.include_router(admin_tools.router, prefix="/admin_tools", tags=["admin_tools"])
+api_router.include_router(
+    admin_tools.router, prefix="/admin_tools", tags=["admin_tools"]
+)
 api_router.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 api_router.include_router(feedbacks.router, prefix="/feedbacks", tags=["feedbacks"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])

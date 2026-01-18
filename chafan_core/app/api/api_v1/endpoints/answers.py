@@ -22,6 +22,7 @@ from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 from chafan_core.app.task import postprocess_new_answer
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -257,9 +258,9 @@ def _update_answer(
         if answer_in.updated_content:
             del answer_in_dict["updated_content"]
             answer_in_dict["body"] = answer_in.updated_content.source
-            answer_in_dict[
-                "body_prerendered_text"
-            ] = answer_in.updated_content.rendered_text
+            answer_in_dict["body_prerendered_text"] = (
+                answer_in.updated_content.rendered_text
+            )
             answer_in_dict["editor"] = answer_in.updated_content.editor
 
         answer_in_dict["body_draft"] = None

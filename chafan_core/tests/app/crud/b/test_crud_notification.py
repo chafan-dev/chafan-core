@@ -22,7 +22,9 @@ def _create_test_user(db: Session):
     return asyncio.run(crud.user.create(db, obj_in=user_in))
 
 
-def _create_test_notification(db: Session, receiver_id: int, is_read: bool = False, is_delivered: bool = False):
+def _create_test_notification(
+    db: Session, receiver_id: int, is_read: bool = False, is_delivered: bool = False
+):
     """Helper to create a test notification."""
     notification_in = NotificationCreate(
         receiver_id=receiver_id,
@@ -102,7 +104,9 @@ def test_get_read_notifications(db: Session) -> None:
     read2 = _create_test_notification(db, receiver_id=user.id, is_read=True)
 
     # Create an unread notification
-    unread_notification = _create_test_notification(db, receiver_id=user.id, is_read=False)
+    unread_notification = _create_test_notification(
+        db, receiver_id=user.id, is_read=False
+    )
 
     read_notifications = crud.notification.get_read(db, receiver_id=user.id)
     read_ids = [n.id for n in read_notifications]
@@ -131,7 +135,9 @@ def test_get_undelivered_unread(db: Session) -> None:
         db, receiver_id=user.id, is_read=True, is_delivered=False
     )
 
-    undelivered_unread_notifications = list(crud.notification.get_undelivered_unread(db))
+    undelivered_unread_notifications = list(
+        crud.notification.get_undelivered_unread(db)
+    )
     ids = [n.id for n in undelivered_unread_notifications]
 
     assert undelivered_unread.id in ids
@@ -159,10 +165,14 @@ def test_get_unread_for_different_users(db: Session) -> None:
     user2 = _create_test_user(db)
 
     # Create notifications for user1
-    user1_notification = _create_test_notification(db, receiver_id=user1.id, is_read=False)
+    user1_notification = _create_test_notification(
+        db, receiver_id=user1.id, is_read=False
+    )
 
     # Create notifications for user2
-    user2_notification = _create_test_notification(db, receiver_id=user2.id, is_read=False)
+    user2_notification = _create_test_notification(
+        db, receiver_id=user2.id, is_read=False
+    )
 
     # Get unread for user1
     user1_unread = crud.notification.get_unread(db, receiver_id=user1.id)
@@ -193,7 +203,8 @@ def test_unread_ordered_by_created_at_desc(db: Session) -> None:
     # Create notifications with different timestamps
     older_notification_in = NotificationCreate(
         receiver_id=user.id,
-        created_at=datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(hours=1),
+        created_at=datetime.datetime.now(tz=datetime.timezone.utc)
+        - datetime.timedelta(hours=1),
         event_json='{"type": "older", "data": {}}',
     )
     older_notification = crud.notification.create(db, obj_in=older_notification_in)
@@ -219,7 +230,9 @@ def test_unread_ordered_by_created_at_desc(db: Session) -> None:
 def test_update_notification_mark_as_delivered(db: Session) -> None:
     """Test marking a notification as delivered."""
     user = _create_test_user(db)
-    notification = _create_test_notification(db, receiver_id=user.id, is_delivered=False)
+    notification = _create_test_notification(
+        db, receiver_id=user.id, is_delivered=False
+    )
 
     assert notification.is_delivered is False
 

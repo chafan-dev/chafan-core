@@ -241,7 +241,9 @@ def test_update_submission_topics_clear(db: Session) -> None:
     topic_in = TopicCreate(name=f"SubmissionTopic {random_short_lower_string()}")
     topic = crud.topic.create(db, obj_in=topic_in)
 
-    submission = crud.submission.update_topics(db, db_obj=submission, new_topics=[topic])
+    submission = crud.submission.update_topics(
+        db, db_obj=submission, new_topics=[topic]
+    )
     assert len(submission.topics) == 1
 
     # Clear topics

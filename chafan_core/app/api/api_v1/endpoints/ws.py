@@ -14,6 +14,7 @@ from chafan_core.app.common import get_redis_cli
 from chafan_core.app.mq import get_ws_queue_for_user
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -33,7 +34,7 @@ async def get_ws_token(
     return schemas.WsAuthResponse(token=token)
 
 
-async def _read_message_queue(redis, queue_name:str):
+async def _read_message_queue(redis, queue_name: str):
     item = redis.lpop(queue_name)
     return item
 

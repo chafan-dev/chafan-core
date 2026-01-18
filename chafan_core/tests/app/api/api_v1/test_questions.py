@@ -87,8 +87,12 @@ def test_create_question_success(
     """Test successful question creation and verify data in PostgreSQL."""
     # Ensure user is a site member
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     title = f"Test Question {random_lower_string()}"
@@ -144,8 +148,12 @@ def test_get_question_success(
     """Test getting a question and verify data matches PostgreSQL."""
     # Ensure user is a site member
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # First create a question
@@ -182,7 +190,9 @@ def test_get_question_success(
     assert db_question.uuid == response_data["uuid"]
 
 
-@pytest.mark.skip(reason="TODO: get_question endpoint doesn't handle None question before accessing is_hidden")
+@pytest.mark.skip(
+    reason="TODO: get_question endpoint doesn't handle None question before accessing is_hidden"
+)
 def test_get_question_nonexistent(
     client: TestClient,
     db: Session,
@@ -205,7 +215,9 @@ def test_get_question_nonexistent(
 # =============================================================================
 
 
-@pytest.mark.skip(reason="TODO: QuestionCreate doesn't support description, QuestionUpdate uses 'desc' (RichText) not 'description'")
+@pytest.mark.skip(
+    reason="TODO: QuestionCreate doesn't support description, QuestionUpdate uses 'desc' (RichText) not 'description'"
+)
 def test_update_question_as_author(
     client: TestClient,
     db: Session,
@@ -218,8 +230,12 @@ def test_update_question_as_author(
     """Test updating a question as author and verify in PostgreSQL."""
     # Ensure user is a site member
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # First create a question
@@ -260,7 +276,9 @@ def test_update_question_as_author(
     assert new_description in db_question_after.description
 
 
-@pytest.mark.skip(reason="TODO: QuestionCreate doesn't support description, QuestionUpdate uses 'desc' (RichText) not 'description'")
+@pytest.mark.skip(
+    reason="TODO: QuestionCreate doesn't support description, QuestionUpdate uses 'desc' (RichText) not 'description'"
+)
 def test_update_question_as_non_author(
     client: TestClient,
     db: Session,
@@ -274,8 +292,12 @@ def test_update_question_as_non_author(
     """Test that non-authors cannot update questions."""
     # Ensure user is a site member
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # Create a question as normal user
@@ -345,8 +367,12 @@ def test_bump_question_views(
     """Test bumping views counter for a question."""
     # Ensure user is a site member
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # Create a question
@@ -404,8 +430,12 @@ def test_get_question_upvotes(
     """Test getting upvotes for a question."""
     # Ensure user is a site member
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # Create a question

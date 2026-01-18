@@ -64,9 +64,7 @@ def test_get_submission_upvotes_nonexistent(
     db: Session,
 ) -> None:
     """Test getting upvotes for a nonexistent submission returns an error."""
-    r = client.get(
-        f"{settings.API_V1_STR}/submissions/invalid-uuid/upvotes/"
-    )
+    r = client.get(f"{settings.API_V1_STR}/submissions/invalid-uuid/upvotes/")
     assert r.status_code == 400
     assert "doesn't exists" in r.json()["detail"]
 
@@ -102,9 +100,7 @@ def test_bump_views_counter_nonexistent(
     db: Session,
 ) -> None:
     """Test bumping views for nonexistent submission returns an error."""
-    r = client.post(
-        f"{settings.API_V1_STR}/submissions/invalid-uuid/views/"
-    )
+    r = client.post(f"{settings.API_V1_STR}/submissions/invalid-uuid/views/")
     assert r.status_code == 400
 
     # Verify it doesn't exist in database
@@ -217,8 +213,12 @@ def test_create_submission_success(
 ) -> None:
     """Test successful submission creation and verify data in PostgreSQL."""
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     title = f"Test Submission {random_lower_string()}"
@@ -270,7 +270,9 @@ def test_update_submission_as_author(
     # Get original title from database
     db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_before is not None
+    ), f"Submission {example_submission_uuid} not found"
     original_title = db_submission_before.title
 
     new_title = f"Updated Title {random_lower_string()}"
@@ -303,7 +305,9 @@ def test_update_submission_as_non_author(
     # Get original title from database
     db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_before is not None
+    ), f"Submission {example_submission_uuid} not found"
     original_title = db_submission_before.title
 
     data = {
@@ -320,7 +324,9 @@ def test_update_submission_as_non_author(
     # Verify data was NOT changed in PostgreSQL
     db.expire_all()
     db_submission_after = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_after is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_after is not None
+    ), f"Submission {example_submission_uuid} not found"
     assert db_submission_after.title == original_title
 
 
@@ -424,15 +430,21 @@ def test_upvote_submission_success(
 ) -> None:
     """Test upvoting a submission and verify in PostgreSQL."""
     ensure_user_in_site(
-        client, db, moderator_user_id, moderator_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        moderator_user_id,
+        moderator_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
     # Get initial upvote count from database
     db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_before is not None
+    ), f"Submission {example_submission_uuid} not found"
     initial_db_count = db_submission_before.upvotes_count
 
     r = client.get(
@@ -453,7 +465,9 @@ def test_upvote_submission_success(
     # Verify upvote is recorded in PostgreSQL
     db.expire_all()
     db_submission_after = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_after is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_after is not None
+    ), f"Submission {example_submission_uuid} not found"
     assert db_submission_after.upvotes_count >= initial_db_count
 
 
@@ -469,8 +483,12 @@ def test_upvote_submission_idempotent(
 ) -> None:
     """Test that double upvoting doesn't increase count."""
     ensure_user_in_site(
-        client, db, moderator_user_id, moderator_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        moderator_user_id,
+        moderator_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
@@ -484,7 +502,9 @@ def test_upvote_submission_idempotent(
     # Get database count after first upvote
     db.expire_all()
     db_submission_1 = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_1 is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_1 is not None
+    ), f"Submission {example_submission_uuid} not found"
     db_count1 = db_submission_1.upvotes_count
 
     # Second upvote (should not increase count)
@@ -499,7 +519,9 @@ def test_upvote_submission_idempotent(
     # Verify database count unchanged
     db.expire_all()
     db_submission_2 = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_2 is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_2 is not None
+    ), f"Submission {example_submission_uuid} not found"
     assert db_submission_2.upvotes_count == db_count1
 
 
@@ -513,7 +535,9 @@ def test_upvote_submission_author_cannot_upvote(
     # Get initial count from database
     db.expire_all()
     db_submission_before = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_before is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_before is not None
+    ), f"Submission {example_submission_uuid} not found"
     initial_count = db_submission_before.upvotes_count
 
     r = client.post(
@@ -526,7 +550,9 @@ def test_upvote_submission_author_cannot_upvote(
     # Verify count unchanged in database
     db.expire_all()
     db_submission_after = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_after is not None, f"Submission {example_submission_uuid} not found"
+    assert (
+        db_submission_after is not None
+    ), f"Submission {example_submission_uuid} not found"
     assert db_submission_after.upvotes_count == initial_count
 
 
@@ -542,8 +568,12 @@ def test_cancel_upvote_submission(
 ) -> None:
     """Test canceling an upvote and verify in PostgreSQL."""
     ensure_user_in_site(
-        client, db, moderator_user_id, moderator_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        moderator_user_id,
+        moderator_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
     ensure_user_has_coins(db, moderator_user_id, coins=100)
 
@@ -557,8 +587,12 @@ def test_cancel_upvote_submission(
 
     # Get database count after upvote
     db.expire_all()
-    db_submission_upvoted = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_upvoted is not None, f"Submission {example_submission_uuid} not found"
+    db_submission_upvoted = crud.submission.get_by_uuid(
+        db, uuid=example_submission_uuid
+    )
+    assert (
+        db_submission_upvoted is not None
+    ), f"Submission {example_submission_uuid} not found"
     db_count_upvoted = db_submission_upvoted.upvotes_count
 
     # Cancel upvote
@@ -573,8 +607,12 @@ def test_cancel_upvote_submission(
 
     # Verify count decreased in database
     db.expire_all()
-    db_submission_cancelled = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
-    assert db_submission_cancelled is not None, f"Submission {example_submission_uuid} not found"
+    db_submission_cancelled = crud.submission.get_by_uuid(
+        db, uuid=example_submission_uuid
+    )
+    assert (
+        db_submission_cancelled is not None
+    ), f"Submission {example_submission_uuid} not found"
     assert db_submission_cancelled.upvotes_count <= db_count_upvoted
 
 
@@ -594,8 +632,12 @@ def test_hide_submission_as_author(
 ) -> None:
     """Test hiding a submission and verify in PostgreSQL."""
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # Create a submission to hide

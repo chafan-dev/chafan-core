@@ -22,6 +22,7 @@ from chafan_core.tests.utils.utils import (
 # Core Fixtures - Database, Client, Authentication
 # =============================================================================
 
+
 @pytest.fixture(scope="session")
 def db() -> Generator[Session, None, None]:
     """
@@ -50,6 +51,7 @@ def client() -> Generator[TestClient, None, None]:
 # User Authentication Fixtures
 # =============================================================================
 
+
 @pytest.fixture(scope="module")
 def superuser_token_headers(client: TestClient) -> Dict[str, str]:
     """Authentication headers for superuser (admin)."""
@@ -60,9 +62,10 @@ def superuser_token_headers(client: TestClient) -> Dict[str, str]:
 def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
     """Authentication headers for normal test user."""
     import asyncio
-    return asyncio.run(authentication_token_from_email(
-        client=client, email=EMAIL_TEST_USER, db=db
-    ))
+
+    return asyncio.run(
+        authentication_token_from_email(client=client, email=EMAIL_TEST_USER, db=db)
+    )
 
 
 @pytest.fixture(scope="module")
@@ -85,9 +88,12 @@ def normal_user_uuid(client: TestClient, normal_user_token_headers: dict) -> str
 def moderator_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
     """Authentication headers for moderator test user."""
     import asyncio
-    return asyncio.run(authentication_token_from_email(
-        client=client, email=EMAIL_TEST_MODERATOR, db=db
-    ))
+
+    return asyncio.run(
+        authentication_token_from_email(
+            client=client, email=EMAIL_TEST_MODERATOR, db=db
+        )
+    )
 
 
 @pytest.fixture(scope="module")
@@ -110,6 +116,7 @@ def moderator_user_uuid(client: TestClient, moderator_user_token_headers: dict) 
 # Helper Function - Reduce Duplication
 # =============================================================================
 
+
 def ensure_user_in_site(
     client: TestClient,
     db: Session,
@@ -126,9 +133,7 @@ def ensure_user_in_site(
     site = crud.site.get_by_uuid(db, uuid=site_uuid)
     assert site is not None, f"Site {site_uuid} not found"
 
-    profile = crud.profile.get_by_user_and_site(
-        db, owner_id=user_id, site_id=site.id
-    )
+    profile = crud.profile.get_by_user_and_site(db, owner_id=user_id, site_id=site.id)
 
     if not profile:
         r = client.post(
@@ -142,6 +147,7 @@ def ensure_user_in_site(
 # =============================================================================
 # Test Site Fixture
 # =============================================================================
+
 
 @pytest.fixture(scope="module")
 def example_site_uuid(
@@ -182,6 +188,7 @@ def example_site_uuid(
 # Helper Function - Ensure Coin Balance
 # =============================================================================
 
+
 def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
     """
     Ensure a user has sufficient coins for testing.
@@ -207,6 +214,7 @@ def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
 # =============================================================================
 # Article Column and Article Fixtures
 # =============================================================================
+
 
 @pytest.fixture(scope="module")
 def example_article_column_uuid(
@@ -280,8 +288,12 @@ def normal_user_authored_question_uuid(
     """
     # Ensure user is in site
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # Create question
@@ -314,8 +326,12 @@ def example_submission_uuid(
     """
     # Ensure user is in site
     ensure_user_in_site(
-        client, db, normal_user_id, normal_user_uuid,
-        example_site_uuid, superuser_token_headers
+        client,
+        db,
+        normal_user_id,
+        normal_user_uuid,
+        example_site_uuid,
+        superuser_token_headers,
     )
 
     # Create submission

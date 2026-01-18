@@ -115,10 +115,10 @@ def get_user_public(
             detail="The user doesn't exists in the system.",
         )
     # TODO turn it off 2025-07-23
-    view_times = 5 # view_counters.get_views(user.uuid, "profile")
+    view_times = 5  # view_counters.get_views(user.uuid, "profile")
     if current_user_id is None:
         return _get_user_public_visitor(cached_layer, user, view_times)
-    #view_counters.add_view(user.uuid, "profile", current_user_id)
+    # view_counters.add_view(user.uuid, "profile", current_user_id)
     db.commit()
     about_content = None
     if user.about is not None:
@@ -227,7 +227,7 @@ def get_user_submissions(
         )
     return filter_not_none(
         [
-            #cached_layer.materializer.submission_schema_from_orm(submission)
+            # cached_layer.materializer.submission_schema_from_orm(submission)
             cached_layer.submission_schema_from_orm(submission)
             for submission in user.submissions
         ]
@@ -238,7 +238,7 @@ def get_user_submissions(
 async def get_user_articles(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
-    #cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    # cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -257,7 +257,7 @@ async def get_user_articles(
     # TODO "owner" is repeated in this response 2025-Mar-23
     return filter_not_none(
         [
-    # TODO we have limit, but we still generate all articles. Need to rewrite with python generator 2025-Mar-23
+            # TODO we have limit, but we still generate all articles. Need to rewrite with python generator 2025-Mar-23
             cached_layer.materializer.preview_of_article(article)
             for article in user.articles
         ]

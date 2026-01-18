@@ -2,6 +2,7 @@ from typing import Any, Mapping
 from chafan_core.app import models, schemas
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 _VISIBLE_QUESTION_CONDITIONS = {
@@ -11,8 +12,10 @@ _VISIBLE_SUBMISSION_CONDITIONS = {
     "is_hidden": False,
 }
 
+
 def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
     return questions.filter_by(**conditions)
+
 
 def site_schema_from_orm(cached_layer, site: models.Site) -> schemas.Site:
     base = schemas.SiteInDBBase.from_orm(site)

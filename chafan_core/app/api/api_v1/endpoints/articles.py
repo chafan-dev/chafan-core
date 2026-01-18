@@ -20,6 +20,7 @@ from chafan_core.utils.base import ContentVisibility, HTTPException_
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,7 +38,10 @@ async def get_article(
     article = cached_layer.get_article_by_uuid(uuid, current_user_id)
     if article is None:
         cached_layer.create_audit(
-                api=f"get_article {uuid} retrieved None", request=request, user_id=current_user_id)
+            api=f"get_article {uuid} retrieved None",
+            request=request,
+            user_id=current_user_id,
+        )
         raise HTTPException_(
             status_code=400,
             detail="The article doesn't exists in the system.",

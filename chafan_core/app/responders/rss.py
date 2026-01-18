@@ -6,9 +6,11 @@ from chafan_core.app.models import Answer, Question, Article
 from chafan_core.app.config import settings
 
 import logging
+
 logger = logging.getLogger(__name__)
 
-def build_rss(activities: List, site)->str:
+
+def build_rss(activities: List, site) -> str:
     fg = FeedGenerator()
     if site is not None:
         fg.title("ChaFan RSS " + site.name)
@@ -25,7 +27,7 @@ def build_rss(activities: List, site)->str:
         verb = "内容"
         user = ac.author.full_name
         if user is None or user == "":
-            user ="茶饭用户"
+            user = "茶饭用户"
         link = "https://cha.fan"
         description = "内容"
 
@@ -49,7 +51,6 @@ def build_rss(activities: List, site)->str:
             link = f"{settings.SERVER_HOST}/articles/{ac.uuid}"
         else:
             logger.error(f"Not supported item: {ac}")
-
 
         title = f"{user} 发表了{verb}"
         fe.title(title)

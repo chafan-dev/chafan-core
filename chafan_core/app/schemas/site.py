@@ -9,6 +9,7 @@ from chafan_core.utils.validators import StrippedNonEmptyBasicStr, StrippedNonEm
 
 logger = logging.getLogger(__name__)
 
+
 # Shared properties
 class SiteBase(BaseModel):
     description: Optional[str]

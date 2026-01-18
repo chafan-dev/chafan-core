@@ -67,13 +67,12 @@ def run_dramatiq_task(task: Any, *arg: Any, **kwargs: Any) -> None:
     # TODO This function should be moved out of common.py, to task.py
     print("run_dramatiq_task")
     print(arg)
-    #task(*arg, **kwargs)
+    # task(*arg, **kwargs)
     task.send(*arg, **kwargs)
 
 
 def from_now(utc: datetime.datetime, locale: str) -> str:
     return arrow.get(utc).humanize(locale=locale)
-
 
 
 def html2plaintext(t: str) -> str:
@@ -113,12 +112,18 @@ EVENT_TEMPLATES: Mapping[str, Tuple[str, str]] = {
     "answer_question": ("{{who}}回答了你的问题", "「{{question}}」：「{{answer}}」"),
     "answer_update": ("{{who}}更新了回答", "「{{question}}」：「{{answer}}」"),
     "comment_question": ("{{who}}评论了你的问题", "「{{question}}」：「{{comment}}」"),
-    "comment_submission": ("{{who}}评论了你的分享", "「{{submission}}」：「{{comment}}」"),
+    "comment_submission": (
+        "{{who}}评论了你的分享",
+        "「{{submission}}」：「{{comment}}」",
+    ),
     "reply_comment": ("{{who}}回复了你的评论", "「{{parent_comment}}」：「{{reply}}」"),
     "invite_answer": ("{{who}}邀请你回答问题", "「{{question}}」"),
     "invite_join_site": ("{{who}}邀请你加入圈子", "「{{site}}」"),
     "apply_join_site": ("{{who}}申请加入圈子", "「{{site}}」"),
-    "comment_answer": ("{{who}}评论了你对问题的回答", "「{{question}}」：「{{comment}}」"),
+    "comment_answer": (
+        "{{who}}评论了你对问题的回答",
+        "「{{question}}」：「{{comment}}」",
+    ),
     "comment_article": ("{{who}}评论了你的文章", "「{{article}}」：「{{comment}}」"),
     "upvote_answer": ("{{who}}赞了你对问题的回答", "「{{question}}」：「{{answer}}」"),
     "follow_user": ("{{who}}关注了你", ""),

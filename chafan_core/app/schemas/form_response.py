@@ -19,18 +19,18 @@ class TextResponseField(BaseModel):
 
 
 class SingleChoiceResponseField(BaseModel):
-    field_type_name: Literal[
+    field_type_name: Literal["single_choice_response_field"] = (
         "single_choice_response_field"
-    ] = "single_choice_response_field"
+    )
     desc: str
     # TODO: validate
     selected_choice: str
 
 
 class MultipleChoiceResponseField(BaseModel):
-    field_type_name: Literal[
+    field_type_name: Literal["multiple_choices_response_field"] = (
         "multiple_choices_response_field"
-    ] = "multiple_choices_response_field"
+    )
     desc: str
     # TODO: validate
     selected_choices: List[str]

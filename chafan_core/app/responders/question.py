@@ -1,5 +1,6 @@
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
 import logging
+
 logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
@@ -11,10 +12,7 @@ from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.model_utils import (
     get_live_answers_of_question,
 )
-from chafan_core.app.schemas.question import (
-        QuestionInDBBase,
-        QuestionPreviewForSearch
-)
+from chafan_core.app.schemas.question import QuestionInDBBase, QuestionPreviewForSearch
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import (
     filter_not_none,
@@ -23,6 +21,7 @@ from chafan_core.utils.base import (
 )
 
 from chafan_core.app import view_counters
+
 
 def user_in_site(
     db: Session,
@@ -36,14 +35,14 @@ def user_in_site(
 
 
 def question_schema_from_orm(
-        broker: DataBroker,
-        principal_id,
-        question: models.Question,
-        cached_layer # TODO we should remove this dependency in future 2025-07-23
+    broker: DataBroker,
+    principal_id,
+    question: models.Question,
+    cached_layer,  # TODO we should remove this dependency in future 2025-07-23
 ) -> Optional[schemas.Question]:
     if not principal_id:
         logger.error("TODO skipped principle_id check")
-        #return None
+        # return None
     if not user_in_site(
         broker.get_db(),
         site=question.site,
@@ -55,9 +54,7 @@ def question_schema_from_orm(
     upvoted = (
         broker.get_db()
         .query(models.QuestionUpvotes)
-        .filter_by(
-            question_id=question.id, voter_id=principal_id, cancelled=False
-        )
+        .filter_by(question_id=question.id, voter_id=principal_id, cancelled=False)
         .first()
         is not None
     )
@@ -65,7 +62,10 @@ def question_schema_from_orm(
     d = base.dict()
     d["site"] = responders.site.site_schema_from_orm(cached_layer, question.site)
     d["comments"] = filter_not_none(
-        [cached_layer.materializer.comment_schema_from_orm(c) for c in question.comments]
+        [
+            cached_layer.materializer.comment_schema_from_orm(c)
+            for c in question.comments
+        ]
     )
     d["author"] = cached_layer.materializer.preview_of_user(question.author)
     d["editor"] = map_(question.editor, cached_layer.materializer.preview_of_user)

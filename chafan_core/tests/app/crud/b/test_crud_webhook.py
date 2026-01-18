@@ -99,9 +99,7 @@ def test_get_webhook_by_id(db: Session) -> None:
 
     webhook_in = WebhookCreate(
         site_uuid=site.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_question=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
         secret="secret",
         callback_url="https://example.com/webhook",
     )
@@ -126,9 +124,7 @@ def test_update_webhook_enabled(db: Session) -> None:
 
     webhook_in = WebhookCreate(
         site_uuid=site.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_question=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
         secret="secret",
         callback_url="https://example.com/webhook",
     )
@@ -151,9 +147,7 @@ def test_update_webhook_callback_url(db: Session) -> None:
 
     webhook_in = WebhookCreate(
         site_uuid=site.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_question=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
         secret="secret",
         callback_url="https://old.example.com/webhook",
     )
@@ -175,9 +169,7 @@ def test_update_webhook_secret(db: Session) -> None:
 
     webhook_in = WebhookCreate(
         site_uuid=site.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_question=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
         secret="old-secret",
         callback_url="https://example.com/webhook",
     )
@@ -200,9 +192,7 @@ def test_webhook_timestamps(db: Session) -> None:
 
     webhook_in = WebhookCreate(
         site_uuid=site.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_question=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
         secret="secret",
         callback_url="https://example.com/webhook",
     )
@@ -224,9 +214,7 @@ def test_multiple_webhooks_for_same_site(db: Session) -> None:
     for i in range(3):
         webhook_in = WebhookCreate(
             site_uuid=site.uuid,
-            event_spec=WebhookEventSpec(
-                content=WebhookSiteEvent(new_question=True)
-            ),
+            event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
             secret=f"secret-{i}",
             callback_url=f"https://example.com/webhook{i}",
         )
@@ -245,18 +233,14 @@ def test_webhooks_for_different_sites(db: Session) -> None:
 
     webhook1_in = WebhookCreate(
         site_uuid=site1.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_question=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_question=True)),
         secret="secret1",
         callback_url="https://example1.com/webhook",
     )
 
     webhook2_in = WebhookCreate(
         site_uuid=site2.uuid,
-        event_spec=WebhookEventSpec(
-            content=WebhookSiteEvent(new_answer=True)
-        ),
+        event_spec=WebhookEventSpec(content=WebhookSiteEvent(new_answer=True)),
         secret="secret2",
         callback_url="https://example2.com/webhook",
     )

@@ -106,7 +106,9 @@ def test_get_with_event_json_and_payee_id(db: Session) -> None:
     assert retrieved_payment.id == created_payment.id
 
 
-def test_get_with_event_json_and_payee_id_returns_none_when_not_found(db: Session) -> None:
+def test_get_with_event_json_and_payee_id_returns_none_when_not_found(
+    db: Session,
+) -> None:
     """Test that get_with_event_json_and_payee_id returns None when not found."""
     result = crud.coin_payment.get_with_event_json_and_payee_id(
         db, event_json='{"nonexistent": true}', payee_id=99999

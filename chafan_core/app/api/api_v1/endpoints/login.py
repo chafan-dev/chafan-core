@@ -4,6 +4,7 @@ from typing import Any, List, Literal, Mapping, Optional
 from urllib.parse import parse_qs, urlparse
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 import requests
@@ -69,6 +70,7 @@ from chafan_core.utils.validators import (
 )
 
 router = APIRouter()
+
 
 # The user's authentication MUST be passed when calling this function
 def _login_user(db: Session, *, request: Request, user: models.User) -> schemas.Token:
@@ -213,7 +215,7 @@ async def recover_password(
     """
     Password Recovery
     """
-    user = crud.user.get_by_email(db, email=email) #Optional[User]
+    user = crud.user.get_by_email(db, email=email)  # Optional[User]
 
     if not user:
         raise HTTPException_(
@@ -221,7 +223,10 @@ async def recover_password(
             detail="The user with this email does not exist in the system.",
         )
     crud.audit_log.create_with_user(
-        db, ipaddr=client_ip(request), user_id=user.id, api=f"Password reset email sent to {email}"
+        db,
+        ipaddr=client_ip(request),
+        user_id=user.id,
+        api=f"Password reset email sent to {email}",
     )
     password_reset_token = generate_password_reset_token(email=email)
     await send_reset_password_email(email=user.email, token=password_reset_token)
@@ -231,8 +236,11 @@ async def recover_password(
 @router.post("/send-verification-code", response_model=schemas.GenericResponse)
 @limiter.limit("1/minute")
 async def send_verification_code(
-    response: Response, request: Request, *, request_in: VerificationCodeRequest,
-    db: Session = Depends(deps.get_db)
+    response: Response,
+    request: Request,
+    *,
+    request_in: VerificationCodeRequest,
+    db: Session = Depends(deps.get_db),
 ) -> Any:
 
     logger.info(str(request_in))
@@ -244,13 +252,16 @@ async def send_verification_code(
         )
     # TODO audit log should support user_id is NULL. 2025-Jul-06
     crud.audit_log.create_with_user(
-        db, ipaddr=client_ip(request), user_id=1, api="send_verification_code to email " + request_in.email
+        db,
+        ipaddr=client_ip(request),
+        user_id=1,
+        api="send_verification_code to email " + request_in.email,
     )
     code = create_digit_verification_code(6)
     await send_verification_code_email(email=request_in.email, code=code)
     await register_digit_verification_code(request_in.email, code)
     # We may switch to trio + hypercorn in future 2025-Jul-06
-    #async with trio.open_nursery() as nursery:
+    # async with trio.open_nursery() as nursery:
     #    nursery.start_soon(send_verification_code_email,email=request_in.email, code=code)
     #    nursery.start_soon(register_digit_verification_code, request_in.email, code)
     return schemas.GenericResponse()
@@ -266,7 +277,7 @@ async def create_user_open(
     code: str = Body(...),
     invitation_link_uuid: str = Body(...),
 ) -> Any:
-    if (not settings.USERS_OPEN_REGISTRATION):
+    if not settings.USERS_OPEN_REGISTRATION:
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Open user registration is forbidden on this server",
@@ -280,7 +291,9 @@ async def create_user_open(
     crud.audit_log.create_with_user(
         db, ipaddr="0.0.0.0", user_id=1, api="Open new account email " + email
     )
-    invitation_link_valid = await cached_layer.try_consume_invitation_link_by_uuid(invitation_link_uuid)
+    invitation_link_valid = await cached_layer.try_consume_invitation_link_by_uuid(
+        invitation_link_uuid
+    )
     if not invitation_link_valid:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -304,9 +317,9 @@ async def create_user_open(
     ver_code = await check_digit_verification_code(email, code)
     if not ver_code:
         raise HTTPException_(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="The verification code is not present in the system.",
-                )
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="The verification code is not present in the system.",
+        )
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
     user = await crud.user.create(db, obj_in=user_in)
 
