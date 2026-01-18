@@ -63,7 +63,8 @@ CaseInsensitiveEmailStr = Annotated[EmailStr, AfterValidator(lambda x: x.lower()
 
 def validate_StrippedNonEmptyStr(value: str) -> str:
     stripped = value.strip()
-    assert len(stripped) > 0, "must be non-empty string"
+    if len(stripped) == 0:
+        raise ValueError("must be non-empty string")
     return stripped
 
 
@@ -72,7 +73,8 @@ StrippedNonEmptyStr = Annotated[str, AfterValidator(validate_StrippedNonEmptyStr
 
 def validate_StrippedNonEmptyBasicStr(value: str) -> str:
     stripped = value.strip()
-    assert len(stripped) > 0, "must be non-empty string"
+    if len(stripped) == 0:
+        raise ValueError("must be non-empty string")
     if not re.fullmatch(r"[a-zA-Z0-9-_]+", stripped):
         raise ValueError("Only alphanumeric, underscore or hyphen is allowed in ID.")
     return stripped
@@ -87,12 +89,14 @@ _uuid_alphabet = set("23456789ABCDEFGHJKLMNPQRSTUVWXYZ" "abcdefghijkmnopqrstuvwx
 
 
 def validate_UUID(value: str) -> str:
-    assert len(value) == UUID_LENGTH, "invalid UUID length"
-    assert all([c in _uuid_alphabet for c in value])
+    if len(value) != UUID_LENGTH:
+        raise ValueError("invalid UUID length")
+    if not all(c in _uuid_alphabet for c in value):
+        raise ValueError("invalid UUID character")
     return value
 
 
-UUID = Annotated[str, validate_UUID]
+UUID = Annotated[str, AfterValidator(validate_UUID)]
 
 
 # Title validators as Annotated types

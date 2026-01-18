@@ -28,7 +28,6 @@ from chafan_core.app.models.submission_suggestion import SubmissionSuggestion
 from chafan_core.app.models.task import Task
 from chafan_core.db.base_class import Base
 from chafan_core.utils.base import UUID_LENGTH
-from chafan_core.utils.validators import StrippedNonEmptyBasicStr
 
 if TYPE_CHECKING:
     from . import *  # noqa: F401, F403
