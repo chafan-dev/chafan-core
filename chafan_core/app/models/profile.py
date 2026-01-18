@@ -7,7 +7,7 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, relationship
 
 from chafan_core.db.base_class import Base
 
@@ -21,8 +21,10 @@ class Profile(Base):
         PrimaryKeyConstraint("owner_id", "site_id"),
     )
 
-    karma = Column(Integer, nullable=False, server_default="0")
-    owner_id = Column(Integer, ForeignKey("user.id"), primary_key=True)
-    owner = relationship("User", back_populates="profiles")
-    site_id = Column(Integer, ForeignKey("site.id"), primary_key=True, nullable=False)
-    site: "Site" = relationship("Site", back_populates="profiles")  # type: ignore
+    karma: Mapped[int] = Column(Integer, nullable=False, server_default="0")
+    owner_id: Mapped[int] = Column(Integer, ForeignKey("user.id"), primary_key=True)
+    owner: Mapped["User"] = relationship("User", back_populates="profiles")
+    site_id: Mapped[int] = Column(
+        Integer, ForeignKey("site.id"), primary_key=True, nullable=False
+    )
+    site: Mapped["Site"] = relationship("Site", back_populates="profiles")

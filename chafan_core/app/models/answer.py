@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, List
+import datetime
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from sqlalchemy import (
     CHAR,
@@ -12,7 +13,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
 )
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import Mapped, backref, relationship
 from sqlalchemy.sql.sqltypes import JSON, Enum
 
 from chafan_core.db.base_class import Base
@@ -29,11 +30,13 @@ class Answer_Upvotes(Base):
         PrimaryKeyConstraint("answer_id", "voter_id"),
     )
 
-    cancelled = Column(Boolean, server_default="false", default=False, nullable=False)
-    answer_id = Column(Integer, ForeignKey("answer.id"), index=True)
-    answer = relationship("Answer", foreign_keys=[answer_id])
-    voter_id = Column(Integer, ForeignKey("user.id"), index=True)
-    voter = relationship("User", foreign_keys=[voter_id])
+    cancelled: Mapped[bool] = Column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
+    answer_id: Mapped[int] = Column(Integer, ForeignKey("answer.id"), index=True)
+    answer: Mapped["Answer"] = relationship("Answer", foreign_keys=[answer_id])
+    voter_id: Mapped[int] = Column(Integer, ForeignKey("user.id"), index=True)
+    voter: Mapped["User"] = relationship("User", foreign_keys=[voter_id])
 
 
 answer_contributors = Table(
@@ -45,57 +48,77 @@ answer_contributors = Table(
 
 
 class Answer(Base):
-    id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(CHAR(length=UUID_LENGTH), index=True, unique=True, nullable=False)
-    author_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
-    author: "User" = relationship("User", back_populates="answers")  # type: ignore
-    site_id = Column(Integer, ForeignKey("site.id"), nullable=False, index=True)
-    site: "Site" = relationship("Site", back_populates="answers")  # type: ignore
-    question_id = Column(Integer, ForeignKey("question.id"), nullable=False, index=True)
-    question: "Question" = relationship("Question", back_populates="answers")  # type: ignore
+    id: Mapped[int] = Column(Integer, primary_key=True, index=True)
+    uuid: Mapped[str] = Column(
+        CHAR(length=UUID_LENGTH), index=True, unique=True, nullable=False
+    )
+    author_id: Mapped[int] = Column(
+        Integer, ForeignKey("user.id"), nullable=False, index=True
+    )
+    author: Mapped["User"] = relationship("User", back_populates="answers")
+    site_id: Mapped[int] = Column(
+        Integer, ForeignKey("site.id"), nullable=False, index=True
+    )
+    site: Mapped["Site"] = relationship("Site", back_populates="answers")
+    question_id: Mapped[int] = Column(
+        Integer, ForeignKey("question.id"), nullable=False, index=True
+    )
+    question: Mapped["Question"] = relationship("Question", back_populates="answers")
 
-    upvotes_count = Column(Integer, default=0, nullable=False)
+    upvotes_count: Mapped[int] = Column(Integer, default=0, nullable=False)
 
-    is_hidden_by_moderator = Column(Boolean, server_default="false", nullable=False)
+    is_hidden_by_moderator: Mapped[bool] = Column(
+        Boolean, server_default="false", nullable=False
+    )
 
     # If not `is_published`, `body` is the author-only draft.
     # Otherwise, `body` is the latest published text.
-    body = Column(String, nullable=False)
+    body: Mapped[str] = Column(String, nullable=False)
 
-    body_prerendered_text = Column(String, nullable=False)
-    keywords = Column(JSON)
+    body_prerendered_text: Mapped[str] = Column(String, nullable=False)
+    keywords: Mapped[Optional[Any]] = Column(JSON)
 
     # Not null only if is_published is `True`, in which case it might contain a working draft version.
-    body_draft = Column(String)
+    body_draft: Mapped[Optional[str]] = Column(String)
 
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    editor: Mapped[str] = Column(String, nullable=False, server_default="wysiwyg")
 
-    draft_saved_at = Column(DateTime(timezone=True))
-    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    draft_saved_at: Mapped[Optional[datetime.datetime]] = Column(DateTime(timezone=True))
+    draft_editor: Mapped[str] = Column(String, nullable=False, server_default="wysiwyg")
 
     # Whether `body` contains the latest published version
-    is_published = Column(
+    is_published: Mapped[bool] = Column(
         Boolean, default=False, server_default="false", nullable=False
     )
     # Whether `body` contains the latest published version
-    is_deleted = Column(Boolean, default=False, server_default="false", nullable=False)
+    is_deleted: Mapped[bool] = Column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
     # Time of the latest publication
-    updated_at = Column(DateTime(timezone=True), nullable=False)
+    updated_at: Mapped[datetime.datetime] = Column(DateTime(timezone=True), nullable=False)
 
-    archives: List["Archive"] = relationship("Archive", back_populates="answer", order_by="Archive.created_at.desc()")  # type: ignore
+    archives: Mapped[List["Archive"]] = relationship(
+        "Archive", back_populates="answer", order_by="Archive.created_at.desc()"
+    )
 
-    comments: List["Comment"] = relationship("Comment", back_populates="answer", order_by="Comment.created_at.asc()")  # type: ignore
+    comments: Mapped[List["Comment"]] = relationship(
+        "Comment", back_populates="answer", order_by="Comment.created_at.asc()"
+    )
 
     # If in public site: World visible > registered user visible > [my friends visible -- in future]
     # If in private site: site members visible > [my friends visible -- in future]
     # https://stackoverflow.com/questions/37848815/sqlalchemy-postgresql-enum-does-not-create-type-on-db-migrate
-    visibility: ContentVisibility = Column(
+    visibility: Mapped[ContentVisibility] = Column(
         Enum(ContentVisibility), nullable=False, server_default="ANYONE"
-    )  # type: ignore
+    )
 
-    suggest_edits: List["AnswerSuggestEdit"] = relationship("AnswerSuggestEdit", back_populates="answer", order_by="AnswerSuggestEdit.created_at.desc()")  # type: ignore
+    suggest_edits: Mapped[List["AnswerSuggestEdit"]] = relationship(
+        "AnswerSuggestEdit",
+        back_populates="answer",
+        order_by="AnswerSuggestEdit.created_at.desc()",
+    )
 
-    contributors: List["User"] = relationship(  # type: ignore
+    contributors: Mapped[List["User"]] = relationship(
         "User",
         secondary=answer_contributors,
         backref=backref(
@@ -105,6 +128,8 @@ class Answer(Base):
         ),
     )
 
-    featured_at = Column(DateTime(timezone=True))
+    featured_at: Mapped[Optional[datetime.datetime]] = Column(DateTime(timezone=True))
 
-    reports: List["Report"] = relationship("Report", back_populates="answer", order_by="Report.created_at.asc()")  # type: ignore
+    reports: Mapped[List["Report"]] = relationship(
+        "Report", back_populates="answer", order_by="Report.created_at.asc()"
+    )

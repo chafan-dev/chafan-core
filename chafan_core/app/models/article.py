@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, List, Optional
+import datetime
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from sqlalchemy import (
     CHAR,
@@ -12,7 +13,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
 )
-from sqlalchemy.orm import backref, relationship
+from sqlalchemy.orm import Mapped, backref, relationship
 from sqlalchemy.sql.sqltypes import JSON, Enum
 
 from chafan_core.db.base_class import Base
@@ -37,26 +38,34 @@ class ArticleUpvotes(Base):
         PrimaryKeyConstraint("article_id", "voter_id"),
     )
 
-    cancelled = Column(Boolean, server_default="false", default=False, nullable=False)
-    article_id = Column(Integer, ForeignKey("article.id"), index=True)
-    article = relationship("Article", foreign_keys=[article_id])
-    voter_id = Column(Integer, ForeignKey("user.id"), index=True)
-    voter = relationship("User", foreign_keys=[voter_id])
+    cancelled: Mapped[bool] = Column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
+    article_id: Mapped[int] = Column(Integer, ForeignKey("article.id"), index=True)
+    article: Mapped["Article"] = relationship("Article", foreign_keys=[article_id])
+    voter_id: Mapped[int] = Column(Integer, ForeignKey("user.id"), index=True)
+    voter: Mapped["User"] = relationship("User", foreign_keys=[voter_id])
 
 
 class Article(Base):
-    id = Column(Integer, primary_key=True, index=True)
-    uuid = Column(CHAR(length=UUID_LENGTH), index=True, unique=True, nullable=False)
-    author_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
-    author = relationship("User", back_populates="articles", foreign_keys=[author_id])
-    article_column_id = Column(
+    id: Mapped[int] = Column(Integer, primary_key=True, index=True)
+    uuid: Mapped[str] = Column(
+        CHAR(length=UUID_LENGTH), index=True, unique=True, nullable=False
+    )
+    author_id: Mapped[int] = Column(
+        Integer, ForeignKey("user.id"), nullable=False, index=True
+    )
+    author: Mapped["User"] = relationship(
+        "User", back_populates="articles", foreign_keys=[author_id]
+    )
+    article_column_id: Mapped[int] = Column(
         Integer, ForeignKey("articlecolumn.id"), nullable=False, index=True
     )
-    article_column: "ArticleColumn" = relationship(
+    article_column: Mapped["ArticleColumn"] = relationship(
         "ArticleColumn", back_populates="articles", foreign_keys=[article_column_id]
-    )  # type: ignore
+    )
 
-    topics: List["Topic"] = relationship(  # type: ignore
+    topics: Mapped[List["Topic"]] = relationship(
         "Topic",
         secondary=article_topics,
         backref=backref(
@@ -65,46 +74,56 @@ class Article(Base):
     )
 
     # content fields
-    title = Column(String, nullable=False)
-    title_draft: Optional[StrippedNonEmptyStr] = Column(String)  # type: ignore
+    title: Mapped[str] = Column(String, nullable=False)
+    title_draft: Mapped[Optional[str]] = Column(String)
 
-    body = Column(String, nullable=False)
-    body_text = Column(String)
+    body: Mapped[str] = Column(String, nullable=False)
+    body_text: Mapped[Optional[str]] = Column(String)
 
     # Not null only if is_published is `True`, in which case it might contain a working draft version.
-    body_draft = Column(String)
+    body_draft: Mapped[Optional[str]] = Column(String)
 
-    editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    editor: Mapped[str] = Column(String, nullable=False, server_default="wysiwyg")
 
-    created_at = Column(DateTime(timezone=True), nullable=False)
-    initial_published_at = Column(DateTime(timezone=True))
-    updated_at = Column(DateTime(timezone=True))  # published_at
-    draft_saved_at = Column(DateTime(timezone=True))
-    draft_editor: editor_T = Column(String, nullable=False, server_default="wysiwyg")  # type: ignore
+    created_at: Mapped[datetime.datetime] = Column(DateTime(timezone=True), nullable=False)
+    initial_published_at: Mapped[Optional[datetime.datetime]] = Column(
+        DateTime(timezone=True)
+    )
+    updated_at: Mapped[Optional[datetime.datetime]] = Column(
+        DateTime(timezone=True)
+    )  # published_at
+    draft_saved_at: Mapped[Optional[datetime.datetime]] = Column(DateTime(timezone=True))
+    draft_editor: Mapped[str] = Column(String, nullable=False, server_default="wysiwyg")
 
-    is_published = Column(
+    is_published: Mapped[bool] = Column(
         Boolean, default=False, server_default="false", nullable=False
     )
-    is_deleted = Column(Boolean, default=False, server_default="false", nullable=False)
+    is_deleted: Mapped[bool] = Column(
+        Boolean, default=False, server_default="false", nullable=False
+    )
 
-    comments: List["Comment"] = relationship(  # type: ignore
+    comments: Mapped[List["Comment"]] = relationship(
         "Comment", back_populates="article", order_by="Comment.created_at.asc()"
     )
 
-    upvotes_count = Column(Integer, default=0, server_default="0", nullable=False)
+    upvotes_count: Mapped[int] = Column(
+        Integer, default=0, server_default="0", nullable=False
+    )
 
-    archives: List["ArticleArchive"] = relationship(
+    archives: Mapped[List["ArticleArchive"]] = relationship(
         "ArticleArchive",
         back_populates="article",
         order_by="ArticleArchive.created_at.desc()",
-    )  # type: ignore
+    )
 
-    visibility = Column(
+    visibility: Mapped[ContentVisibility] = Column(
         Enum(ContentVisibility), nullable=False, server_default="ANYONE"
     )
 
-    keywords: List[str] = Column(JSON)  # type: ignore
+    keywords: Mapped[Optional[Any]] = Column(JSON)
 
-    featured_at = Column(DateTime(timezone=True))
+    featured_at: Mapped[Optional[datetime.datetime]] = Column(DateTime(timezone=True))
 
-    reports: List["Report"] = relationship("Report", back_populates="article", order_by="Report.created_at.asc()")  # type: ignore
+    reports: Mapped[List["Report"]] = relationship(
+        "Report", back_populates="article", order_by="Report.created_at.asc()"
+    )
