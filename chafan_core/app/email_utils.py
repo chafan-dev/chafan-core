@@ -51,7 +51,7 @@ def send_notification_email(
     subject = f"{project_name} 未读通知"
     if first_title:
         subject += f"：{first_title}..."
-    host = settings.API_SERVER_SCHEME + "://" + settings.SERVER_HOST
+    host = settings.API_SERVER_SCHEME + "://" + settings.SERVER_NAME
     params = {
         "email": email,
         "type": "unread_notifications",
