@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from chafan_core.app.api.api_v1.endpoints import (
     activities,
+    admin_tools,
     answer_suggest_edits,
     answers,
     applications,
@@ -28,6 +29,7 @@ from chafan_core.app.api.api_v1.endpoints import (
     questions,
     reports,
     rewards,
+    rss,
     search,
     sitemaps,
     sites,
@@ -38,8 +40,6 @@ from chafan_core.app.api.api_v1.endpoints import (
     users,
     webhooks,
     ws,
-    rss,
-    admin_tools,
 )
 
 api_router = APIRouter()

@@ -1,15 +1,13 @@
+import logging
+
 from fastapi import APIRouter, Depends, Response
 
-
-from chafan_core.app.config import settings
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.config import settings
 from chafan_core.app.feed import get_site_activities
 from chafan_core.app.responders.rss import build_rss
 from chafan_core.utils.base import HTTPException_
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 

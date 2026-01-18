@@ -1,14 +1,12 @@
-from typing import Dict, Any
-
-from jinja2 import Template, StrictUndefined
-
+import logging
+from typing import Any, Dict
 from urllib.parse import urlencode
 
-from chafan_core.app.config import settings
-from chafan_core.app.email.smtp_client import SmtpClient
-from chafan_core.app.email.mock_client import MockEmailClient
+from jinja2 import StrictUndefined, Template
 
-import logging
+from chafan_core.app.config import settings
+from chafan_core.app.email.mock_client import MockEmailClient
+from chafan_core.app.email.smtp_client import SmtpClient
 
 logger = logging.getLogger(__name__)
 

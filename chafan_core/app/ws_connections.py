@@ -1,8 +1,7 @@
+import logging
 from typing import MutableMapping
 
 from fastapi.websockets import WebSocket
-
-import logging
 
 logger = logging.getLogger(__name__)
 

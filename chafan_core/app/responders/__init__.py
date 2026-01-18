@@ -1,4 +1,4 @@
-from . import question, submission, article, answer, site, rss
+from . import answer, article, question, rss, site, submission
 
 # responders 的设计目的是 models (crud) -> schema (api endpoint)
 #   1. responders 不需要鉴权

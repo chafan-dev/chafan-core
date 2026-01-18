@@ -9,7 +9,6 @@ from sqlalchemy import (
 
 from chafan_core.db.base_class import Base
 
-
 # if TYPE_CHECKING:
 #    from . import *  # noqa: F401, F403
 

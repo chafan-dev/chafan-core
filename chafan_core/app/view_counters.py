@@ -1,6 +1,5 @@
-from typing import Literal
-
 import logging
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +26,9 @@ def add_view(
 
 
 from chafan_core.app.models.viewcount import (
-    ViewCountQuestion,
     ViewCountAnswer,
     ViewCountArticle,
+    ViewCountQuestion,
     ViewCountSubmission,
 )
 

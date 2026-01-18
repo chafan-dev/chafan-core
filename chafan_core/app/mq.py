@@ -3,12 +3,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+import logging
+
 from chafan_core.app import models
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.mq import WsUserMsg
-
-import logging
 
 logger = logging.getLogger(__name__)
 

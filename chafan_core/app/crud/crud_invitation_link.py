@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -10,8 +11,6 @@ from chafan_core.app.schemas.invitation_link import (
     InvitationLinkCreate,
     InvitationLinkUpdate,
 )
-
-import logging
 
 logger = logging.getLogger(__name__)
 

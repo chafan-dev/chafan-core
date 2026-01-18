@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Optional, Union
 
 from fastapi import APIRouter, Depends, Request
@@ -11,9 +12,6 @@ from chafan_core.app.common import report_msg
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.utils.base import unwrap
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 

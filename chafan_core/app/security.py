@@ -1,24 +1,16 @@
 import datetime
-from typing import Any, Optional, Union
-
+import logging
 import random
+from typing import Any, Optional, Union
 
 from jose import jwt
 from passlib.context import CryptContext  # type: ignore
 from pydantic.types import SecretStr
 
-from chafan_core.utils.validators import CaseInsensitiveEmailStr
+from chafan_core.app.common import check_email, client_ip, get_redis_cli, is_dev
 from chafan_core.app.config import settings
 from chafan_core.utils.base import unwrap
-
-from chafan_core.app.common import (
-    check_email,
-    client_ip,
-    get_redis_cli,
-    is_dev,
-)
-
-import logging
+from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 logger = logging.getLogger(__name__)
 

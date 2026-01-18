@@ -1,7 +1,7 @@
-from typing import Any, Mapping
-from chafan_core.app import models, schemas
-
 import logging
+from typing import Any, Mapping
+
+from chafan_core.app import models, schemas
 
 logger = logging.getLogger(__name__)
 

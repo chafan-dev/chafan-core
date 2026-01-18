@@ -1,17 +1,10 @@
+import logging
 from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
-from chafan_core.app import models, schemas
-from chafan_core.app.schemas.richtext import RichText
-from chafan_core.utils.base import (
-    filter_not_none,
-)
-
-from chafan_core.app import view_counters
-
-
+from chafan_core.app import models, schemas, view_counters
 from chafan_core.app.schemas.answer import AnswerInDBBase
-
-import logging
+from chafan_core.app.schemas.richtext import RichText
+from chafan_core.utils.base import filter_not_none
 
 logger = logging.getLogger(__name__)
 

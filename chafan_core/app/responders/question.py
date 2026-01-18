@@ -1,26 +1,18 @@
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
 import logging
+from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
 logger = logging.getLogger(__name__)
 
 from sqlalchemy.orm import Session
 
 import chafan_core.app.responders as responders
-from chafan_core.app import models, schemas
+from chafan_core.app import models, schemas, view_counters
 from chafan_core.app.common import OperationType, is_dev
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.model_utils import (
-    get_live_answers_of_question,
-)
+from chafan_core.app.model_utils import get_live_answers_of_question
 from chafan_core.app.schemas.question import QuestionInDBBase, QuestionPreviewForSearch
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.utils.base import (
-    filter_not_none,
-    map_,
-    unwrap,
-)
-
-from chafan_core.app import view_counters
+from chafan_core.utils.base import filter_not_none, map_, unwrap
 
 
 def user_in_site(

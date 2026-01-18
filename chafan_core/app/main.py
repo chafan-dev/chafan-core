@@ -1,7 +1,6 @@
-from typing import Any, MutableMapping, Optional
-
 import logging
 import logging.config
+from typing import Any, MutableMapping, Optional
 
 log_config = {
     "version": 1,
@@ -33,10 +32,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 scheduler = BackgroundScheduler()
-import sentry_sdk
-import uvicorn
 import fastapi
+import sentry_sdk
 import starlette
+import uvicorn
 from fastapi import FastAPI
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -51,10 +50,7 @@ from chafan_core.app.common import enable_rate_limit, is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
 from chafan_core.app.limiter_middleware import SlowAPIMiddleware
-from chafan_core.app.task import (
-    write_view_count_to_db,
-    refresh_search_index,
-)
+from chafan_core.app.task import refresh_search_index, write_view_count_to_db
 
 args: MutableMapping[str, Optional[Any]] = {}
 if is_dev():

@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -6,9 +7,6 @@ from chafan_core.app import crud, models
 from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
 from chafan_core.utils.base import ContentVisibility
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 

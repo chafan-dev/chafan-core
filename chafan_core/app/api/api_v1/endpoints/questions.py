@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -19,8 +20,6 @@ from chafan_core.app.schemas.event import (
 )
 from chafan_core.app.task import postprocess_new_question, postprocess_updated_question
 from chafan_core.utils.base import HTTPException_, filter_not_none
-
-import logging
 
 logger = logging.getLogger(__name__)
 

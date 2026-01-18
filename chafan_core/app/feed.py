@@ -1,9 +1,9 @@
-from typing import Dict, List, NamedTuple, Optional, Set, Any
-import sentry_sdk
 import json
+from typing import TYPE_CHECKING, Any, Dict, List, NamedTuple, Optional, Set
+
+import sentry_sdk
 from sqlalchemy.orm import Session
 
-from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
@@ -27,10 +27,9 @@ from chafan_core.app.schemas.event import (
     UpvoteSubmissionInternal,
 )
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
+from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from chafan_core.app.cached_layer import CachedLayer

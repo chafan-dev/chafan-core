@@ -1,37 +1,33 @@
 import asyncio
 import datetime
 import json
+import logging
 import random
 from collections import Counter
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar, Union
 
-
+import fastapi
 import redis
 import requests
 import sentry_sdk
-import fastapi
 from fastapi.encoders import jsonable_encoder
 from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
-from chafan_core.app.feed import get_activities_v2, get_random_activities
-from chafan_core.app.config import settings
+import chafan_core.app.responders as responders
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import is_dev
-from chafan_core.app.common import client_ip
-from chafan_core.app.user_permission import (
-    article_read_allowed,
-    question_read_allowed,
-)
+from chafan_core.app.common import client_ip, is_dev
+from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.feed import get_activities_v2, get_random_activities
 
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
-import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
 from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.site import SiteCreate
+from chafan_core.app.user_permission import article_read_allowed, question_read_allowed
 from chafan_core.utils.base import (
     ContentVisibility,
     EntityType,
@@ -39,8 +35,6 @@ from chafan_core.utils.base import (
     filter_not_none,
     unwrap,
 )
-
-import logging
 
 logger = logging.getLogger(__name__)
 

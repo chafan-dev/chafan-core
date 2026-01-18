@@ -1,9 +1,9 @@
-from chafan_core.app.config import settings
-from chafan_core.app.email.mock_client import MockEmailClient
+import logging
 import smtplib
 import ssl
 
-import logging
+from chafan_core.app.config import settings
+from chafan_core.app.email.mock_client import MockEmailClient
 
 logger = logging.getLogger(__name__)
 

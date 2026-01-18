@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Any, List, Optional, Union
 
 from fastapi import APIRouter, Depends, Request
@@ -18,8 +19,6 @@ from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import ContentVisibility, HTTPException_
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
-
-import logging
 
 logger = logging.getLogger(__name__)
 

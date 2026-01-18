@@ -1,10 +1,10 @@
 from typing import Literal, Optional
 
 import sentry_sdk
-from sentry_sdk.integrations.dramatiq import DramatiqIntegration
 from pydantic import AnyHttpUrl
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings
+from sentry_sdk.integrations.dramatiq import DramatiqIntegration
 from sentry_sdk.integrations.redis import RedisIntegration
 from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 

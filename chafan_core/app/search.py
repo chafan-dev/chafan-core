@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import List, Mapping, Optional
 
@@ -10,8 +11,6 @@ from whoosh.qparser import MultifieldParser  # type: ignore
 
 from chafan_core.app.config import settings
 from chafan_core.utils.constants import indexed_object_T
-
-import logging
 
 logger = logging.getLogger(__name__)
 

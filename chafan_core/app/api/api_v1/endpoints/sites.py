@@ -1,13 +1,12 @@
 import datetime
+import logging
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Depends
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
+
 import chafan_core.app.responders as responders
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,6 @@ from chafan_core.app.schemas.event import (
     EventInternal,
 )
 from chafan_core.app.user_permission import user_in_site
-
 from chafan_core.utils.base import EntityType, HTTPException_, filter_not_none, unwrap
 from chafan_core.utils.constants import MAX_SITE_QUESTIONS_PAGINATION_LIMIT
 

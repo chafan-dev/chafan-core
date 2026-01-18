@@ -1,11 +1,10 @@
-from feedgen.feed import FeedGenerator
-
+import logging
 from typing import List
 
-from chafan_core.app.models import Answer, Question, Article
-from chafan_core.app.config import settings
+from feedgen.feed import FeedGenerator
 
-import logging
+from chafan_core.app.config import settings
+from chafan_core.app.models import Answer, Article, Question
 
 logger = logging.getLogger(__name__)
 

@@ -1,3 +1,4 @@
+import logging
 from typing import Any, List, Union
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -17,11 +18,9 @@ from chafan_core.app.materialize import (
 from chafan_core.app.schemas.answer import AnswerModUpdate
 from chafan_core.app.schemas.event import EventInternal, UpvoteAnswerInternal
 from chafan_core.app.schemas.richtext import RichText
+from chafan_core.app.task import postprocess_new_answer
 from chafan_core.utils.base import HTTPException_, filter_not_none, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
-from chafan_core.app.task import postprocess_new_answer
-
-import logging
 
 logger = logging.getLogger(__name__)
 

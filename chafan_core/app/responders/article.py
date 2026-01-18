@@ -1,19 +1,13 @@
-from typing import Optional
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-from chafan_core.app import crud, models, schemas
-from chafan_core.app.schemas.richtext import RichText
-from chafan_core.utils.base import (
-    filter_not_none,
-)
-
+from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.schemas.article import ArticleInDB
 from chafan_core.app.schemas.article_archive import ArticleArchiveInDB
-
-
-from chafan_core.app import view_counters
+from chafan_core.app.schemas.richtext import RichText
+from chafan_core.utils.base import filter_not_none
 
 
 def article_schema_from_orm(

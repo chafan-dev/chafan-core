@@ -1,11 +1,11 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from chafan_core.app.config import settings
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.config import settings
 from chafan_core.utils.base import HTTPException_, filter_not_none
 
 router = APIRouter()

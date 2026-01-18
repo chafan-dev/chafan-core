@@ -1,4 +1,5 @@
 import datetime
+import logging
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends
@@ -11,8 +12,6 @@ from chafan_core.app.common import OperationType, run_dramatiq_task
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.task import postprocess_comment_update, postprocess_new_comment
 from chafan_core.utils.base import HTTPException_
-
-import logging
 
 logger = logging.getLogger(__name__)
 

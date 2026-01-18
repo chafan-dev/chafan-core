@@ -1,16 +1,14 @@
+import logging
 from typing import Any, List
-
 
 from fastapi import APIRouter, Depends, Request, Response
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
+from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.utils.base import filter_not_none
-
-import logging
 
 logger = logging.getLogger(__name__)
 

@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas, models
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType

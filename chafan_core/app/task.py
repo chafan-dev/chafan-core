@@ -1,24 +1,23 @@
 import datetime
+import logging
+from collections import Counter
 from typing import List, Optional
 
-from collections import Counter
 import dramatiq
 from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
 
-
+import chafan_core.app.rep_manager as rep
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
+from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, CachedLayer
 from chafan_core.app.config import settings
-from chafan_core.app.feed import (
-    new_activity_into_feed,
-)
 from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
     create_article_activity,
 )
 from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.feed import new_activity_into_feed
+from chafan_core.app.models.activity import Activity
 from chafan_core.app.recs.indexing import (
     compute_interesting_questions_ids_for_normal_user,
     compute_interesting_questions_ids_for_visitor_user,
@@ -58,11 +57,6 @@ from chafan_core.app.webhook_utils import (
 )
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import TaskStatus, get_utc_now
-from chafan_core.app.models.activity import Activity
-import chafan_core.app.rep_manager as rep
-
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -604,9 +598,9 @@ def refresh_interesting_user_ids_for_user(user_id: int) -> None:
 
 
 from chafan_core.app.models.viewcount import (
-    ViewCountQuestion,
     ViewCountAnswer,
     ViewCountArticle,
+    ViewCountQuestion,
     ViewCountSubmission,
 )
 
