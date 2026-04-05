@@ -4,6 +4,7 @@ import os
 import tempfile
 from pathlib import Path
 from typing import Any, Dict, List
+from urllib.parse import urlencode
 
 #from emails.template import JinjaTemplate  # type: ignore
 
