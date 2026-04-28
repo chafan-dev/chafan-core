@@ -7,11 +7,22 @@ from typing_extensions import Annotated
 from chafan_core.utils.base import UUID_LENGTH, HTTPException_
 
 
+MIN_PASSWORD_LENGTH = 8
+# bcrypt hashes the first 72 bytes of input. Cap inputs here so a 1 MB
+# "password" never reaches bcrypt's loop.
+MAX_PASSWORD_LENGTH = 72
+
+
 def validate_password(password: SecretStr) -> SecretStr:
-    if len(password.get_secret_value()) <= 2:
-        raise ValueError("Password is too short.")
-    if not password.get_secret_value().isascii():
-        raise ValueError("Password is not ASCII.")
+    pw = password.get_secret_value()
+    if len(pw) < MIN_PASSWORD_LENGTH:
+        raise ValueError(
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
+        )
+    if len(pw.encode("utf-8")) > MAX_PASSWORD_LENGTH:
+        raise ValueError(
+            f"Password must be at most {MAX_PASSWORD_LENGTH} bytes."
+        )
     return password
 
 
