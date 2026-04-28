@@ -12,7 +12,7 @@ def get_site(db: Session, site_uuid: str) -> models.Site:
     if site is None:
         raise HTTPException_(
             status_code=400,
-            detail="The site doesn't exists in the system.",
+            detail="The site doesn't exist in the system.",
         )
     return site
 
@@ -23,7 +23,7 @@ def check_writing_session(uuid: str) -> None:
     if redis.get(key) is not None:
         raise HTTPException_(
             status_code=400,
-            detail="Frondend bug: repeated posting in one writing session.",
+            detail="Frontend bug: repeated posting in one writing session.",
         )
     redis.set(
         key,

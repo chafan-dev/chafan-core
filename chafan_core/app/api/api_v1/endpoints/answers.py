@@ -74,7 +74,7 @@ def get_answer_draft(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     if current_user_id != answer.author_id:
         raise HTTPException_(
@@ -101,7 +101,7 @@ def delete_answer_draft(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     if current_user_id != answer.author_id:
         raise HTTPException_(
@@ -145,7 +145,7 @@ def get_answer_archives(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     if current_user_id != answer.author_id:
         raise HTTPException_(
@@ -197,7 +197,7 @@ def create_answer(
     if not question:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     check_writing_session(answer_in.writing_session_uuid)
     check_user_in_site(
@@ -302,7 +302,7 @@ def update_answer(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     if answer.author_id != current_user_id:
         raise HTTPException_(
@@ -313,7 +313,7 @@ def update_answer(
     if not question:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     check_user_in_site(
         db,
@@ -340,17 +340,17 @@ def update_answer_by_mod(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     answer_data = cached_layer.materializer.answer_schema_from_orm(answer)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     site = crud.site.get_by_id(db, id=answer.site_id)
     if not site:
-        # The site doesn't exists in the system.
+        # The site doesn't exist in the system.
         return False
     if site.moderator_id != current_user_id:
         raise HTTPException_(
@@ -375,7 +375,7 @@ def get_answer_upvotes(
     if data is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     return data
 
@@ -395,7 +395,7 @@ def upvote_answer(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     upvoted = (
         db.query(models.Answer_Upvotes)
@@ -412,13 +412,13 @@ def upvote_answer(
         if current_user.remaining_coins < answer.site.upvote_answer_coin_deduction:
             raise HTTPException_(
                 status_code=400,
-                detail="Insuffient coins.",
+                detail="Insufficient coins.",
             )
         question = crud.question.get_by_id(db, id=answer.question_id)
         if not question:
             raise HTTPException_(
                 status_code=400,
-                detail="The question doesn't exists in the system.",
+                detail="The question doesn't exist in the system.",
             )
         check_user_in_site(
             db,
@@ -490,7 +490,7 @@ def cancel_upvote_answer(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     upvoted = (
         db.query(models.Answer_Upvotes)
@@ -503,7 +503,7 @@ def cancel_upvote_answer(
         if not question:
             raise HTTPException_(
                 status_code=400,
-                detail="The question doesn't exists in the system.",
+                detail="The question doesn't exist in the system.",
             )
         check_user_in_site(
             db,
@@ -535,7 +535,7 @@ def get_suggestions(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     check_user_in_site(
         cached_layer.get_db(),

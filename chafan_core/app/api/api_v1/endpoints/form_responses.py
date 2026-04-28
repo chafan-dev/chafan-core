@@ -59,7 +59,7 @@ def create_form_response(
     if form is None:
         raise HTTPException_(
             status_code=400,
-            detail="The form doesn't exists in the system.",
+            detail="The form doesn't exist in the system.",
         )
     validate_form_response(form, form_response_in.response_fields)
     return cached_layer.materializer.form_response_schema_from_orm(

@@ -32,7 +32,7 @@ def post_answer_suggest_edits(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     check_user_in_site(
         cached_layer.get_db(),
@@ -48,7 +48,7 @@ def post_answer_suggest_edits(
     if current_user.remaining_coins < answer.site.create_suggestion_coin_deduction:
         raise HTTPException_(
             status_code=400,
-            detail="Insuffient coins.",
+            detail="Insufficient coins.",
         )
     s = crud.answer_suggest_edit.create_with_author(
         cached_layer.get_db(),
@@ -120,7 +120,7 @@ def update_answer_suggest_edits(
     if answer_suggest_edit is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer_suggest_edit doesn't exists in the system.",
+            detail="The answer_suggest_edit doesn't exist in the system.",
         )
     check_user_in_site(
         db,

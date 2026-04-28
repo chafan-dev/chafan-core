@@ -40,7 +40,7 @@ async def get_article(
                 api=f"get_article {uuid} retrieved None", request=request, user_id=current_user_id)
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
     if article.visibility != ContentVisibility.ANYONE:
@@ -52,7 +52,7 @@ async def get_article(
     if data is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     return data
 
@@ -68,7 +68,7 @@ async def bump_views_counter(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
     await view_counters.add_view_async(cached_layer, "article", article.id)
@@ -86,7 +86,7 @@ def delete_article(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     if article.author_id != current_user_id:
         raise HTTPException_(
@@ -111,7 +111,7 @@ def get_article_draft(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     if current_user_id != article.author_id:
         raise HTTPException_(
@@ -142,7 +142,7 @@ def delete_article_draft(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     if current_user_id != article.author_id:
         raise HTTPException_(
@@ -191,7 +191,7 @@ def create_article(
     if current_user.remaining_coins < settings.CREATE_ARTICLE_COIN_DEDUCTION:
         raise HTTPException_(
             status_code=400,
-            detail="Insuffient coins.",
+            detail="Insufficient coins.",
         )
     check_writing_session(article_in.writing_session_uuid)
     article_column = crud.article_column.get_by_uuid(
@@ -240,7 +240,7 @@ def update_article(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     if article.author_id != current_user_id:
         raise HTTPException_(
@@ -308,7 +308,7 @@ def update_article_topics(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     if article.author_id != current_user_id:
         raise HTTPException_(
@@ -346,7 +346,7 @@ def get_article_archives(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     if article.author_id != current_user_id:
         raise HTTPException_(
@@ -371,7 +371,7 @@ def upvote_article(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     upvoted = (
         db.query(models.ArticleUpvotes)
@@ -392,7 +392,7 @@ def upvote_article(
     if current_user.remaining_coins < settings.UPVOTE_ARTICLE_COIN_DEDUCTION:
         raise HTTPException_(
             status_code=400,
-            detail="Insuffient coins.",
+            detail="Insufficient coins.",
         )
     upvoted_before = (
         db.query(models.ArticleUpvotes)
@@ -444,7 +444,7 @@ def cancel_upvote_article(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     upvoted = (
         db.query(models.ArticleUpvotes)

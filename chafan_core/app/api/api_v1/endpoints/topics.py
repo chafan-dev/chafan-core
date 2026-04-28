@@ -24,7 +24,7 @@ def get_topic(
     if topic is None:
         raise HTTPException_(
             status_code=400,
-            detail="The topic doesn't exists in the system.",
+            detail="The topic doesn't exist in the system.",
         )
     return topic
 
@@ -56,7 +56,7 @@ def get_topic_questions(
     if topic is None:
         raise HTTPException_(
             status_code=400,
-            detail="The topic doesn't exists in the system.",
+            detail="The topic doesn't exist in the system.",
         )
     # FIXME: expensive
     questions: List[models.Question] = topic.questions[skip : (skip + limit)]
@@ -79,6 +79,6 @@ def get_sub_topics(
     if topic is None:
         raise HTTPException_(
             status_code=400,
-            detail="The topic doesn't exists in the system.",
+            detail="The topic doesn't exist in the system.",
         )
     return topic.child_topics

@@ -70,7 +70,7 @@ def _get_question_data(
     if question_data is None:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     return question_data
 
@@ -179,7 +179,7 @@ def create_question(
     if current_user.remaining_coins < site.create_question_coin_deduction:
         raise HTTPException_(
             status_code=400,
-            detail="Insuffient coins.",
+            detail="Insufficient coins.",
         )
     new_question = crud.question.create_with_author(
         db, obj_in=question_in, author_id=current_user.id
@@ -217,7 +217,7 @@ def update_question(
     if question is None:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     if current_user_id != question.author_id:
         if not user_in_site(
@@ -286,7 +286,7 @@ def get_question_archives(
     if question is None:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     return [
         cached_layer.materializer.question_archive_schema_from_orm(a)
@@ -346,7 +346,7 @@ def invite_answer(
     if invited_user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     if invited_user.id == cached_layer.unwrapped_principal_id():
         raise HTTPException_(
@@ -408,7 +408,7 @@ def upvote_question(
         if current_user.remaining_coins < question.site.upvote_question_coin_deduction:
             raise HTTPException_(
                 status_code=400,
-                detail="Insuffient coins.",
+                detail="Insufficient coins.",
             )
         upvoted_before = (
             db.query(models.QuestionUpvotes)
@@ -463,7 +463,7 @@ def cancel_upvote_question(
     if question is None:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     check_user_in_site(
         db,

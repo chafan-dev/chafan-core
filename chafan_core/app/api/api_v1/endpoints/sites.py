@@ -154,7 +154,7 @@ def config_site(
     if cached_layer.principal_id != site.moderator_id:
         raise HTTPException_(
             status_code=400,
-            detail="Unauthorized",
+            detail="Unauthorized.",
         )
     site_in_dict = site_in.dict(exclude_unset=True)
     if site_in.moderator_uuid is not None:
@@ -351,7 +351,7 @@ def site_apply(
         if current_user.karma < site.min_karma_for_application:
             raise HTTPException_(
                 status_code=400,
-                detail="Insuffient karma for joining site.",
+                detail="Insufficient karma for joining site.",
             )
     if site.email_domain_suffix_for_application is not None:
         raise HTTPException_(

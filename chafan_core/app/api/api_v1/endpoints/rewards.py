@@ -49,7 +49,7 @@ def create_reward(
     if receiver is None:
         raise HTTPException_(
             status_code=400,
-            detail="The receiver doesn't exists in the system.",
+            detail="The receiver doesn't exist in the system.",
         )
     if reward_in.condition:
         if isinstance(reward_in.condition.content, AnsweredQuestionCondition):
@@ -105,7 +105,7 @@ def claim_reward(
     if reward is None:
         raise HTTPException_(
             status_code=400,
-            detail="The reward doesn't exists in the system.",
+            detail="The reward doesn't exist in the system.",
         )
     if reward.receiver_id != current_user.id:
         raise HTTPException_(
@@ -185,7 +185,7 @@ def refund_reward(
     if reward is None:
         raise HTTPException_(
             status_code=400,
-            detail="The reward doesn't exists in the system.",
+            detail="The reward doesn't exist in the system.",
         )
     if reward.giver_id != current_user.id:
         raise HTTPException_(

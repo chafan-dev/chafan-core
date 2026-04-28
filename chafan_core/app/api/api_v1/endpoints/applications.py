@@ -49,7 +49,7 @@ def update_application(
     if application is None:
         raise HTTPException_(
             status_code=400,
-            detail="The application doesn't exists in the system.",
+            detail="The application doesn't exist in the system.",
         )
     if (
         not cached_layer.get_current_user().is_superuser

@@ -271,7 +271,7 @@ def get_user_follows(
     if followed is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return cached_layer.get_user_follows(followed)
 
@@ -296,7 +296,7 @@ def follow_user(
     if followed_user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The followed_user doesn't exists in the system.",
+            detail="The followed_user doesn't exist in the system.",
         )
     followed_user = crud.user.add_follower(
         db, db_obj=followed_user, follower=current_user
@@ -337,7 +337,7 @@ def cancel_follow_user(
     if followed_user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The followed_user doesn't exists in the system.",
+            detail="The followed_user doesn't exist in the system.",
         )
     followed_user = crud.user.remove_follower(
         db, db_obj=followed_user, follower=current_user
@@ -434,7 +434,7 @@ def subscribe_question(
     if question is None:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     current_user = crud.user.subscribe_question(
         db, db_obj=current_user, question=question
@@ -463,7 +463,7 @@ def unsubscribe_question(
     if question is None:
         raise HTTPException_(
             status_code=400,
-            detail="The question doesn't exists in the system.",
+            detail="The question doesn't exist in the system.",
         )
     current_user = crud.user.unsubscribe_question(
         db, db_obj=current_user, question=question
@@ -496,7 +496,7 @@ def get_user_submission_subscription(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     return schemas.UserSubmissionSubscription(
         submission_uuid=submission.uuid,
@@ -546,7 +546,7 @@ def subscribe_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     current_user = crud.user.subscribe_submission(
         db, db_obj=current_user, submission=submission
@@ -576,7 +576,7 @@ def unsubscribe_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     current_user = crud.user.unsubscribe_submission(
         db, db_obj=current_user, submission=submission
@@ -621,7 +621,7 @@ def bookmark_answer(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     current_user = crud.user.bookmark_answer(db, db_obj=current_user, answer=answer)
     return schemas.UserAnswerBookmark(
@@ -643,7 +643,7 @@ def unbookmark_answer(
     if answer is None:
         raise HTTPException_(
             status_code=400,
-            detail="The answer doesn't exists in the system.",
+            detail="The answer doesn't exist in the system.",
         )
     current_user = crud.user.unbookmark_answer(db, db_obj=current_user, answer=answer)
     return schemas.UserAnswerBookmark(
@@ -685,7 +685,7 @@ def bookmark_article(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     current_user = crud.user.bookmark_article(db, db_obj=current_user, article=article)
     return schemas.UserArticleBookmark(
@@ -707,7 +707,7 @@ def unbookmark_article(
     if article is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article doesn't exists in the system.",
+            detail="The article doesn't exist in the system.",
         )
     current_user = crud.user.unbookmark_article(
         db, db_obj=current_user, article=article
@@ -737,7 +737,7 @@ def get_user_topic_subscription(
     if topic is None:
         raise HTTPException_(
             status_code=400,
-            detail="The topic doesn't exists in the system.",
+            detail="The topic doesn't exist in the system.",
         )
     return schemas.UserTopicSubscription(
         topic_uuid=topic.uuid,
@@ -763,7 +763,7 @@ def subscribe_topic(
     if topic is None:
         raise HTTPException_(
             status_code=400,
-            detail="The topic doesn't exists in the system.",
+            detail="The topic doesn't exist in the system.",
         )
     current_user = crud.user.subscribe_topic(db, db_obj=current_user, topic=topic)
     return schemas.UserTopicSubscription(
@@ -790,7 +790,7 @@ def unsubscribe_topic(
     if topic is None:
         raise HTTPException_(
             status_code=400,
-            detail="The topic doesn't exists in the system.",
+            detail="The topic doesn't exist in the system.",
         )
     current_user = crud.user.unsubscribe_topic(db, db_obj=current_user, topic=topic)
     return schemas.UserTopicSubscription(
@@ -821,7 +821,7 @@ def get_user_article_column_subscription(
     if article_column is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article_column doesn't exists in the system.",
+            detail="The article_column doesn't exist in the system.",
         )
     return schemas.UserArticleColumnSubscription(
         article_column_uuid=article_column.uuid,
@@ -865,7 +865,7 @@ def subscribe_article_column(
     if article_column is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article_column doesn't exists in the system.",
+            detail="The article_column doesn't exist in the system.",
         )
     current_user = crud.user.subscribe_article_column(
         db, db_obj=current_user, article_column=article_column
@@ -894,7 +894,7 @@ def unsubscribe_article_column(
     if article_column is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article_column doesn't exists in the system.",
+            detail="The article_column doesn't exist in the system.",
         )
     return cached_layer.materializer.get_user_article_column_subscription(
         article_column

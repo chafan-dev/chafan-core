@@ -21,7 +21,7 @@ def get_article_column(
     if article_column is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article_column doesn't exists in the system.",
+            detail="The article_column doesn't exist in the system.",
         )
     return cached_layer.materializer.article_column_schema_from_orm(article_column)
 
@@ -38,7 +38,7 @@ async def get_article_column_articles(
     if article_column is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article_column doesn't exists in the system.",
+            detail="The article_column doesn't exist in the system.",
         )
     articles = article_column.articles
     if not current_user_id:
@@ -74,7 +74,7 @@ def update_article_column(
     if article_column is None:
         raise HTTPException_(
             status_code=400,
-            detail="The article_column doesn't exists in the system.",
+            detail="The article_column doesn't exist in the system.",
         )
     if article_column.owner_id != cached_layer.principal_id:
         raise HTTPException_(

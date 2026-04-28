@@ -480,7 +480,7 @@ class CachedLayer(object):
         db = self.get_db()
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
-            return "The answer doesn't exists in the system."
+            return "The answer doesn't exist in the system."
         if answer.author_id != self.principal_id:
             return "Unauthorized."
         crud.answer.delete_forever(db, answer=answer)
@@ -653,7 +653,7 @@ class CachedLayer(object):
         if question is None:
             raise HTTPException_(
                 status_code=400,
-                detail="The question doesn't exists in the system.",
+                detail="The question doesn't exist in the system.",
             )
         return question
 

@@ -112,7 +112,7 @@ def get_user_public(
     if user is None or not user.is_active:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     # TODO turn it off 2025-07-23
     view_times = 5 # view_counters.get_views(user.uuid, "profile")
@@ -157,7 +157,7 @@ def get_user_site_profiles(
     if user is None or not user.is_active:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     if current_user_id:
         return [
@@ -192,7 +192,7 @@ def get_user_questions(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     # FIXME: think about more efficient paging mechanism
     return filter_not_none(
@@ -223,7 +223,7 @@ def get_user_submissions(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return filter_not_none(
         [
@@ -252,7 +252,7 @@ async def get_user_articles(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     # TODO "owner" is repeated in this response 2025-Mar-23
     return filter_not_none(
@@ -288,7 +288,7 @@ def get_user_answers(
     if author is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return cached_layer.get_authored_answers_for_principal(author)[skip : skip + limit]
 
@@ -304,7 +304,7 @@ def get_user_work_exps(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return _get_work_exps(db, user)
 
@@ -320,7 +320,7 @@ def get_user_edu_exps(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return _get_edu_exps(db, user)
 
@@ -341,7 +341,7 @@ def get_user_followers(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return cached_layer.get_followers(user, skip=skip, limit=limit)
 
@@ -362,7 +362,7 @@ def get_user_followed(
     if user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     return cached_layer.get_followed(user, skip=skip, limit=limit)
 

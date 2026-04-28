@@ -36,7 +36,7 @@ def post_submission_suggestions(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
         cached_layer.get_db(),
@@ -47,7 +47,7 @@ def post_submission_suggestions(
     if current_user.remaining_coins < submission.site.create_suggestion_coin_deduction:
         raise HTTPException_(
             status_code=400,
-            detail="Insuffient coins.",
+            detail="Insufficient coins.",
         )
     s = crud.submission_suggestion.create_with_author(
         cached_layer.get_db(),
@@ -122,7 +122,7 @@ def update_submission_suggestions(
     if submission_suggestion is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission_suggestion doesn't exists in the system.",
+            detail="The submission_suggestion doesn't exist in the system.",
         )
     check_user_in_site(
         db,

@@ -20,7 +20,7 @@ def get_form(
     if form is None:
         raise HTTPException_(
             status_code=400,
-            detail="The form doesn't exists in the system.",
+            detail="The form doesn't exist in the system.",
         )
     return cached_layer.materializer.form_schema_from_orm(form)
 
@@ -66,7 +66,7 @@ def get_form_responses(
     if form is None:
         raise HTTPException_(
             status_code=400,
-            detail="The form doesn't exists in the system.",
+            detail="The form doesn't exist in the system.",
         )
     if form.author_id != cached_layer.unwrapped_principal_id():
         raise HTTPException_(
