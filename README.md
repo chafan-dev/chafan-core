@@ -87,7 +87,6 @@ pytest -vv chafan_core/tests/app/email/test_email.py
 ```
 
 ## How to add a new event type
-
 - Core backend
   - Add event definition: `chafan_core/app/schemas/event.py`
   - If the event goes to the activity feed: update `chafan_core/app/feed.py:get_activity_receivers`
