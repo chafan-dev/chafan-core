@@ -135,14 +135,6 @@ pytest
 ```
 
 
-## Staging
-
-`stag` branch is automatically pushed to the following endpoint for testing:
-
-```
-https://chafan-test.dokku.cha.fan/
-```
-
 # How to add a new event type
 
 - Core backend code changes

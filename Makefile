@@ -1,15 +1,6 @@
 LOCAL_DEV_PORT := 4582
 LOCAL_DEV_HOST := dev.cha.fan
 
-link-venv:
-	ln -s $(shell poetry env info --path) .venv
-
-requirements.txt: poetry.lock
-	poetry export --without-hashes -f requirements.txt > requirements.txt
-
-dev-requirements.txt: poetry.lock
-	poetry export --without-hashes --dev -f requirements.txt > dev-requirements.txt
-
 format:
 	bash scripts/format.sh
 
@@ -31,18 +22,3 @@ reset-and-run-unit-tests:
 	exit 1
 	bash scripts/reset_app_state.sh
 	bash scripts/run-unit-tests.sh
-
-check-no-pending-change:
-	git diff --exit-code
-	git diff HEAD --exit-code
-
-staging-pr: requirements.txt dev-requirements.txt check-no-pending-change
-	git fetch origin
-	git rebase origin/stag
-	git push -f origin main
-	gh pr create --base stag --title "Update stag" --fill
-
-deploy:
-	git checkout stag
-	git pull origin stag
-	git push dokku-prod stag:master
