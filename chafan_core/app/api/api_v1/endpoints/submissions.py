@@ -55,7 +55,7 @@ def get_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     submission_data: Optional[
         Union[schemas.Submission, schemas.SubmissionForVisitor]
@@ -65,7 +65,7 @@ def get_submission(
     if submission_data is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     return submission_data
 
@@ -81,7 +81,7 @@ def get_submission_upvotes(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     valid_upvotes = crud.submission.count_upvotes(db, submission)
     if current_user_id:
@@ -110,7 +110,7 @@ async def bump_views_counter(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     await view_counters.add_view_async(cached_layer, "submission", submission.id)
     return schemas.GenericResponse()
@@ -132,7 +132,7 @@ def _create_submission(
     if author.remaining_coins < site.create_submission_coin_deduction:
         raise HTTPException_(
             status_code=400,
-            detail="Insuffient coins.",
+            detail="Insufficient coins.",
         )
 
     new_submission = crud.submission.create_with_author(
@@ -237,7 +237,7 @@ def update_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     if cached_layer.unwrapped_principal_id() != submission.author_id:
         raise HTTPException_(
@@ -265,7 +265,7 @@ def get_submission_archives(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
         db,
@@ -286,7 +286,7 @@ def get_submission_suggestions(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
         cached_layer.get_db(),
@@ -313,7 +313,7 @@ def hide_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     if (
         submission.site.moderator_id != cached_layer.principal_id
@@ -345,7 +345,7 @@ def upvote_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
         db,
@@ -373,7 +373,7 @@ def upvote_submission(
         ):
             raise HTTPException_(
                 status_code=400,
-                detail="Insuffient coins.",
+                detail="Insufficient coins.",
             )
         upvoted_before = (
             db.query(models.SubmissionUpvotes)
@@ -429,7 +429,7 @@ def cancel_upvote_submission(
     if submission is None:
         raise HTTPException_(
             status_code=400,
-            detail="The submission doesn't exists in the system.",
+            detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
         db,

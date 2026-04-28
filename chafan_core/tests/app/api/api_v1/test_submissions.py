@@ -68,7 +68,7 @@ def test_get_submission_upvotes_nonexistent(
         f"{settings.API_V1_STR}/submissions/invalid-uuid/upvotes/"
     )
     assert r.status_code == 400
-    assert "doesn't exists" in r.json()["detail"]
+    assert "doesn't exist" in r.json()["detail"]
 
     # Verify it doesn't exist in database
     db_submission = crud.submission.get_by_uuid(db, uuid="invalid-uuid")
@@ -154,7 +154,7 @@ def test_get_submission_nonexistent(
         headers=normal_user_token_headers,
     )
     assert r.status_code == 400
-    assert "doesn't exists" in r.json()["detail"]
+    assert "doesn't exist" in r.json()["detail"]
 
     # Verify it doesn't exist in database
     db_submission = crud.submission.get_by_uuid(db, uuid="invalid-uuid")

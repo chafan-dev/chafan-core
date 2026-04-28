@@ -31,7 +31,7 @@ def get_comment(
     if comment is None:
         raise HTTPException_(
             status_code=400,
-            detail="The comment doesn't exists in the system.",
+            detail="The comment doesn't exist in the system.",
         )
     current_user_id = cached_layer.principal_id
     if current_user_id:
@@ -64,7 +64,7 @@ def get_comment_upvotes(
     if comment is None:
         raise HTTPException_(
             status_code=400,
-            detail="The comment doesn't exists in the system.",
+            detail="The comment doesn't exist in the system.",
         )
     valid_upvotes = (
         db.query(models.CommentUpvotes)
@@ -97,7 +97,7 @@ def delete_comment(
     if comment is None:
         raise HTTPException_(
             status_code=400,
-            detail="The comment doesn't exists in the system.",
+            detail="The comment doesn't exist in the system.",
         )
     if comment.author_id != current_user_id:
         raise HTTPException_(
@@ -174,7 +174,7 @@ def update_comment(
     if comment is None:
         raise HTTPException_(
             status_code=400,
-            detail="The comment doesn't exists in the system.",
+            detail="The comment doesn't exist in the system.",
         )
     if comment.author_id != current_user_id:
         raise HTTPException_(
@@ -223,7 +223,7 @@ def upvote_comment(
     if comment is None:
         raise HTTPException_(
             status_code=400,
-            detail="The comment doesn't exists in the system.",
+            detail="The comment doesn't exist in the system.",
         )
     if comment.site:
         check_user_in_site(
@@ -275,7 +275,7 @@ def cancel_upvote_comment(
     if comment is None:
         raise HTTPException_(
             status_code=400,
-            detail="The comment doesn't exists in the system.",
+            detail="The comment doesn't exist in the system.",
         )
     if comment.site:
         check_user_in_site(

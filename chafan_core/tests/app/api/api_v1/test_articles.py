@@ -73,7 +73,7 @@ def test_get_article_nonexistent(
     """Test that getting a nonexistent article returns an error."""
     r = client.get(f"{settings.API_V1_STR}/articles/invalid-uuid")
     assert r.status_code == 400
-    assert "doesn't exists" in r.json()["detail"]
+    assert "doesn't exist" in r.json()["detail"]
 
     # Verify it doesn't exist in database
     db_article = crud.article.get_by_uuid(db, uuid="invalid-uuid")
@@ -381,7 +381,7 @@ def test_update_article_nonexistent(
         json=update_data,
     )
     assert r.status_code == 400
-    assert "doesn't exists" in r.json()["detail"]
+    assert "doesn't exist" in r.json()["detail"]
 
     # Verify it doesn't exist in database
     db_article = crud.article.get_by_uuid(db, uuid="invalid-uuid")
@@ -682,4 +682,4 @@ def test_delete_article_nonexistent(
         headers=normal_user_token_headers,
     )
     assert r.status_code == 400
-    assert "doesn't exists" in r.json()["detail"]
+    assert "doesn't exist" in r.json()["detail"]

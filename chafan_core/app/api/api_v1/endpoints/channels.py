@@ -28,7 +28,7 @@ def get_channel(
     if channel is None:
         raise HTTPException_(
             status_code=400,
-            detail="The channel doesn't exists in the system.",
+            detail="The channel doesn't exist in the system.",
         )
     current_user = cached_layer.get_current_active_user()
     check_user_in_channel(current_user, channel)
@@ -50,7 +50,7 @@ def get_channel_messages(
     if channel is None:
         raise HTTPException_(
             status_code=400,
-            detail="The channel doesn't exists in the system.",
+            detail="The channel doesn't exist in the system.",
         )
     current_user = cached_layer.get_current_active_user()
     check_user_in_channel(current_user, channel)
@@ -75,7 +75,7 @@ def create_channel(
     if private_with_user is None:
         raise HTTPException_(
             status_code=400,
-            detail="The user doesn't exists in the system.",
+            detail="The user doesn't exist in the system.",
         )
     current_user = cached_layer.get_current_active_user()
     return cached_layer.channel_schema_from_orm(

@@ -24,7 +24,7 @@ def get_message(
     if message is None:
         raise HTTPException_(
             status_code=400,
-            detail="The message doesn't exists in the system.",
+            detail="The message doesn't exist in the system.",
         )
     check_user_in_channel(cached_layer.get_current_active_user(), message.channel)
     return cached_layer.materializer.message_schema_from_orm(message)
@@ -43,7 +43,7 @@ def create_message(
     if channel is None:
         raise HTTPException_(
             status_code=400,
-            detail="The channel doesn't exists in the system.",
+            detail="The channel doesn't exist in the system.",
         )
     current_user = cached_layer.get_current_active_user()
     check_user_in_channel(current_user, channel)
