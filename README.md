@@ -8,152 +8,96 @@ Under active construction!! 🚧
 
 ### Requirements
 
-- Linux or Unix environment
-- Terminal
-- VS Code
-- Postgre DB for development, with a new user
-  - macOS: https://postgresapp.com
-  - Remember to add the command line utils to `$PATH`.
-  - Run `create database chafan_dev;`.
-- Redis for developement
-  - macOS: https://redis.io/docs/getting-started/installation/install-redis-on-mac-os/
-- RabbitMQ for development:
-  - macOS: `brew install rabbitmq` (see more in "RabbitMQ dev setup in macOS")
+- Linux or macOS
+- [Nix](https://nixos.org/download) with flakes enabled — provides Python and all backend dependencies via `flake.nix`
+- A running PostgreSQL server (any recent version) with a database you can write to
+- A running Redis server
 
-### Set up editor
+### Enter the dev shell
 
-- Install Poetry package manager https://python-poetry.org
-- `poetry install` to create virtual env and install all Python dependencies
-- `poetry shell` to enter the virtual env. You need to run this everytime in this repo before running other commands that depends on Python code.
-- `make link-venv` to create a symbolic to virtual env such that VSCode is happy (if necessary, Run "Reload window" and make sure that the Python environment is `.venv`).
-- Use VSCode with [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python) (Pylance is recommended).
+```bash
+nix develop
+```
 
-## Develop server locally
+This drops you into a shell with Python and every backend dependency available. Run all subsequent commands from inside this shell.
 
-Example `.env` for basic development (update `DATABASE_URL`, `REDIS_URL`, `RABBITMQ_URL` if necessary):
+### Configure environment
+
+Create a `.env` (or export the variables in your shell) with at minimum:
 
 ```
 SERVER_NAME=dev.cha.fan
 SERVER_HOST=http://dev.cha.fan:4582
 BACKEND_CORS_ORIGINS=["http://dev.cha.fan:8080"]
 PROJECT_NAME=Chafan Dev
-SECRET_KEY=chafandev
+SECRET_KEY=change-me
 FIRST_SUPERUSER=admin@cha.fan
-FIRST_SUPERUSER_PASSWORD=superuser
+FIRST_SUPERUSER_PASSWORD=change-me
 USERS_OPEN_REGISTRATION=False
-DATABASE_URL=postgresql://chafan@localhost:5432/chafan_dev
-ENV=dev
+DATABASE_URL=postgresql://<user>@localhost:5432/chafan_dev
 REDIS_URL=redis://127.0.0.1:6379
-RABBITMQ_URL=amqp://guest:guest@localhost:5672/%2f
+ENV=dev
 ```
 
-Run following commands to create database and initialize `chafan_dev` table.
+### Initialize the database
 
 ```bash
-# Run migrations
 alembic upgrade head
-
-# Create initial data in DB
 python scripts/initial_data.py
 ```
 
-After initialization, run dev server:
+### Run the dev server
 
-```
+```bash
 make dev-run
 ```
 
-Open http://dev.cha.fan:4582/docs for API docs.
+API docs: http://dev.cha.fan:4582/docs
 
 ## DB Schema Migrations
 
-<<<<<<< HEAD
-### Step 1: Set up python dependencies and Shell envs
+1. Edit models under `chafan_core/app/models` and update `chafan_core/app/models/__init__.py`.
+2. Generate a revision:
+   ```bash
+   alembic revision --autogenerate -m "Add column last_name to User model"
+   ```
+   See the [Alembic autogenerate docs](https://alembic.sqlalchemy.org/en/latest/autogenerate.html). **Always inspect the generated file** before applying.
+3. Apply:
+   ```bash
+   alembic upgrade head
+   ```
+4. To roll back to a specific revision:
+   ```bash
+   alembic downgrade <revision-id>
+   ```
 
-```
-nix develop
-source ../launch_env
-echo $DATABASE_URL
-```
+## Tests
 
-### Step 2: Run PostgreSQL
-```
-pg_ctl start -l logfile   -D   $CHAFAN_PG_DB_CLUSTER -o "--unix_socket_directories='$CHAFAN_PG_DB_BASE'  -p $CHAFAN_PG_PORT"
-```
-
-### Step 3: Edit models
-
-- Modify `app/models`
-- Also modify `app/models/__init__.py`
-
-### Step 4: Generate version file
-
+Reset persistent state, then run:
 
 ```bash
-alembic revision --autogenerate -m "Add column last_name to User model"
-```
-
-See [doc](https://alembic.sqlalchemy.org/en/latest/autogenerate.html) and [StackOverflow](https://stackoverflow.com/questions/11180013/auto-generating-migrations-using-alembic/11193390#11193390)
-
-
-SHALL manually check the generated version file, eg `4794c0c3c743_add_view_count_tables.py`
-
-### Step 5: Apply DB change
-
-```
-alembic upgrade head
-```
-
-Check PostgreSQL DB and `TABLE alembic_version`.
-
-### Step 6: If we need to downgrade
-
-```
-alembic downgrade 6162e247214e
-```
-
-
-## Test
-
-Reset persistent state before testing:
-
-```
 bash scripts/reset_app_state.sh
-```
-
-Test a single file:
-
-```
-pytest -vv chafan_core/tests/app/email/test_email.py
-
-```
-
-Test all:
-
-```
 pytest
 ```
 
+A single file:
 
-# How to add a new event type
+```bash
+pytest -vv chafan_core/tests/app/email/test_email.py
+```
 
-- Core backend code changes
+## How to add a new event type
+- Core backend
   - Add event definition: `chafan_core/app/schemas/event.py`
-  - If the event goes to activity feed
-    - Feed distribution: `chafan_core/app/feed.py:get_activity_receivers`
-  - If the event goes to notifications
-    - `chafan_core/app/materialize.py`: `materialize_event` and `_KEYS` (if there is a new type of field)
+  - If the event goes to the activity feed: update `chafan_core/app/feed.py:get_activity_receivers`
+  - If the event goes to notifications:
+    - `chafan_core/app/materialize.py`: `materialize_event` and `_KEYS` (if a new field type)
     - `chafan_core/app/common.py`: `EVENT_TEMPLATES`
-- PWA code changes
+- PWA
   - Add event definition: `src/interfaces/index.ts`
-  - If the event goes to activity feed
-    - Update event card: `src/views/main/Home.vue`
-  - Update event field rendering: `src/components/Event.vue` (if there is a new type of field)
+  - If the event goes to the activity feed: update event card in `src/views/main/Home.vue`
+  - Update event field rendering: `src/components/Event.vue` (if a new field type)
   - Update event translation rendering: `src/main.ts`
-
-## Dependency
-
-Run `poetry update` to update all dependencies.
 
 ## Copyright
 
