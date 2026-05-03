@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     OFFICIAL_BOT_SECRET: Optional[str] = None
 
-    FORCE_RATE_LIMIT: bool = False
+    DISABLE_RATE_LIMIT: bool = False
 
     API_LIMIT_SITES_GET_QUESTIONS_LIMIT: int = 20
 
@@ -99,6 +99,7 @@ class Settings(BaseSettings):
     MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
     MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
 
+    INITIAL_USER_COINS: int = 0
     INVITE_NEW_USER_COIN_PAYMENT_AMOUNT: int = 5
     CREATE_ARTICLE_COIN_DEDUCTION: int = 2
     UPVOTE_ARTICLE_COIN_DEDUCTION: int = 2

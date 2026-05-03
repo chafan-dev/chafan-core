@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
-from chafan_core.app.common import is_dev
 from chafan_core.app.config import settings
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.crud.crud_activity import (
@@ -70,9 +69,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             )
         else:
             handle = obj_in.handle
-        initial_coins = 0
-        if is_dev():
-            initial_coins = 100
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         db_obj = User(
             uuid=self.get_unique_uuid(db),
@@ -81,7 +77,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             full_name=obj_in.full_name,
             handle=handle,
             is_superuser=obj_in.is_superuser,
-            remaining_coins=initial_coins,
+            remaining_coins=settings.INITIAL_USER_COINS,
             created_at=utc_now,
         )
         db.add(db_obj)
