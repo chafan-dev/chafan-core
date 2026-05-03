@@ -656,7 +656,7 @@ class CachedLayer(object):
             )
         return question
 
-    def get_question_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> models.Question:
+    def get_question_by_uuid(self, uuid: str, current_user_id:Optional[int]=None) -> Optional[models.Question]:
         question = crud.question.get_by_uuid(self.get_db(), uuid=uuid)
         if question is None:
             return None
