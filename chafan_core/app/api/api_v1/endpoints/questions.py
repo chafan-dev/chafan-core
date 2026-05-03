@@ -90,6 +90,11 @@ def get_question(
     Get question in one of current_user's belonging sites.
     """
     question = cached_layer.get_question_by_uuid(uuid)
+    if question is None:
+        raise HTTPException_(
+            status_code=404,
+            detail="The question doesn't exist in the system.",
+        )
     if question.is_hidden:
         raise HTTPException_(
                 status_code=403,

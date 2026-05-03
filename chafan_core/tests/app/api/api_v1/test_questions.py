@@ -182,7 +182,6 @@ def test_get_question_success(
     assert db_question.uuid == response_data["uuid"]
 
 
-@pytest.mark.skip(reason="TODO: get_question endpoint doesn't handle None question before accessing is_hidden")
 def test_get_question_nonexistent(
     client: TestClient,
     db: Session,
@@ -193,7 +192,7 @@ def test_get_question_nonexistent(
         f"{settings.API_V1_STR}/questions/invalid-uuid",
         headers=normal_user_token_headers,
     )
-    assert r.status_code == 400
+    assert r.status_code == 404
 
     # Verify it doesn't exist in database
     db_question = crud.question.get_by_uuid(db, uuid="invalid-uuid")

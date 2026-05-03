@@ -115,7 +115,6 @@ class UserInDBBase(UserBase):
     about: Optional[str] = None
     created_at: datetime.datetime
     residency_topics: List[Topic]
-    profession_topic: Optional[Topic] = None
     remaining_coins: int
     personal_introduction: Optional[str] = None
     github_username: Optional[str] = None

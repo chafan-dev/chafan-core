@@ -168,6 +168,11 @@ def bump_views_counter(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
     answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    if answer is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The answer doesn't exist in the system.",
+        )
     view_counters.add_view_async(cached_layer, "answer", answer.id)
     return schemas.GenericResponse()
 
