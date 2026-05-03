@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CRUDInvitationLink(
     CRUDBase[InvitationLink, InvitationLinkCreate, InvitationLinkUpdate]
 ):
-    async def create_invitation(
+    def create_invitation(
         self,
         db: Session,
         *,

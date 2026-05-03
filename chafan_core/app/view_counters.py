@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 
-async def add_view_async(
+def add_view_async(
     cached_layer, # TODO 2025-07-20 due to cyclic dep, turn off this type hint: CachedLayer,
     object_type: Literal["question", "answer", "profile", "article", "submission"],
     obj_id: int

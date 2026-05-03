@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 from sqlalchemy.orm import Session
 
@@ -19,7 +18,7 @@ def _create_test_user(db: Session, initial_coins: int = 1000):
         password=random_password(),
         handle=random_short_lower_string(),
     )
-    user = asyncio.run(crud.user.create(db, obj_in=user_in))
+    user = crud.user.create(db, obj_in=user_in)
     if initial_coins > 0:
         crud.user.update(db, db_obj=user, obj_in={"remaining_coins": initial_coins})
         db.refresh(user)

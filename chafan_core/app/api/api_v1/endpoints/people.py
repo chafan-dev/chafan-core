@@ -235,7 +235,7 @@ def get_user_submissions(
 
 
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
-async def get_user_articles(
+def get_user_articles(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     #cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),

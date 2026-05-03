@@ -25,7 +25,7 @@ def apply_email_template(template_name:str,
         jinja = Template(template_str,undefined=StrictUndefined)
     return jinja.render(environment)
 
-async def send_verification_code_email(email: str, code: str) -> None:
+def send_verification_code_email(email: str, code: str) -> None:
     project_name = settings.PROJECT_NAME
     subject = f"{project_name} - 验证码 {code}"
     server_host = str(settings.SERVER_HOST).strip("/")
@@ -39,13 +39,13 @@ async def send_verification_code_email(email: str, code: str) -> None:
         "link": link,
     }
     html_body = apply_email_template("verification_code", environment)
-    await send_email(
+    send_email(
         email_to=email,
         subject=subject,
         html_body=html_body,
     )
 
-async def send_reset_password_email(email: str, token: str) -> None:
+def send_reset_password_email(email: str, token: str) -> None:
     project_name = settings.PROJECT_NAME
     subject = f"{project_name} - 密码重置 {email}"
     server_host = str(settings.SERVER_HOST).strip("/")
@@ -59,13 +59,13 @@ async def send_reset_password_email(email: str, token: str) -> None:
     }
     html_body = apply_email_template("reset_password", environment)
     logger.info(f"Send reset password email to {email}")
-    await send_email(
+    send_email(
         email_to=email,
         subject=subject,
         html_body=html_body,
     )
 
-async def send_email(
+def send_email(
     email_to: str,
     subject: str = "",
     html_body: str = "",

@@ -1,4 +1,3 @@
-import asyncio
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
@@ -18,7 +17,7 @@ def _create_test_user(db: Session):
         password=random_password(),
         handle=random_short_lower_string(),
     )
-    return asyncio.run(crud.user.create(db, obj_in=user_in))
+    return crud.user.create(db, obj_in=user_in)
 
 
 def test_create_article_column_with_owner(db: Session) -> None:

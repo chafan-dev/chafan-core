@@ -59,10 +59,9 @@ def superuser_token_headers(client: TestClient) -> Dict[str, str]:
 @pytest.fixture(scope="module")
 def normal_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
     """Authentication headers for normal test user."""
-    import asyncio
-    return asyncio.run(authentication_token_from_email(
+    return authentication_token_from_email(
         client=client, email=EMAIL_TEST_USER, db=db
-    ))
+    )
 
 
 @pytest.fixture(scope="module")
@@ -84,10 +83,9 @@ def normal_user_uuid(client: TestClient, normal_user_token_headers: dict) -> str
 @pytest.fixture(scope="module")
 def moderator_user_token_headers(client: TestClient, db: Session) -> Dict[str, str]:
     """Authentication headers for moderator test user."""
-    import asyncio
-    return asyncio.run(authentication_token_from_email(
+    return authentication_token_from_email(
         client=client, email=EMAIL_TEST_MODERATOR, db=db
-    ))
+    )
 
 
 @pytest.fixture(scope="module")

@@ -99,7 +99,7 @@ def get_question(
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
-async def bump_views_counter(
+def bump_views_counter(
     *,
     uuid: str,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -112,7 +112,7 @@ async def bump_views_counter(
                 detail="No such question",
         )
     assert isinstance(question, models.Question)
-    await view_counters.add_view_async(cached_layer, "question", question.id)
+    view_counters.add_view_async(cached_layer, "question", question.id)
     return schemas.GenericResponse()
 
 
@@ -493,7 +493,7 @@ def cancel_upvote_question(
 
 @router.get("/{uuid}/page", response_model=schemas.QuestionPage)
 @limiter.limit("60/minute")
-async def get_question_page(
+def get_question_page(
     response: Response,
     request: Request,
     *,

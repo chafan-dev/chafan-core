@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.post("/token", response_model=schemas.WsAuthResponse)
-async def get_ws_token(
+def get_ws_token(
     *,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
@@ -33,7 +33,7 @@ async def get_ws_token(
     return schemas.WsAuthResponse(token=token)
 
 
-async def _read_message_queue(redis, queue_name:str):
+def _read_message_queue(redis, queue_name:str):
     item = redis.lpop(queue_name)
     return item
 
@@ -55,7 +55,7 @@ async def ws(websocket: WebSocket, token: str = Query(...)) -> Any:
     try:
         while True:
             await asyncio.sleep(10)
-            msg = await _read_message_queue(redis, queue_name)
+            msg = _read_message_queue(redis, queue_name)
             if msg is None or msg == "":
                 continue
             logger.info(f"read from redis: {msg}")

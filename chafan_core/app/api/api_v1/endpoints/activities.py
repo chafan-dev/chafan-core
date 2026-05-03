@@ -32,7 +32,7 @@ def _update_feed_seq(
 
 
 @router.get("/", response_model=schemas.FeedSequence)
-async def get_feed(
+def get_feed(
     request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
@@ -48,7 +48,7 @@ async def get_feed(
     current_user_id: int = unwrap(cached_layer.principal_id)
     logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
 
-    activities = await cached_layer.get_user_activity(
+    activities = cached_layer.get_user_activity(
             current_user_id, before_activity_id, limit, random, subject_user_uuid)
 
     data = schemas.FeedSequence(activities=activities, random=random)

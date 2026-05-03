@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=schemas.InvitationLink)
-async def create_invitation_link(
+def create_invitation_link(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     create_in: InvitationLinkCreate,
@@ -34,7 +34,7 @@ async def create_invitation_link(
             op_type=OperationType.AddSiteMember,
         )
         invited_to_site_id = invited_to_site.id
-    invitation_link = await crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=invited_to_site_id, inviter=current_user
         )
     crud.audit_log.create_with_user(
