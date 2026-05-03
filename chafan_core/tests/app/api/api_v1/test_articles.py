@@ -126,10 +126,13 @@ def test_create_article_invalid_column(
 
 def test_create_article_not_owner_of_column(
     client: TestClient,
+    db: Session,
     example_article_column_uuid: str,
     moderator_user_token_headers: dict,
+    moderator_user_id: int,
 ) -> None:
     """Test that users cannot create articles in columns they don't own."""
+    ensure_user_has_coins(db, moderator_user_id, coins=100)
     data = {
         "title": "Unauthorized Column Article",
         "content": {"source": "Content", "editor": "tiptap"},

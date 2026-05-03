@@ -281,6 +281,7 @@ def normal_user_authored_question_uuid(
         client, db, normal_user_id, normal_user_uuid,
         example_site_uuid, superuser_token_headers
     )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
 
     # Create question
     r = client.post(
@@ -315,6 +316,7 @@ def example_submission_uuid(
         client, db, normal_user_id, normal_user_uuid,
         example_site_uuid, superuser_token_headers
     )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
 
     # Create submission
     r = client.post(
