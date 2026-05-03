@@ -2,7 +2,6 @@ import datetime
 import enum
 import logging
 import re
-import traceback
 from typing import Any, Mapping, NamedTuple, Optional, Tuple
 
 import arrow
@@ -16,6 +15,8 @@ from chafan_core.app import schemas
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.event import Event
 from chafan_core.utils.base import HTTPException_, unwrap
+
+logger = logging.getLogger(__name__)
 
 
 class OperationType(enum.Enum):
@@ -60,7 +61,7 @@ def is_dev() -> bool:
 def enable_rate_limit() -> bool:
     from chafan_core.app.config import settings
 
-    return not is_dev() or settings.FORCE_RATE_LIMIT
+    return not settings.DISABLE_RATE_LIMIT
 
 
 def run_dramatiq_task(task: Any, *arg: Any, **kwargs: Any) -> None:
@@ -176,18 +177,15 @@ def client_ip(request: Request) -> str:
 
 
 def report_msg(msg: str) -> None:
-    if not is_dev():
+    logger.error(msg)
+    if settings.SENTRY_DSN:
         sentry_sdk.capture_message(msg)
-    else:
-        raise Exception(msg)
 
 
 def handle_exception(e: Exception) -> None:
-    if not is_dev():
+    logger.exception("unhandled exception")
+    if settings.SENTRY_DSN:
         sentry_sdk.capture_exception(e)
-        traceback.print_exc()
-    else:
-        raise e
 
 
 def check_email(email: str) -> None:

@@ -32,7 +32,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 scheduler = BackgroundScheduler()
-import sentry_sdk
 import uvicorn
 import fastapi
 import starlette
@@ -46,7 +45,7 @@ from starlette.requests import Request
 
 from chafan_core.app.api import health
 from chafan_core.app.api.api_v1.api import api_router
-from chafan_core.app.common import enable_rate_limit, is_dev
+from chafan_core.app.common import enable_rate_limit, is_dev, report_msg
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
 from chafan_core.app.limiter_middleware import SlowAPIMiddleware
@@ -57,6 +56,21 @@ from chafan_core.app.task import (
 from chafan_core.app.text_analysis import fill_missing_keywords_task
 from chafan_core.scheduled.deliver_notifications import run_deliver_notification_task
 from chafan_core.scheduled.lib import refresh_karmas
+
+
+def _check_prod_safety() -> None:
+    if settings.ENV != "prod":
+        return
+    if settings.DEBUG_BYPASS_BACKEND_CORS == "magic":
+        raise RuntimeError("DEBUG_BYPASS_BACKEND_CORS='magic' is not allowed in prod")
+    if settings.DEBUG_BYPASS_REDIS_VERIFICATION_CODE:
+        raise RuntimeError("DEBUG_BYPASS_REDIS_VERIFICATION_CODE must be unset in prod")
+    if settings.DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE == "5e5da072":
+        raise RuntimeError("DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE must be changed from default in prod")
+
+
+_check_prod_safety()
+
 
 args: MutableMapping[str, Optional[Any]] = {}
 if is_dev():
@@ -82,11 +96,7 @@ async def custom_validation_exception_handler(
 ) -> Any:
     request_str = f"request.url: {request.url}\nrequest.method: {request.method}"
     err_msg = f"Validation error:\n{request_str}\nexc: {exc}\nexc.body: {exc.body}"
-    if is_dev():
-        # NOTE: need to print in order to capture by pytest
-        print(err_msg)
-    else:
-        sentry_sdk.capture_message(err_msg)
+    report_msg(err_msg)
     return await request_validation_exception_handler(request, exc)
 
 def set_backend_cors_origins():

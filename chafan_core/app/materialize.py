@@ -8,7 +8,7 @@ from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import OperationType, is_dev
+from chafan_core.app.common import OperationType, report_msg
 from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.model_utils import (
@@ -252,10 +252,10 @@ def user_schema_from_orm(user: models.User) -> schemas.User:
     else:
         d["can_create_public_site"] = (
             user.karma >= settings.MIN_KARMA_CREATE_PUBLIC_SITE and enough_coins
-        ) or is_dev()
+        )
         d["can_create_private_site"] = (
             user.karma >= settings.MIN_KARMA_CREATE_PRIVATE_SITE and enough_coins
-        ) or is_dev()
+        )
     if user.is_superuser:
         d["can_create_public_site"] = True
         d["can_create_private_site"] = True
@@ -759,15 +759,10 @@ class Materializer(object):
         try:
             return Event(created_at=event.created_at, content=new_class(**kwargs))
         except Exception as e:
-            if not is_dev():
-                sentry_sdk.capture_message(
-                    f"Event construction exception: kwargs={kwargs}, exception={e}, event_internal_json={event_internal_json}"
-                )
-                return None
-            else:
-                raise Exception(
-                    f"Event construction exception: kwargs={kwargs}, exception={e}, event_internal_json={event_internal_json}"
-                )
+            report_msg(
+                f"Event construction exception: kwargs={kwargs}, exception={e}, event_internal_json={event_internal_json}"
+            )
+            return None
 
     def answer_for_visitor_schema_from_orm(
         self,
