@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/site/{subdomain}/rss.xml")
-async def get_site_activity(
+def get_site_activity(
         *, response: Response,
         cached_layer: CachedLayer = Depends(deps.get_cached_layer), subdomain: str
 ) -> str:
@@ -28,7 +28,7 @@ async def get_site_activity(
         raise HTTPException_(status_code=404, detail="No such site " + subdomain)
     if not site.public_readable:
         raise HTTPException_(status_code=405, detail="Not allowed " + subdomain)
-    activities = await get_site_activities(cached_layer, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
+    activities = get_site_activities(cached_layer, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
     logger.info("api get: " + str(activities))
     rss_str = build_rss(activities, site)
     return Response(content=rss_str, media_type="application/rss+xml")

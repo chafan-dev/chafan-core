@@ -27,7 +27,7 @@ router = APIRouter()
 
 
 @router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
-async def get_article(
+def get_article(
     request: Request,
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -58,7 +58,7 @@ async def get_article(
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
-async def bump_views_counter(
+def bump_views_counter(
     *,
     uuid: str,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -71,7 +71,7 @@ async def bump_views_counter(
             detail="The article doesn't exist in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
-    await view_counters.add_view_async(cached_layer, "article", article.id)
+    view_counters.add_view_async(cached_layer, "article", article.id)
     return schemas.GenericResponse()
 
 

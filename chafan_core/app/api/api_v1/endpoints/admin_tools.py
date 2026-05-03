@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.get("/full_site_activity/{passcode}/rss.xml")
-async def get_site_activity(
+def get_site_activity(
         *, response: Response,
         cached_layer: CachedLayer = Depends(deps.get_cached_layer),
         passcode: str
@@ -28,7 +28,7 @@ async def get_site_activity(
     code = settings.DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE
     if code is None or code == "" or code != passcode:
         raise HTTPException_(status_code=405, detail="Not allowed ")
-    activities = await get_site_activities(cached_layer, None, settings.LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS, True)
+    activities = get_site_activities(cached_layer, None, settings.LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS, True)
     rss_str = build_rss(activities, site=None)
     return Response(content=rss_str, media_type="application/rss+xml")
 

@@ -1,4 +1,3 @@
-import asyncio
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, schemas
@@ -28,4 +27,4 @@ def init_db(db: Session) -> None:
             is_superuser=True,
             handle=StrippedNonEmptyBasicStr("super"),
         )
-        user = asyncio.run(crud.user.create(db, obj_in=user_in))  # noqa: F841
+        user = crud.user.create(db, obj_in=user_in)  # noqa: F841

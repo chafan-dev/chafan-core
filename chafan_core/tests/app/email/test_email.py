@@ -23,8 +23,8 @@ def test_client():
     client.send_email("stub@cha.fan", "stub_receiver@cha.fan", "subject", "test mail")
     client.quit()
 
-async def test_send_reset_password_email():
+def test_send_reset_password_email():
     settings.EMAILS_ENABLED = False
-    await send_reset_password_email("test@cha.fan", "stub_token")
+    send_reset_password_email("test@cha.fan", "stub_token")
 
 

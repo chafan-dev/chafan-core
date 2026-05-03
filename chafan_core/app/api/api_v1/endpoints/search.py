@@ -66,7 +66,7 @@ def search_topics(
 
 @router.get("/questions/", response_model=List[schemas.QuestionPreviewForSearch])
 @limiter.limit(_SEARCH_RATE_LIMIT)
-async def search_questions(
+def search_questions(
     response: Response,
     request: Request,
     *,
@@ -79,7 +79,7 @@ async def search_questions(
     questions = crud.question.search(cached_layer.get_db(), q=q)
 # TODO no search hit limit
     return filter_not_none(
-        [await preview_of_question_as_search_hit(q) for q in questions]
+        [preview_of_question_as_search_hit(q) for q in questions]
     )
 
 

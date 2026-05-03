@@ -28,7 +28,7 @@ def get_article_column(
 
 # TODO This API should support limit and page 2025-Mar-23
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
-async def get_article_column_articles(
+def get_article_column_articles(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,

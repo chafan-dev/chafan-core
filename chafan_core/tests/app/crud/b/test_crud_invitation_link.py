@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 from sqlalchemy.orm import Session
 
@@ -19,7 +18,7 @@ def _create_test_user(db: Session):
         password=random_password(),
         handle=random_short_lower_string(),
     )
-    return asyncio.run(crud.user.create(db, obj_in=user_in))
+    return crud.user.create(db, obj_in=user_in)
 
 
 def _create_test_site(db: Session, moderator):
@@ -40,11 +39,9 @@ def test_create_invitation_link(db: Session) -> None:
     inviter = _create_test_user(db)
     site = _create_test_site(db, moderator=inviter)
 
-    invitation_link = asyncio.run(
-        crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=site.id, inviter=inviter
         )
-    )
 
     assert invitation_link is not None
     assert invitation_link.inviter_id == inviter.id
@@ -59,11 +56,9 @@ def test_create_invitation_link_without_site(db: Session) -> None:
     """Test creating an invitation link without a specific site."""
     inviter = _create_test_user(db)
 
-    invitation_link = asyncio.run(
-        crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=None, inviter=inviter
         )
-    )
 
     assert invitation_link is not None
     assert invitation_link.inviter_id == inviter.id
@@ -76,11 +71,9 @@ def test_invitation_link_expiration(db: Session) -> None:
 
     before_create = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    invitation_link = asyncio.run(
-        crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=None, inviter=inviter
         )
-    )
 
     after_create = datetime.datetime.now(tz=datetime.timezone.utc)
 
@@ -95,11 +88,9 @@ def test_get_invitation_link_by_id(db: Session) -> None:
     """Test getting an invitation link by ID."""
     inviter = _create_test_user(db)
 
-    invitation_link = asyncio.run(
-        crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=None, inviter=inviter
         )
-    )
 
     retrieved = crud.invitation_link.get(db, id=invitation_link.id)
     assert retrieved is not None
@@ -110,11 +101,9 @@ def test_get_invitation_link_by_uuid(db: Session) -> None:
     """Test getting an invitation link by UUID."""
     inviter = _create_test_user(db)
 
-    invitation_link = asyncio.run(
-        crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=None, inviter=inviter
         )
-    )
 
     retrieved = crud.invitation_link.get_by_uuid(db, uuid=invitation_link.uuid)
     assert retrieved is not None
@@ -139,11 +128,9 @@ def test_invitation_link_timestamps(db: Session) -> None:
 
     before_create = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    invitation_link = asyncio.run(
-        crud.invitation_link.create_invitation(
+    invitation_link = crud.invitation_link.create_invitation(
             db, invited_to_site_id=None, inviter=inviter
         )
-    )
 
     after_create = datetime.datetime.now(tz=datetime.timezone.utc)
 
@@ -157,11 +144,9 @@ def test_multiple_invitation_links_from_same_inviter(db: Session) -> None:
 
     links = []
     for _ in range(3):
-        link = asyncio.run(
-            crud.invitation_link.create_invitation(
+        link = crud.invitation_link.create_invitation(
                 db, invited_to_site_id=None, inviter=inviter
             )
-        )
         links.append(link)
 
     assert len(links) == 3
@@ -176,17 +161,13 @@ def test_invitation_links_for_different_sites(db: Session) -> None:
     site1 = _create_test_site(db, moderator=inviter)
     site2 = _create_test_site(db, moderator=inviter)
 
-    link1 = asyncio.run(
-        crud.invitation_link.create_invitation(
+    link1 = crud.invitation_link.create_invitation(
             db, invited_to_site_id=site1.id, inviter=inviter
         )
-    )
 
-    link2 = asyncio.run(
-        crud.invitation_link.create_invitation(
+    link2 = crud.invitation_link.create_invitation(
             db, invited_to_site_id=site2.id, inviter=inviter
         )
-    )
 
     assert link1.invited_to_site_id == site1.id
     assert link2.invited_to_site_id == site2.id

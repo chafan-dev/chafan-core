@@ -258,14 +258,14 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
     logger.error(f"Not supported event type: {event}")
     return None #TODO throw exception
 
-async def get_content_from_eventjson(
+def get_content_from_eventjson(
         cached_layer: "CachedLayer",
         event_json: str) -> Optional[BaseCrudModel]:
     event = EventInternal.parse_raw(event_json)
     content = retrieve_content(event, cached_layer)
     return content
 
-async def get_site_activities(
+def get_site_activities(
     cached_layer: "CachedLayer",
     site,
     limit: int,
@@ -281,13 +281,13 @@ async def get_site_activities(
     feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
     activities = []
     for feed in feeds:
-        obj = await get_content_from_eventjson(cached_layer, feed.event_json)
+        obj = get_content_from_eventjson(cached_layer, feed.event_json)
         if obj is not None:
             assert isinstance(obj, BaseCrudModel)
             activities.append(obj)
     return activities
 
-async def get_activities_v2(
+def get_activities_v2(
     *,
     cached_layer: "CachedLayer",
     before_activity_id: Optional[int],

@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 from sqlalchemy.orm import Session
 
@@ -19,7 +18,7 @@ def _create_test_user(db: Session):
         password=random_password(),
         handle=random_short_lower_string(),
     )
-    return asyncio.run(crud.user.create(db, obj_in=user_in))
+    return crud.user.create(db, obj_in=user_in)
 
 
 def _create_test_notification(db: Session, receiver_id: int, is_read: bool = False, is_delivered: bool = False):

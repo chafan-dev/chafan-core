@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import json
 import random
@@ -767,9 +766,9 @@ class CachedLayer(object):
         db = self.get_db()
 
         def f() -> int:
-            return asyncio.run(crud.invitation_link.create_invitation(
+            return crud.invitation_link.create_invitation(
                 db, invited_to_site_id=None, inviter=crud.user.get_superuser(db)
-            )).id
+            ).id
 
         cached_id = self._get_cached(
             key=DAILY_INVITATION_LINK_ID_CACHE_KEY,
@@ -832,7 +831,7 @@ class CachedLayer(object):
             ret.append((year, day_contribs))
         return ret
 
-    async def get_user_activity(
+    def get_user_activity(
             self,
             current_user_id: int,
             before_activity_id:Optional[int],
@@ -851,7 +850,7 @@ class CachedLayer(object):
 #                schemas.FeedSequence.model_validate_json(value),
 #                full_answers=full_answers,
 #            )
-        activities = await get_activities_v2(
+        activities = get_activities_v2(
             cached_layer = self,
             before_activity_id=before_activity_id,
             limit=limit,
@@ -1002,7 +1001,7 @@ class CachedLayer(object):
 
 
     # TODO maybe this is not the best place to put it  2025-Jul-06
-    async def try_consume_invitation_link_by_uuid(
+    def try_consume_invitation_link_by_uuid(
             self, invitation_uuid:str) -> bool:
         logger.info(f"Consumed invitation link uuid=${invitation_uuid}")
         db = self.get_db()

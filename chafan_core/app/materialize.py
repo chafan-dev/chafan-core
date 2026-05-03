@@ -268,7 +268,7 @@ def user_schema_from_orm(user: models.User) -> schemas.User:
 
 
 # Should I put it into a class?
-async def preview_of_question_as_search_hit(question: models.Question):
+def preview_of_question_as_search_hit(question: models.Question):
     if not question.site.public_readable:
         return None
     r = QuestionPreviewForSearch(

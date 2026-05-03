@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -46,7 +45,7 @@ def get_read_notifications(
     return [n for n in notifs if n is not None]
 
 
-async def _update_notification(
+def _update_notification(
     *, id: int, current_user_id: int, notif_in: NotificationUpdate
 ) -> None:
     def runnable(broker: DataBroker) -> None:
@@ -60,7 +59,7 @@ async def _update_notification(
 
 @router.put("/{id}", response_model=schemas.GenericResponse)
 @limiter.limit("60/minute")
-async def update_notification(
+def update_notification(
     response: Response,
     request: Request,
     *,
@@ -68,7 +67,5 @@ async def update_notification(
     notif_in: NotificationUpdate,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    asyncio.create_task(
-        _update_notification(id=id, current_user_id=current_user_id, notif_in=notif_in)
-    )
+    _update_notification(id=id, current_user_id=current_user_id, notif_in=notif_in)
     return schemas.GenericResponse()

@@ -27,7 +27,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
 
-async def check_digit_verification_code(email:str, code:str) -> bool:
+def check_digit_verification_code(email:str, code:str) -> bool:
     #logger.info("Check verification code")
     bypass = settings.DEBUG_BYPASS_REDIS_VERIFICATION_CODE
     if bypass is not None and bypass.startswith("magic") and bypass == code:
@@ -43,7 +43,7 @@ async def check_digit_verification_code(email:str, code:str) -> bool:
     redis_cli.delete(key)
     return True
 
-async def register_digit_verification_code(email:str, code:str) -> None:
+def register_digit_verification_code(email:str, code:str) -> None:
     redis_cli = get_redis_cli()
     key = f"chafan:verification-code:{email}"
     redis_cli.delete(key)

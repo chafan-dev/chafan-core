@@ -195,7 +195,7 @@ def config_site(
 from chafan_core.app.common import OperationType
 
 @router.get("/{subdomain}", response_model=schemas.Site)
-async def get_site_info(
+def get_site_info(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),

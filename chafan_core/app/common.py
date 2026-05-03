@@ -45,7 +45,7 @@ def get_redis_cli() -> redis.Redis:
 MAX_FILE_SIZE = 10_000_000
 
 
-async def valid_content_length(
+def valid_content_length(
     content_length: int = Header(..., lt=MAX_FILE_SIZE)
 ) -> int:
     return content_length

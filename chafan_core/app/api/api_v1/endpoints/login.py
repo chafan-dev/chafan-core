@@ -207,7 +207,7 @@ def pay_reward_for_invitation(
 
 @limiter.limit("1/minute")
 @router.post("/password-recovery/{email}", response_model=schemas.GenericResponse)
-async def recover_password(
+def recover_password(
     request: Request, email: CaseInsensitiveEmailStr, db: Session = Depends(deps.get_db)
 ) -> Any:
     """
@@ -224,13 +224,13 @@ async def recover_password(
         db, ipaddr=client_ip(request), user_id=user.id, api=f"Password reset email sent to {email}"
     )
     password_reset_token = generate_password_reset_token(email=email)
-    await send_reset_password_email(email=user.email, token=password_reset_token)
+    send_reset_password_email(email=user.email, token=password_reset_token)
     return schemas.GenericResponse()
 
 
 @router.post("/send-verification-code", response_model=schemas.GenericResponse)
 @limiter.limit("1/minute")
-async def send_verification_code(
+def send_verification_code(
     response: Response, request: Request, *, request_in: VerificationCodeRequest,
     db: Session = Depends(deps.get_db)
 ) -> Any:
@@ -247,8 +247,8 @@ async def send_verification_code(
         db, ipaddr=client_ip(request), user_id=1, api="send_verification_code to email " + request_in.email
     )
     code = create_digit_verification_code(6)
-    await send_verification_code_email(email=request_in.email, code=code)
-    await register_digit_verification_code(request_in.email, code)
+    send_verification_code_email(email=request_in.email, code=code)
+    register_digit_verification_code(request_in.email, code)
     # We may switch to trio + hypercorn in future 2025-Jul-06
     #async with trio.open_nursery() as nursery:
     #    nursery.start_soon(send_verification_code_email,email=request_in.email, code=code)
@@ -257,7 +257,7 @@ async def send_verification_code(
 
 
 @router.post("/open-account", response_model=schemas.User)
-async def create_user_open(
+def create_user_open(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     email: CaseInsensitiveEmailStr = Body(...),
@@ -280,7 +280,7 @@ async def create_user_open(
     crud.audit_log.create_with_user(
         db, ipaddr="0.0.0.0", user_id=1, api="Open new account email " + email
     )
-    invitation_link_valid = await cached_layer.try_consume_invitation_link_by_uuid(invitation_link_uuid)
+    invitation_link_valid = cached_layer.try_consume_invitation_link_by_uuid(invitation_link_uuid)
     if not invitation_link_valid:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -301,14 +301,14 @@ async def create_user_open(
         )
     logger.info(f"No existing user info found for email={email}, handle={handle}")
 
-    ver_code = await check_digit_verification_code(email, code)
+    ver_code = check_digit_verification_code(email, code)
     if not ver_code:
         raise HTTPException_(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="The verification code is not present in the system.",
                 )
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
-    user = await crud.user.create(db, obj_in=user_in)
+    user = crud.user.create(db, obj_in=user_in)
 
     # TODO bonus for invite new user, new user's initial coins
     return user_schema_from_orm(user)
@@ -327,7 +327,7 @@ def check_token_validity(
 
 
 @router.post("/reset-password/", response_model=schemas.GenericResponse)
-async def reset_password(
+def reset_password(
     token: str = Body(...),
     new_password: SecretStr = Body(...),
     db: Session = Depends(deps.get_db),
