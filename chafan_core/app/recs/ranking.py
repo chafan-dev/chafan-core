@@ -67,4 +67,6 @@ def rank_answers(
 
 
 def rank_site_profiles(site_profiles: List[models.Profile]) -> List[models.Profile]:
-    return sorted(site_profiles, key=lambda p: p.karma, reverse=True)
+    # Profile.karma is frozen — sort by the global User.karma instead.
+    # See proposal 14 for the eager-load implications.
+    return sorted(site_profiles, key=lambda p: (-p.owner.karma, p.owner.id))

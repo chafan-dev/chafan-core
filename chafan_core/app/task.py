@@ -270,7 +270,7 @@ def postprocess_new_question(question_id: int) -> None:
                 question_id=question.id,
             ),
         ).json()
-        rep.new_question(question)
+        rep.award_question_created(broker.get_db(), question.author, question)
 
         question_ac = models.Activity(
                 created_at=utc_now,
@@ -338,7 +338,7 @@ def postprocess_new_submission(submission_id: int) -> None:
         ).json()
         # TODO event to feed? 2025-Sep-14
 
-        rep.new_submission(submission)
+        rep.award_submission_created(broker.get_db(), submission.author, submission)
         postprocess_submission_common(submission)
         for webhook in submission.site.webhooks:
             call_webhook(
@@ -365,7 +365,9 @@ def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None
                 submission_suggestion_id=submission_suggestion.id,
             ),
         )
-        rep.new_submission_suggestion(submission_suggestion)
+        rep.award_submission_suggestion_created(
+            broker.get_db(), submission_suggestion.author, submission_suggestion
+        )
 
         crud.notification.create_with_content(
             broker,
@@ -391,7 +393,9 @@ def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> N
                 submission_suggestion_id=submission_suggestion.id,
             ),
         ).json()
-        rep.accept_submission_suggestion(submission_suggestion)
+        rep.award_submission_suggestion_accepted(
+            db, submission_suggestion.author, submission_suggestion
+        )
 
     execute_with_db(SessionLocal(), runnable)
 
@@ -411,7 +415,9 @@ def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
                 answer_suggest_edit_id=answer_suggest_edit.id,
             ),
         )
-        rep.new_answer_suggest(answer_suggest_edit)
+        rep.award_answer_suggest_created(
+            broker.get_db(), answer_suggest_edit.author, answer_suggest_edit
+        )
         crud.notification.create_with_content(
             broker,
             receiver_id=answer_suggest_edit.answer.author_id,
@@ -436,7 +442,9 @@ def postprocess_accept_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
                 answer_suggest_edit_id=answer_suggest_edit.id,
             ),
         ).json()
-        rep.accept_answer_suggest(answer_suggest_edit)
+        rep.award_answer_suggest_accepted(
+            db, answer_suggest_edit.author, answer_suggest_edit
+        )
 
     execute_with_db(SessionLocal(), runnable)
 
@@ -517,7 +525,7 @@ def postprocess_new_article(article_id: int) -> None:
             created_at=utc_now,
             content=event,
         )
-        rep.new_article(article)
+        rep.award_article_created(broker.get_db(), article.author, article)
         for subscriber in article.article_column.subscribers:
             crud.notification.create_with_content(
                 broker,
