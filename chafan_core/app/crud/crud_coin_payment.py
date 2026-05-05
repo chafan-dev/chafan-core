@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import models
+from chafan_core.app import models, rep_manager
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.coin_payment import CoinPayment
 from chafan_core.app.schemas.coin_payment import CoinPaymentCreate, CoinPaymentUpdate
@@ -19,8 +19,8 @@ class CRUDCoinPayment(CRUDBase[CoinPayment, CoinPaymentCreate, CoinPaymentUpdate
         payer: models.User,
         payee: models.User
     ) -> CoinPayment:
-        payer.remaining_coins -= obj_in.amount
-        payee.remaining_coins += obj_in.amount
+        rep_manager.deduct_coins(db, payer, obj_in.amount, "coin_payment_out")
+        rep_manager.award_coins(db, payee, obj_in.amount, "coin_payment_in")
         payment = CoinPayment(
             **jsonable_encoder(obj_in),
             created_at=datetime.datetime.now(tz=datetime.timezone.utc),

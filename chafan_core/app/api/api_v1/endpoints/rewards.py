@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import crud, rep_manager, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType
@@ -148,8 +148,7 @@ def claim_reward(
             detail="The reward condition is not met yet",
         )
     reward.claimed_at = utc_now
-    current_user.remaining_coins += reward.coin_amount
-    db.add(current_user)
+    rep_manager.award_coins(db, current_user, reward.coin_amount, "reward_claim")
     db.add(reward)
     db.commit()
     db.refresh(reward)
@@ -204,8 +203,7 @@ def refund_reward(
         )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     reward.refunded_at = utc_now
-    current_user.remaining_coins += reward.coin_amount
-    db.add(current_user)
+    rep_manager.award_coins(db, current_user, reward.coin_amount, "reward_refund")
     db.add(reward)
     db.commit()
     db.refresh(reward)
