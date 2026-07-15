@@ -2,8 +2,6 @@
 
 [![Main test](https://github.com/chafan-dev/chafan-core/actions/workflows/main-test.yml/badge.svg?branch=main)](https://github.com/chafan-dev/chafan-core/actions/workflows/main-test.yml)
 
-Under active construction!! 🚧
-
 ## Getting Started
 
 ### Requirements
