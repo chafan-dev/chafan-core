@@ -1,0 +1,15 @@
+{
+  "api_base": "https://api.cha.fan",
+  "site": "cha.fan/sites/REPLACE_WITH_SUBDOMAIN",
+  "article_column_uuid": "REPLACE_WITH_ARTICLE_COLUMN_UUID_OWNED_BY_ACCOUNT_A",
+  "known_question_uuid": "REPLACE_WITH_STABLE_PUBLIC_QUESTION_UUID",
+  "poll_timeout_seconds": 10,
+  "account_a": {
+    "username": "a@example.com",
+    "password": "..."
+  },
+  "account_b": {
+    "username": "b@example.com",
+    "password": "..."
+  }
+}
