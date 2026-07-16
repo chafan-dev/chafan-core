@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import crud, schemas, security
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.submissions import _create_submission
 from chafan_core.app.cached_layer import CachedLayer
@@ -22,7 +22,7 @@ def verify_telegram_id(
     if (
         (not settings.OFFICIAL_BOT_SECRET)
         or data.verifier_secret != settings.OFFICIAL_BOT_SECRET
-        or (not cached_layer.is_valid_verification_code(data.email, data.code))
+        or (not security.check_digit_verification_code(data.email, data.code))
     ):
         raise HTTPException_(
             status_code=400,
