@@ -9,6 +9,7 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.submissions import _update_submission
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.schemas.richtext import RichText
@@ -25,11 +26,12 @@ router = APIRouter()
 
 @router.post("/", response_model=schemas.SubmissionSuggestion)
 def post_submission_suggestions(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     create_in: SubmissionSuggestionCreate,
     background_tasks: BackgroundTasks,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     submission = crud.submission.get_by_uuid(
         cached_layer.get_db(), uuid=create_in.submission_uuid
@@ -116,11 +118,12 @@ def _accept_submission_suggestion(
 @router.put("/{uuid}", response_model=schemas.SubmissionSuggestion)
 def update_submission_suggestions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     update_in: SubmissionSuggestionUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     current_user_id = cached_layer.unwrapped_principal_id()
     submission_suggestion = crud.submission_suggestion.get_by_uuid(db, uuid=uuid)

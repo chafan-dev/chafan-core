@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.limiter import limiter
@@ -30,12 +31,13 @@ router = APIRouter()
 @router.get("/{uuid}", response_model=schemas.Answer)
 def get_one(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
     """
     Get answer in one of current_user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import answers as answers_service
 
     answer_data = answers_service.get_answer_schema(cached_layer, uuid)
@@ -50,9 +52,10 @@ def get_one(
 @router.delete("/{uuid}", response_model=schemas.GenericResponse)
 def delete_answer(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import answers as answers_service
 
     error_msg = answers_service.delete_answer(
@@ -173,8 +176,9 @@ def bump_views_counter(
     request: Request,
     *,
     uuid: str,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if answer is None:
         raise HTTPException_(
@@ -189,13 +193,14 @@ def bump_views_counter(
 def create_answer(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     answer_in: schemas.AnswerCreate,
     background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new answer authored by the current user in one of the belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user_id = cached_layer.unwrapped_principal_id()
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
@@ -295,7 +300,7 @@ def _update_answer(
 def update_answer(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     answer_in: schemas.AnswerUpdate,
     background_tasks: BackgroundTasks,
@@ -303,6 +308,7 @@ def update_answer(
     """
     Update answer authored by current user in one of current user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     current_user_id = cached_layer.unwrapped_principal_id()
     crud.audit_log.create_with_user(
@@ -341,13 +347,14 @@ def update_answer(
 @router.put("/{uuid}/mod", response_model=schemas.Answer, include_in_schema=False)
 def update_answer_by_mod(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     update_in: AnswerModUpdate,
 ) -> Any:
     """
     Update answer as moderator of the site.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     current_user_id = cached_layer.principal_id
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
@@ -381,9 +388,10 @@ def update_answer_by_mod(
 @router.get("/{uuid}/upvotes/", response_model=schemas.AnswerUpvotes)
 def get_answer_upvotes(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import answers as answers_service
 
     data = answers_service.get_answer_upvotes(
@@ -401,13 +409,14 @@ def get_answer_upvotes(
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.AnswerUpvotes)
 def upvote_answer(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Upvote answer as the current user in one of current user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
@@ -495,13 +504,14 @@ def upvote_answer(
 
 @router.delete("/{uuid}/upvotes/", response_model=schemas.AnswerUpvotes)
 def cancel_upvote_answer(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Cancel upvote for answer as the current user in one of current user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
@@ -545,9 +555,10 @@ def cancel_upvote_answer(
 @router.get("/{uuid}/suggestions/", response_model=List[schemas.AnswerSuggestEdit])
 def get_suggestions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if answer is None:
         raise HTTPException_(

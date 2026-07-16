@@ -9,6 +9,7 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.services import people as people_service
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, get_logger
 from chafan_core.app.materialize import user_in_site
 from chafan_core.app.model_utils import is_live_answer, is_live_article
@@ -123,10 +124,11 @@ def _get_user_public(
 @router.get("/{handle}", response_model=schemas.UserPublic)
 def get_user_public(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     handle: StrippedNonEmptyBasicStr,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     logger.debug("Call get_user_public")
     db = cached_layer.get_db()
     user = crud.user.get_by_handle(db, handle=handle)
@@ -145,10 +147,11 @@ def get_user_public(
 @router.get("/{uuid}/site-profiles/", response_model=List[schemas.Profile])
 def get_user_site_profiles(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if user is None or not user.is_active:
         raise HTTPException_(
@@ -172,7 +175,7 @@ def get_user_site_profiles(
 @router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
 def get_user_questions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -184,6 +187,7 @@ def get_user_questions(
     """
     Get a user's asked questions.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
@@ -203,7 +207,7 @@ def get_user_questions(
 @router.get("/{uuid}/submissions/", response_model=List[schemas.Submission])
 def get_user_submissions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -215,6 +219,7 @@ def get_user_submissions(
     """
     Get a user's submissions.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
@@ -233,8 +238,8 @@ def get_user_submissions(
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
 def get_user_articles(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
-    #cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context),
+    #ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -243,6 +248,7 @@ def get_user_articles(
         gt=0,
     ),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     print("get user article " + uuid)
     if user is None:
@@ -266,7 +272,7 @@ def get_user_articles(
 )
 def get_user_answers(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -278,6 +284,7 @@ def get_user_answers(
     """
     Get a user's authored answers.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     author = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if author is None:
         raise HTTPException_(
@@ -322,7 +329,7 @@ def get_user_edu_exps(
 @router.get("/{uuid}/followers/", response_model=List[schemas.UserPreview])
 def get_user_followers(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -331,6 +338,7 @@ def get_user_followers(
         gt=0,
     ),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
@@ -343,7 +351,7 @@ def get_user_followers(
 @router.get("/{uuid}/followed/", response_model=List[schemas.UserPreview])
 def get_user_followed(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -352,6 +360,7 @@ def get_user_followed(
         gt=0,
     ),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
@@ -364,8 +373,9 @@ def get_user_followed(
 @router.get("/{uuid}/related/", response_model=List[schemas.UserPreview])
 def get_related(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     target_user = unwrap(crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid))
     return people_service.get_related_users(cached_layer, target_user)

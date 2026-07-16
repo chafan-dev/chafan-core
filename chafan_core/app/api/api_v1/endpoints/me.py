@@ -7,7 +7,7 @@ from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.materialize import user_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, FollowUserInternal
@@ -31,11 +31,12 @@ router = APIRouter()
 # NOTE: don't change route to "/"
 @router.get("", response_model=schemas.User)
 def read_user_me(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
     """
     Get current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     return user_schema_from_orm(cached_layer.get_current_active_user())
 
 
@@ -43,12 +44,13 @@ def read_user_me(
 @router.put("", response_model=schemas.User)
 def update_user_me(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     user_in: UserUpdateMe,
 ) -> Any:
     """
     Update own user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     user_in_dict = user_in.dict(exclude_unset=True)
@@ -110,10 +112,11 @@ def update_user_me(
 
 @router.put("/login", response_model=schemas.User)
 def update_user_login_email(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     user_in: UserUpdatePrimaryEmail,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     dict_in: Dict[str, Any] = {"email": user_in.email}
     existing_secondary_emails = []
     current_user = cached_layer.get_current_active_user()
@@ -166,9 +169,10 @@ def update_user_login_email(
 @router.put("/secondary-emails", response_model=schemas.User)
 def update_user_secondary_emails(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     user_in: UserUpdateSecondaryEmails,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     existing_secondary_emails = []
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
@@ -229,9 +233,10 @@ def update_user_secondary_emails(
 @router.put("/phone-number", response_model=schemas.User)
 def update_user_phone_number(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     user_in: UserUpdateLoginPhoneNumber,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     dict_in = {}
     redis_cli = cached_layer.get_redis()
     current_user = cached_layer.get_current_active_user()
@@ -262,12 +267,13 @@ def update_user_phone_number(
 @router.get("/follows/{uuid}", response_model=schemas.UserFollows)
 def get_user_follows(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
     """
     Get a user's follows info.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     followed = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if followed is None:
         raise HTTPException_(
@@ -280,12 +286,13 @@ def get_user_follows(
 @router.post("/follows/{uuid}", response_model=schemas.UserFollows)
 def follow_user(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
     """
     Follow a user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     if uuid == current_user.uuid:
         raise HTTPException_(
@@ -325,13 +332,14 @@ def follow_user(
 
 @router.delete("/follows/{uuid}", response_model=schemas.UserFollows)
 def cancel_follow_user(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Cancel follow of user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     followed_user = crud.user.get_by_uuid(db, uuid=uuid)
@@ -354,22 +362,24 @@ def cancel_follow_user(
 
 @router.get("/channels/", response_model=List[schemas.Channel])
 def get_user_channels(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
     """
     Get a user's all channels.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [cached_layer.channel_schema_from_orm(ch) for ch in current_user.channels]
 
 
 @router.get("/article-columns/", response_model=List[schemas.ArticleColumn])
 def get_user_article_columns(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
     """
     Get a user's all article_columns.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.materializer.article_column_schema_from_orm(c)
@@ -384,13 +394,14 @@ def get_user_article_columns(
     "/question-subscriptions/{uuid}", response_model=schemas.UserQuestionSubscription
 )
 def get_user_question_subscription(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Get current user's info about a question's subscription.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import questions as questions_service
 
     question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
@@ -402,7 +413,7 @@ def get_user_question_subscription(
 )
 def get_user_question_subscriptions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
         default=MAX_MY_SUBSCRIBED_ITEMS_PAGINATION_LIMIT,
@@ -413,6 +424,7 @@ def get_user_question_subscriptions(
     """
     Get current user's subscribed questions.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.materializer.preview_of_question(q)
@@ -424,13 +436,14 @@ def get_user_question_subscriptions(
     "/question-subscriptions/{uuid}", response_model=schemas.UserQuestionSubscription
 )
 def subscribe_question(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Subscribe a question.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
@@ -453,13 +466,14 @@ def subscribe_question(
     "/question-subscriptions/{uuid}", response_model=schemas.UserQuestionSubscription
 )
 def unsubscribe_question(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Unsubscribe a question.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
@@ -486,13 +500,14 @@ def unsubscribe_question(
     response_model=schemas.UserSubmissionSubscription,
 )
 def get_user_submission_subscription(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Get current user's info about a submission's subscription.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
@@ -512,7 +527,7 @@ def get_user_submission_subscription(
     "/submission-subscriptions/", response_model=List[Optional[schemas.Submission]]
 )
 def get_user_submission_subscriptions(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -524,6 +539,7 @@ def get_user_submission_subscriptions(
     """
     Get current user's subscribed submissions.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.submission_schema_from_orm(q)
@@ -536,13 +552,14 @@ def get_user_submission_subscriptions(
     response_model=schemas.UserSubmissionSubscription,
 )
 def subscribe_submission(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Subscribe a submission.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
@@ -566,13 +583,14 @@ def subscribe_submission(
     response_model=schemas.UserSubmissionSubscription,
 )
 def unsubscribe_submission(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Unsubscribe a submission.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
@@ -597,7 +615,7 @@ def unsubscribe_submission(
 @router.get("/answer-bookmarks/", response_model=List[Optional[schemas.AnswerPreview]])
 def get_user_answer_bookmarks(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
         default=MAX_MY_SUBSCRIBED_ITEMS_PAGINATION_LIMIT,
@@ -605,6 +623,7 @@ def get_user_answer_bookmarks(
         gt=0,
     ),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.materializer.preview_of_answer(answer)
@@ -614,10 +633,11 @@ def get_user_answer_bookmarks(
 
 @router.post("/answer-bookmarks/{uuid}", response_model=schemas.UserAnswerBookmark)
 def bookmark_answer(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
@@ -636,10 +656,11 @@ def bookmark_answer(
 
 @router.delete("/answer-bookmarks/{uuid}", response_model=schemas.UserAnswerBookmark)
 def unbookmark_answer(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
@@ -661,7 +682,7 @@ def unbookmark_answer(
 )
 def get_user_article_bookmarks(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
         default=MAX_MY_SUBSCRIBED_ITEMS_PAGINATION_LIMIT,
@@ -669,6 +690,7 @@ def get_user_article_bookmarks(
         gt=0,
     ),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.materializer.preview_of_article(article)
@@ -678,10 +700,11 @@ def get_user_article_bookmarks(
 
 @router.post("/article-bookmarks/{uuid}", response_model=schemas.UserArticleBookmark)
 def bookmark_article(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
@@ -700,10 +723,11 @@ def bookmark_article(
 
 @router.delete("/article-bookmarks/{uuid}", response_model=schemas.UserArticleBookmark)
 def unbookmark_article(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
@@ -727,13 +751,14 @@ def unbookmark_article(
 
 @router.get("/topic-subscriptions/{uuid}", response_model=schemas.UserTopicSubscription)
 def get_user_topic_subscription(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Get current user's info about a topic's subscription.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
@@ -753,13 +778,14 @@ def get_user_topic_subscription(
     "/topic-subscriptions/{uuid}", response_model=schemas.UserTopicSubscription
 )
 def subscribe_topic(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Subscribe a topic.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
@@ -780,13 +806,14 @@ def subscribe_topic(
     "/topic-subscriptions/{uuid}", response_model=schemas.UserTopicSubscription
 )
 def unsubscribe_topic(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Unsubscribe a topic.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
@@ -811,13 +838,14 @@ def unsubscribe_topic(
     response_model=schemas.UserArticleColumnSubscription,
 )
 def get_user_article_column_subscription(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Get current user's info about a article_column's subscription.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
@@ -838,11 +866,12 @@ def get_user_article_column_subscription(
 )
 def get_user_article_column_subscriptions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
     """
     Get current user's all subscribed article columns.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.materializer.article_column_schema_from_orm(c)
@@ -855,13 +884,14 @@ def get_user_article_column_subscriptions(
     response_model=schemas.UserArticleColumnSubscription,
 )
 def subscribe_article_column(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Subscribe a article_column.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
@@ -885,13 +915,14 @@ def subscribe_article_column(
     response_model=schemas.UserArticleColumnSubscription,
 )
 def unsubscribe_article_column(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Unsubscribe a article_column.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
     if article_column is None:
@@ -906,8 +937,9 @@ def unsubscribe_article_column(
 
 @router.get("/site-profiles/", response_model=List[schemas.Profile])
 def get_site_profiles(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     return sites_service.site_profiles_for_user(
         cached_layer.get_db(),
         cached_layer.materializer,
@@ -919,8 +951,9 @@ def get_site_profiles(
     "/moderated-sites/", response_model=List[schemas.Site], include_in_schema=False
 )
 def get_moderated_sites(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     if current_user.is_superuser:
         sites = crud.site.get_all(cached_layer.get_db())
