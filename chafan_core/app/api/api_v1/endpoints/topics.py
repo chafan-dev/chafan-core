@@ -14,7 +14,7 @@ router = APIRouter()
 @router.get("/{uuid}", response_model=schemas.Topic)
 def get_topic(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
     """
@@ -53,7 +53,7 @@ def get_topic_questions(
 @router.get("/{uuid}/sub-topics/", response_model=List[schemas.Topic])
 def get_sub_topics(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
     return topics_service.list_sub_topics(db, uuid)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List
 
 from chafan_core.app import crud, schemas
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.responders import event as event_responder
 from chafan_core.app.schemas.notification import NotificationUpdate
 from chafan_core.app.task_utils import execute_with_broker
@@ -40,7 +40,7 @@ def list_read(ctx) -> List[schemas.Notification]:
 def update_notification(
     *, id: int, current_user_id: int, notif_in: NotificationUpdate
 ) -> None:
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         broker.principal_id = current_user_id
         broker.update_notification(
             unwrap(crud.notification.get(broker.get_db(), id)), notif_in

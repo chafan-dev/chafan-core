@@ -252,7 +252,7 @@ def get_user_answers(
 @router.get("/{uuid}/work-exps/", response_model=List[schemas.UserWorkExperience])
 def get_user_work_exps(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
@@ -268,7 +268,7 @@ def get_user_work_exps(
 @router.get("/{uuid}/edu-exps/", response_model=List[schemas.UserEducationExperience])
 def get_user_edu_exps(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:

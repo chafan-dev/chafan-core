@@ -1,7 +1,7 @@
-"""Per-request context: lazy DB + Redis + principal + materializer.
+"""Per-request context: lazy DB + Redis + principal + PrincipalView shaper.
 
-Target replacement for DataBroker session holder and the former CachedLayer
-façade. Services and responders take a RequestContext (or DataBroker subclass).
+Constructed per-request by deps.py and for background work. Services and
+responders take a RequestContext.
 """
 
 from __future__ import annotations
@@ -42,6 +42,22 @@ class RequestContext:
     @property
     def broker(self) -> "RequestContext":
         return self
+
+    @property
+    def redis(self) -> Optional["redis.Redis"]:
+        return self._redis
+
+    @redis.setter
+    def redis(self, value: Optional["redis.Redis"]) -> None:
+        self._redis = value
+
+    @property
+    def db(self) -> Optional[Session]:
+        return self._db
+
+    @db.setter
+    def db(self, value: Optional[Session]) -> None:
+        self._db = value
 
     def get_redis(self) -> "redis.Redis":
         if self._redis is None:
@@ -170,7 +186,7 @@ class RequestContext:
             self._db = None
 
     def close_legacy_commit(self) -> None:
-        """Match historical DataBroker.close(): commit write session then close.
+        """Match historical request-end commit: commit write session then close.
 
         Used while endpoints still rely on request-end implicit commits.
         Remove once services own all transaction boundaries.

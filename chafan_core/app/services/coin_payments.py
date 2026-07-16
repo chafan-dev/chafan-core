@@ -5,11 +5,11 @@ from __future__ import annotations
 from typing import List
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 
 
 def payment_schema_from_orm(
-    broker: DataBroker,
+    broker: RequestContext,
     *,
     payment: models.CoinPayment,
     receiver_id: int,
@@ -30,7 +30,7 @@ def payment_schema_from_orm(
     return schemas.CoinPayment(**d)
 
 
-def list_payments(broker: DataBroker, *, user_id: int) -> List[schemas.CoinPayment]:
+def list_payments(broker: RequestContext, *, user_id: int) -> List[schemas.CoinPayment]:
     payments = crud.coin_payment.get_multi_by_user(broker.get_db(), user_id=user_id)
     return [
         payment_schema_from_orm(broker, payment=p, receiver_id=user_id)

@@ -64,7 +64,7 @@ def _post_webhook(webhook: models.Webhook, webhook_event: WebhookEvent) -> None:
 
 
 def call_webhook(
-    ctx,  # RequestContext / DataBroker with materializer
+    ctx,  # RequestContext / RequestContext with materializer
     webhook: models.Webhook,
     event: Union[SiteNewAnswerEvent, SiteNewQuestionEvent, SiteNewSubmissionEvent],
 ) -> None:

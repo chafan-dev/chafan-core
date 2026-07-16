@@ -346,7 +346,7 @@ def update_article_topics(
 @router.get("/{uuid}/archives/", response_model=List[schemas.ArticleArchive])
 def get_article_archives(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
