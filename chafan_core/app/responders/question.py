@@ -41,8 +41,14 @@ def get_question_upvotes(
 def preview_of_question(
     cached_layer, question: models.Question
 ) -> Optional[schemas.QuestionPreview]:
-    """One question preview schema for any principal allowed to read the site."""
-    db = cached_layer.get_db()
+    """One question preview schema for any principal allowed to read the site.
+
+    cached_layer may be RequestContext or Materializer (both expose principal_id
+    and preview_of_user; RequestContext has get_db, Materializer has broker).
+    """
+    from chafan_core.app.responders._util import get_db
+
+    db = get_db(cached_layer)
     principal_id = cached_layer.principal_id
     if not user_permission.user_in_site(
         db,
@@ -84,7 +90,9 @@ def question_schema_from_orm(
     question: models.Question,
     cached_layer,  # RequestContext duck type (same as broker when fully migrated)
 ) -> Optional[schemas.Question]:
-    db = broker.get_db()
+    from chafan_core.app.responders._util import get_db, shaper
+
+    db = get_db(broker)
     if not user_permission.user_in_site(
         db,
         site=question.site,
@@ -103,14 +111,15 @@ def question_schema_from_orm(
             .first()
             is not None
         )
+    mat = shaper(cached_layer)
     base = QuestionInDBBase.from_orm(question)
     d = base.dict()
     d["site"] = responders.site.site_schema_from_orm(cached_layer, question.site)
     d["comments"] = filter_not_none(
-        [cached_layer.materializer.comment_schema_from_orm(c) for c in question.comments]
+        [mat.comment_schema_from_orm(c) for c in question.comments]
     )
-    d["author"] = cached_layer.materializer.preview_of_user(question.author)
-    d["editor"] = map_(question.editor, cached_layer.materializer.preview_of_user)
+    d["author"] = mat.preview_of_user(question.author)
+    d["editor"] = map_(question.editor, mat.preview_of_user)
     d["upvoted"] = upvoted
     d["view_times"] = view_counters.get_viewcount_question(broker, question.id)
     d["answers_count"] = len(get_live_answers_of_question(question))
