@@ -7,7 +7,8 @@ from typing import List
 
 from pydantic.tools import parse_obj_as
 
-from chafan_core.app import crud, rep_manager, schemas
+from chafan_core.app import crud, schemas
+from chafan_core.app.services import reputation as rep_manager
 from chafan_core.app.common import OperationType
 from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.schemas.event import (

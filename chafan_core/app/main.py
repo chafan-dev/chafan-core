@@ -28,10 +28,6 @@ logging.config.dictConfig(log_config)
 logger = logging.getLogger(__name__)
 
 
-from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-
-scheduler = BackgroundScheduler()
 import uvicorn
 import fastapi
 import starlette
@@ -47,13 +43,9 @@ from chafan_core.app.api import health
 from chafan_core.app.api.api_v1.api import api_router
 from chafan_core.app.common import enable_rate_limit, is_dev, report_msg
 from chafan_core.app.config import settings
+from chafan_core.app.infra.scheduler import set_up_scheduled_tasks
 from chafan_core.app.limiter import limiter
 from chafan_core.app.limiter_middleware import SlowAPIMiddleware
-from chafan_core.app.services.search import refresh_search_index
-from chafan_core.app.services.viewcounts import write_view_count_to_db
-from chafan_core.app.text_analysis import fill_missing_keywords_task
-from chafan_core.scheduled.deliver_notifications import run_deliver_notification_task
-from chafan_core.scheduled.lib import refresh_karmas
 
 
 def _check_prod_safety() -> None:
@@ -133,32 +125,8 @@ for lib in [fastapi, uvicorn, starlette]:
 logger.info("Server launches")
 
 @app.on_event("startup")
-def set_up_scheduled_tasks():
-    if not scheduler.running:
-        scheduler.add_job(
-                write_view_count_to_db,
-                trigger=IntervalTrigger(minutes=settings.SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES),
-                name="write_view_count_to_db")
-        scheduler.add_job(
-                refresh_search_index,
-                trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS),
-                name="refresh_search_index")
-        scheduler.add_job(
-                fill_missing_keywords_task,
-                trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_FILL_MISSING_KEYWORDS_HOURS),
-                name="fill_missing_keywords_task")
-        scheduler.add_job(
-                refresh_karmas,
-                trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_REFRESH_KARMAS_HOURS),
-                name="refresh_karmas")
-        scheduler.add_job(
-                run_deliver_notification_task,
-                trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_DELIVER_NOTIFICATIONS_HOURS),
-                name="run_deliver_notification_task")
-        scheduler.start()
-        logger.info("Set up scheduled tasks")
-    else:
-        logger.info("Scheduler already running, skipping scheduled task setup")
+def _startup_scheduled_tasks() -> None:
+    set_up_scheduled_tasks()
 
 
 @app.on_event("shutdown")

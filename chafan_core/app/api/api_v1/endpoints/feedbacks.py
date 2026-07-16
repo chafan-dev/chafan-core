@@ -66,7 +66,7 @@ def post_feedback(
         screenshot_blob=screenshot_blob,
         current_user_id=current_user_id,
     )
-    from chafan_core.app.task import postprocess_new_feedback
+    from chafan_core.app.services.postprocess import postprocess_new_feedback
 
     background_tasks.add_task(postprocess_new_feedback, feedback.id)
     return schemas.GenericResponse()

@@ -221,7 +221,7 @@ def create_article(
         ctx.get_db(), obj_in=article_in, author_id=current_user.id
     )
     if new_article.is_published:
-        from chafan_core.app.task import postprocess_new_article
+        from chafan_core.app.services.postprocess import postprocess_new_article
 
         background_tasks.add_task(postprocess_new_article, new_article.id)
     from chafan_core.app.services import articles as articles_service
@@ -301,7 +301,7 @@ def update_article(
     )
 
     if article.is_published:
-        from chafan_core.app.task import postprocess_updated_article
+        from chafan_core.app.services.postprocess import postprocess_updated_article
 
         background_tasks.add_task(postprocess_updated_article, article.id, was_published)
     from chafan_core.app.services import articles as articles_service

@@ -7,7 +7,7 @@ from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.services import comments as comments_service
-from chafan_core.app.task import postprocess_comment_update, postprocess_new_comment
+from chafan_core.app.services.postprocess import postprocess_comment_update, postprocess_new_comment
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()

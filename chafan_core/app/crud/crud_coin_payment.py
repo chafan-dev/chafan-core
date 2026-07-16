@@ -4,7 +4,8 @@ from typing import List, Optional
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import models, rep_manager
+from chafan_core.app import models
+from chafan_core.app.services import reputation as rep_manager
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.coin_payment import CoinPayment
 from chafan_core.app.schemas.coin_payment import CoinPaymentCreate, CoinPaymentUpdate

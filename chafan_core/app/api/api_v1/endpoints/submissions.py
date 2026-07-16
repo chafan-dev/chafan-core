@@ -18,7 +18,7 @@ from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.responders.archives import submission_archive_schema_from_orm
 from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.app.schemas.event import EventInternal, UpvoteSubmissionInternal
-from chafan_core.app.task import (
+from chafan_core.app.services.postprocess import (
     postprocess_new_submission,
     postprocess_updated_submission,
 )

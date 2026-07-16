@@ -3,7 +3,8 @@ import datetime
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, rep_manager
+from chafan_core.app import crud, models
+from chafan_core.app.services import reputation as rep_manager
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models import Reward
 from chafan_core.app.schemas import RewardCreate, RewardUpdate

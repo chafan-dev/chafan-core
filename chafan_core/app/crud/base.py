@@ -19,6 +19,9 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         """
         CRUD object with default methods to Create, Read, Update, Delete (CRUD).
 
+        All mutating methods flush only; callers own commits.
+        Prefer plain functions for new code; this base remains for migration.
+
         **Parameters**
 
         * `model`: A SQLAlchemy model class
