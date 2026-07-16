@@ -97,6 +97,9 @@ class CachedLayer(object):
     def unwrapped_principal_id(self) -> int:
         return unwrap(self.principal_id)
 
+    # Content caching removed (D1 / target architecture Step 3).
+    # Redis remains for ephemeral state only (OTP, view-bump queue, daily invitation id).
+
     def _get_cached_not_none(
         self,
         *,
@@ -105,18 +108,7 @@ class CachedLayer(object):
         fallable_fetch: Callable[[], Optional[T]],
         hours: int,
     ) -> Optional[T]:
-        redis_cli = self.get_redis()
-        value = redis_cli.get(key)
-        if value is not None:
-            TypeAdapter(typeObj).validate_json(value)
-        data = fallable_fetch()
-        if data and not is_dev():
-            redis_cli.set(
-                key,
-                json.dumps(jsonable_encoder(data)),
-                ex=datetime.timedelta(hours=hours),
-            )
-        return data
+        return fallable_fetch()
 
     def _get_cached(
         self,
@@ -127,18 +119,21 @@ class CachedLayer(object):
         hours: int,
         cache_if_dev: bool = False,
     ) -> T:
-        redis_cli = self.get_redis()
-        value = redis_cli.get(key)
-        if value is not None:
-            return TypeAdapter(typeObj).validate_json(value)
-        data = fetch()
-        if data and (not is_dev() or cache_if_dev):
-            redis_cli.set(
-                key,
-                json.dumps(jsonable_encoder(data)),
-                ex=datetime.timedelta(hours=hours),
-            )
-        return data
+        # Exception: daily invitation link id is operational state, not content cache.
+        if key == DAILY_INVITATION_LINK_ID_CACHE_KEY:
+            redis_cli = self.get_redis()
+            value = redis_cli.get(key)
+            if value is not None:
+                return TypeAdapter(typeObj).validate_json(value)
+            data = fetch()
+            if data is not None:
+                redis_cli.set(
+                    key,
+                    json.dumps(jsonable_encoder(data)),
+                    ex=datetime.timedelta(hours=hours),
+                )
+            return data
+        return fetch()
 
     def _get_cached_non_empty(
         self,
@@ -148,19 +143,7 @@ class CachedLayer(object):
         fallable_fetch: Callable[[], List[T]],
         hours: int,
     ) -> List[T]:
-        redis_cli = self.get_redis()
-        value = redis_cli.get(key)
-        if value is not None:
-            logger.info(f"redis hit for {key}")
-            return TypeAdapter(typeObj).validate_json(value)
-        data = fallable_fetch()
-        if data:
-            redis_cli.set(
-                key,
-                json.dumps(jsonable_encoder(data)),
-                ex=datetime.timedelta(hours=hours),
-            )
-        return data
+        return fallable_fetch()
 
     def question_schema_from_orm(self, question: models.Question) -> Optional[schemas.Question]:
         logger.info("called cached.layer for question " + str(question))
@@ -228,26 +211,14 @@ class CachedLayer(object):
         # )
 
     def invalidate_answer_cache(self, uuid: str) -> None:
-        redis_cli = self.get_redis()
-        redis_cli.delete(ANSWER_CACHE_KEY.format(uuid=uuid))
-        redis_cli.delete(ANSWER_FOR_VISITOR_CACHE_KEY.format(uuid=uuid))
+        return
 
     def _get_cached_recent_k_submissions_of_site(
         self, site: models.Site, k: int
     ) -> List[schemas.Submission]:
-        redis = self.broker.get_redis()
-        key = f"chafan:cached-recent-k-submissions-of-site:{site.id}:{k}"
-        value = redis.get(key)
-        if value is not None:
-            return TypeAdapter(List[schemas.Submission]).validate_json(value)
-        data = filter_not_none(
+        return filter_not_none(
             [self.materializer.submission_schema_from_orm(s) for s in site.submissions]
         )[:k]
-        if not is_dev():
-            redis.set(
-                key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(hours=24)
-            )
-        return data
 
     def _get_submissions_for_user(
         self, current_user_id: Optional[int]
@@ -288,39 +259,16 @@ class CachedLayer(object):
         return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
 
     def get_site_info(self, *, subdomain: str) -> Optional[schemas.Site]:
-        redis_cli = self.get_redis()
-        key = SITE_INFO_CACHE_KEY.format(subdomain=subdomain)
-        value = redis_cli.get(key)
-        if value is not None:
-            return schemas.Site.model_validate_json(value)
         site = crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
         if site is None:
             return None
-        site_data = self.site_schema_from_orm(site)
-        if not is_dev():
-            redis_cli.set(key, site_data.json(), ex=datetime.timedelta(hours=24))
-        return site_data
+        return self.site_schema_from_orm(site)
 
     def get_site_submissions_for_user(
         self, *, site: models.Site, user_id: Optional[int], skip: int, limit: int
     ) -> List[schemas.Submission]:
-        redis = self.get_redis()
-        key = SITE_SUBMISSIONS_FOR_USER_CACHE_KEY.format(
-            site_id=site.id, user_id=user_id
-        )
-        value = redis.get(key)
-        if value is not None:
-            if user_id:
-                return TypeAdapter(List[schemas.Submission]).validate_json(value)[
-                    skip : skip + limit
-                ]
-            else:
-                return TypeAdapter(List[schemas.Submission]).validate_json(
-                    value
-                )[skip : skip + limit]
         submissions: List[Any] = []
         if user_id:
-            # FIXME: compute rank async
             submissions = rank_submissions(
                 filter_not_none(
                     [
@@ -330,24 +278,14 @@ class CachedLayer(object):
                 )
             )
         else:
-            # FIXME: compute rank async
-            logger.error("TODO submission list for visitors are turned off due to `desc` missing") #2025-Jul-30
-            submissions = []
-            # submissions = rank_submissions(
-            #     filter_not_none(
-            #         [
-            #             self.materializer.submission_for_visitor_schema_from_orm(
-            #                 submission
-            #             )
-            #             for submission in site.submissions[:10]
-            #         ]
-            #     )
-            # )
-        if False and not is_dev():
-            redis.set(
-                key,
-                json.dumps(jsonable_encoder(submissions)),
-                ex=datetime.timedelta(hours=1),
+            # Public site lists: same schema path for any allowed reader.
+            submissions = rank_submissions(
+                filter_not_none(
+                    [
+                        self.materializer.submission_schema_from_orm(submission)
+                        for submission in site.submissions
+                    ]
+                )
             )
         return submissions[skip : skip + limit]
 
@@ -355,15 +293,9 @@ class CachedLayer(object):
         self, *, old_site: models.Site, update_dict: Dict[str, Any]
     ) -> models.Site:
         site = crud.site.update(self.get_db(), db_obj=old_site, obj_in=update_dict)
-        self.get_redis().delete(SITEMAPS_CACHE_KEY)
-        self.get_redis().delete(SITE_INFO_CACHE_KEY.format(subdomain=site.subdomain))
         return site
 
     def get_site_maps(self) -> schemas.site.SiteMaps:
-        redis_cli = self.get_redis()
-        value = redis_cli.get(SITEMAPS_CACHE_KEY)
-        if value is not None:
-            return schemas.site.SiteMaps.model_validate_json(value)
         read_db = self.get_db()
         sites = crud.site.get_all(read_db)
         site_maps: Dict[str, schemas.site.SiteMap] = {}
@@ -375,13 +307,10 @@ class CachedLayer(object):
             if s.category_topic is not None:
                 logger.error("site category_topic is deprecated")
             sites_without_topics.append(site_data)
-        data = schemas.site.SiteMaps(
+        return schemas.site.SiteMaps(
             site_maps=list(site_maps.values()),
             sites_without_topics=sites_without_topics,
         )
-        redis_cli.set(
-            SITEMAPS_CACHE_KEY, data.json(), ex=settings.CACHE_SITEMAP_VALID_HOURS)
-        return data
 
     def create_site(
         self,
@@ -396,24 +325,13 @@ class CachedLayer(object):
             moderator=moderator,
             category_topic_id=category_topic_id,
         )
-        self.get_redis().delete(SITEMAPS_CACHE_KEY)
         return site
 
     def get_redis(self) -> redis.Redis:
         return self.broker.get_redis()
 
     def invalidate_submission_caches(self, submission: models.Submission) -> None:
-        redis_cli = self.get_redis()
-        redis_cli.delete(
-            SUBMISSIONS_FOR_USER_CACHE_KEY.format(user_id=submission.author_id)
-        )
-        redis_cli.delete(SITE_SUBMISSIONS_CACHE_KEY.format(site_id=submission.site_id))
-        for k in redis_cli.scan_iter(
-            SITE_SUBMISSIONS_FOR_USER_CACHE_KEY.format(
-                site_id=submission.site_id, user_id="*"
-            )
-        ):
-            redis_cli.delete(k)
+        return
 
     def is_valid_verification_code(self, email: str, code: str) -> bool:
         key = VERIFICATION_CODE_CACHE_KEY.format(email=email)
@@ -423,11 +341,6 @@ class CachedLayer(object):
         return value == code
 
     def get_answer_upvotes(self, uuid: str) -> Optional[schemas.AnswerUpvotes]:
-        redis_cli = self.get_redis()
-        key = ANSWER_UPVOTES_CACHE_KEY.format(uuid=uuid, user_id=self.principal_id)
-        value = redis_cli.get(key)
-        if value is not None:
-            return schemas.AnswerUpvotes.model_validate_json(value)
         db = self.get_db()
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
@@ -447,12 +360,9 @@ class CachedLayer(object):
             .filter_by(answer_id=answer.id, cancelled=False)
             .count()
         )
-        data = schemas.AnswerUpvotes(
+        return schemas.AnswerUpvotes(
             answer_uuid=answer.uuid, count=valid_upvotes, upvoted=upvoted
         )
-        if not is_dev():
-            redis_cli.set(key, data.json(), ex=datetime.timedelta(hours=6))
-        return data
 
     def delete_answer(self, uuid: str) -> Optional[str]:
         """Returns error msg"""
@@ -467,9 +377,7 @@ class CachedLayer(object):
         return None
 
     def invalidate_answer_upvotes_cache(self, uuid: str) -> None:
-        self.get_redis().delete(
-            ANSWER_UPVOTES_CACHE_KEY.format(uuid=uuid, user_id=self.principal_id)
-        )
+        return
 
     def invalidate_comment_caches(self, comment: models.Comment) -> None:
         if comment.answer:
@@ -598,30 +506,14 @@ class CachedLayer(object):
         notif: models.Notification,
         notif_in: schemas.NotificationUpdate,
     ) -> None:
-        notif = crud.notification.update(self.get_db(), db_obj=notif, obj_in=notif_in)
-        self.get_redis().delete(
-            NOTIF_FOR_RECEIVER_CACHE_KEY.format(
-                notification_id=notif.id,
-                receiver_id=notif.receiver_id,
-            )
-        )
+        crud.notification.update(self.get_db(), db_obj=notif, obj_in=notif_in)
 
     def notification_schema_from_orm(
         self, notif: models.Notification
     ) -> Optional[schemas.Notification]:
         if self.principal_id is None:
             return None
-        key = NOTIF_FOR_RECEIVER_CACHE_KEY.format(
-            notification_id=notif.id, receiver_id=self.principal_id
-        )
-        redis_cli = self.get_redis()
-        value = redis_cli.get(key)
-        if value is not None:
-            return schemas.Notification.model_validate_json(value)
-        data = self.materializer.notification_schema_from_orm(notif)
-        if data and not is_dev():
-            redis_cli.set(key, data.json(), ex=datetime.timedelta(hours=24))
-        return data
+        return self.materializer.notification_schema_from_orm(notif)
 
     def get_question_by_id(self, question_id: int):
         question = crud.question.get_by_id(self.get_db(), id=question_id)
@@ -804,19 +696,8 @@ class CachedLayer(object):
             random:bool,
             subject_user_uuid: Optional[str]):
         logger.info(f"cached_layer get_user_activity for {current_user_id}")
-        redis = self.get_redis()
-        key = f"chafan:feed-cache:user:{current_user_id}:before_activity_id={before_activity_id}&limit={limit}&subject_user_uuid={subject_user_uuid}"
-        value = redis.get(key)
-        value = None
-        if value: # TODO redis cache is broken for now 2025-08-04
-            return None
-#            return _update_feed_seq(
-#                cached_layer,
-#                schemas.FeedSequence.model_validate_json(value),
-#                full_answers=full_answers,
-#            )
         activities = get_activities_v2(
-            cached_layer = self,
+            cached_layer=self,
             before_activity_id=before_activity_id,
             limit=limit,
             receiver_user_id=current_user_id,
@@ -833,7 +714,6 @@ class CachedLayer(object):
             and insufficient > 0
             and subject_user_uuid is None
         ):
-            random = True
             extra_activities = get_random_activities(
                 receiver_user_id=current_user_id,
                 before_activity_id=before_activity_id,
@@ -841,12 +721,6 @@ class CachedLayer(object):
             )
             activities.extend(extra_activities)
 
-        redis.delete(key)
-        redis.set( # TODO fixme
-            key,
-            json.dumps(jsonable_encoder(1)),
-            ex=datetime.timedelta(minutes=1),
-        )
         return activities
 
 
@@ -955,14 +829,12 @@ class CachedLayer(object):
                 site_uuid=site_uuid,
             ),
         )
-        self.get_redis().delete(USER_SITE_PROFILES.format(user_id=owner.id))
         return self.materializer.profile_schema_from_orm(data)
 
     def remove_site_profile(self, *, owner_id: int, site_id: int) -> None:
         crud.profile.remove_by_user_and_site(
             self.get_db(), owner_id=owner_id, site_id=site_id
         )
-        self.get_redis().delete(USER_SITE_PROFILES.format(user_id=owner_id))
 
 
     # TODO maybe this is not the best place to put it  2025-Jul-06
