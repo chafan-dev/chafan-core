@@ -9,7 +9,6 @@ from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, rep_manager, schemas
 from chafan_core.app.common import OperationType
-from chafan_core.app.materialize import can_read_answer
 from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.schemas.event import (
     ClaimAnswerQuestionRewardInternal,
@@ -21,7 +20,7 @@ from chafan_core.app.schemas.reward import (
     RewardCondition,
     RewardCreate,
 )
-from chafan_core.app.user_permission import user_in_site
+from chafan_core.app.user_permission import can_read_answer, user_in_site
 from chafan_core.utils.base import HTTPException_
 
 

@@ -8,7 +8,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.services import sites as sites_service
 from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.materialize import preview_of_question_as_search_hit
+from chafan_core.app.responders.question import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
 from chafan_core.utils.base import filter_not_none
 

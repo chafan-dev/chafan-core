@@ -5,6 +5,32 @@ from __future__ import annotations
 from chafan_core.app import models, schemas
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.security import IntlPhoneNumber
+from chafan_core.utils.constants import (
+    unknown_user_full_name,
+    unknown_user_handle,
+    unknown_user_uuid,
+)
+from chafan_core.utils.validators import StrippedNonEmptyBasicStr
+
+_ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
+    uuid=unknown_user_uuid,
+    handle=StrippedNonEmptyBasicStr(unknown_user_handle),
+    full_name=unknown_user_full_name,
+)
+
+
+def plain_preview_of_user(user: models.User) -> schemas.UserPreview:
+    """User preview without principal-relative social annotations."""
+    if not user.is_active:
+        return _ANONYMOUS_USER_PREVIEW
+    return schemas.UserPreview(
+        uuid=user.uuid,
+        karma=user.karma,
+        full_name=user.full_name,
+        handle=user.handle,
+        avatar_url=user.avatar_url,
+        personal_introduction=user.personal_introduction,
+    )
 
 
 def user_schema_from_orm(user: models.User) -> schemas.User:
