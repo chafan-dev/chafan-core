@@ -8,7 +8,7 @@ from chafan_core.app import crud, schemas
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.responders import event as event_responder
 from chafan_core.app.schemas.notification import NotificationUpdate
-from chafan_core.app.task_utils import execute_with_broker
+from chafan_core.app.infra.runtime import execute_with_broker
 from chafan_core.utils.base import filter_not_none, unwrap
 
 

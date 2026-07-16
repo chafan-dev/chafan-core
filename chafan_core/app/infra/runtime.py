@@ -1,3 +1,7 @@
+"""Session/context runners for background and scheduled work."""
+
+from __future__ import annotations
+
 from typing import Callable, Optional, TypeVar
 
 from sqlalchemy.orm.session import Session
@@ -6,8 +10,6 @@ from chafan_core.app.common import handle_exception
 from chafan_core.app.infra.request_context import RequestContext
 
 T = TypeVar("T")
-
-# TODO This file should be removed. These patterns provide little benefit today 2025-Jul-11
 
 
 def execute_with_db(
@@ -25,7 +27,7 @@ def execute_with_db(
     return None
 
 
-def execute_with_broker(
+def execute_with_context(
     runnable: Callable[[RequestContext], T],
     auto_commit: bool = True,
 ) -> Optional[T]:
@@ -39,9 +41,14 @@ def execute_with_broker(
     except Exception as e:
         handle_exception(e)
     finally:
-        if ctx.db is not None and not ctx._committed:
-            ctx.close()
-        elif ctx.db is not None:
-            ctx._db.close()
-            ctx._db = None
+        if ctx.db is not None:
+            if not ctx._committed:
+                ctx.close()
+            else:
+                ctx._db.close()  # type: ignore[union-attr]
+                ctx._db = None
     return None
+
+
+# Historical name used across feed/task/scheduled.
+execute_with_broker = execute_with_context

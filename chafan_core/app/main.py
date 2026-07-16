@@ -49,10 +49,8 @@ from chafan_core.app.common import enable_rate_limit, is_dev, report_msg
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
 from chafan_core.app.limiter_middleware import SlowAPIMiddleware
-from chafan_core.app.task import (
-        write_view_count_to_db,
-        refresh_search_index,
-)
+from chafan_core.app.services.search import refresh_search_index
+from chafan_core.app.services.viewcounts import write_view_count_to_db
 from chafan_core.app.text_analysis import fill_missing_keywords_task
 from chafan_core.scheduled.deliver_notifications import run_deliver_notification_task
 from chafan_core.scheduled.lib import refresh_karmas

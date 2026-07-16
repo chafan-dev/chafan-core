@@ -20,6 +20,7 @@ from chafan_core.app.services import (
     messages,
     notifications,
     people,
+    postprocess,
     profiles,
     questions,
     reports,
@@ -28,6 +29,7 @@ from chafan_core.app.services import (
     sites,
     submissions,
     topics,
+    viewcounts,
     webhooks,
 )
 
@@ -51,6 +53,7 @@ __all__ = [
     "messages",
     "notifications",
     "people",
+    "postprocess",
     "profiles",
     "questions",
     "reports",
@@ -59,5 +62,6 @@ __all__ = [
     "sites",
     "submissions",
     "topics",
+    "viewcounts",
     "webhooks",
 ]

@@ -59,7 +59,7 @@ from chafan_core.app.schemas.security import (
 )
 
 from chafan_core.app.security import get_password_hash
-from chafan_core.app.task_utils import execute_with_db
+from chafan_core.app.infra.runtime import execute_with_db
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import HTTPException_
 from chafan_core.utils.validators import (
