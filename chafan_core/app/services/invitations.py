@@ -6,9 +6,10 @@ import logging
 
 from sqlalchemy.orm import Session
 
+from typing import Any
+
 from chafan_core.app import crud, schemas
 from chafan_core.app.infra import cache as infra_cache
-from chafan_core.app.materialize import Materializer
 from chafan_core.utils.base import unwrap
 
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ def try_consume_invitation_link_by_uuid(db: Session, invitation_uuid: str) -> bo
     return True
 
 
-def get_daily_invitation_link(db: Session, materializer: Materializer) -> schemas.InvitationLink:
+def get_daily_invitation_link(db: Session, materializer: Any) -> schemas.InvitationLink:
     def fetch() -> int:
         return crud.invitation_link.create_invitation(
             db, invited_to_site_id=None, inviter=crud.user.get_superuser(db)

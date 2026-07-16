@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.materialize import Materializer
 from chafan_core.app.recs.matrices import similar_entity_ids
 from chafan_core.app.recs.ranking import rank_site_profiles
 from chafan_core.app.schemas.site import SiteCreate
@@ -32,11 +31,12 @@ def create_site(
 
 def create_site_profile(
     db: Session,
-    materializer: Materializer,
+    materializer: Any,
     *,
     owner: models.User,
     site_uuid: str,
 ) -> schemas.Profile:
+    """materializer: Materializer-like with profile_schema_from_orm."""
     data = crud.profile.create_with_owner(
         db,
         obj_in=schemas.ProfileCreate(
@@ -58,7 +58,7 @@ def related_site_ids(db: Session, site_id: int, top_k: int = 10) -> List[int]:
 
 
 def site_profiles_for_user(
-    db: Session, materializer: Materializer, user_id: int
+    db: Session, materializer: Any, user_id: int
 ) -> List[schemas.Profile]:
     current_user = crud.user.get(db, id=user_id)
     assert current_user is not None
