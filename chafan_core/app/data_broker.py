@@ -5,13 +5,17 @@ as a thin compatibility wrapper used by CachedLayer and existing call sites.
 use_read_replica is ignored (D6: single Postgres, no replica).
 """
 
-from typing import Optional
+from __future__ import annotations
 
-import redis
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy.orm import Session
 
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.db.session import SessionLocal
+
+if TYPE_CHECKING:
+    import redis
 
 
 class DataBroker(RequestContext):
@@ -28,11 +32,11 @@ class DataBroker(RequestContext):
 
     # Expose redis/db attributes some call sites still poke at.
     @property
-    def redis(self) -> Optional[redis.Redis]:
+    def redis(self) -> Optional["redis.Redis"]:
         return self._redis
 
     @redis.setter
-    def redis(self, value: Optional[redis.Redis]) -> None:
+    def redis(self, value: Optional["redis.Redis"]) -> None:
         self._redis = value
 
     @property
