@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models
 from chafan_core.app.common import OperationType
 from chafan_core.app.model_utils import is_live_answer
-from chafan_core.utils.base import ContentVisibility
+from chafan_core.utils.base import ContentVisibility, HTTPException_
 
 import logging
 
@@ -96,3 +96,25 @@ def answer_read_allowed(
     return user_in_site(
         db, site=answer.site, user_id=user_id, op_type=OperationType.ReadSite
     )
+
+
+def check_user_in_site(
+    db: Session, *, site: models.Site, user_id: int, op_type: OperationType
+) -> None:
+    if not user_in_site(db, site=site, user_id=user_id, op_type=op_type):
+        raise HTTPException_(
+            status_code=400,
+            detail="Current user is not allowed in this site.",
+        )
+
+
+def check_user_in_channel(current_user: models.User, channel: models.Channel) -> None:
+    if (
+        current_user not in channel.members
+        and current_user is not channel.admin
+        and current_user is not channel.private_with_user
+    ):
+        raise HTTPException_(
+            status_code=400,
+            detail="Unauthorized.",
+        )
