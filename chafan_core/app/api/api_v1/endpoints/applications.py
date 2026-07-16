@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.limiter import limiter
 from chafan_core.app.services import sites as sites_service
 from chafan_core.utils.base import HTTPException_
@@ -19,8 +19,9 @@ def get_pending_applications(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     if current_user.is_superuser:
         sites = crud.site.get_all(cached_layer.get_db())
@@ -41,11 +42,12 @@ def update_application(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     id: int,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     application = crud.application.get(db, id=id)
     if application is None:
         raise HTTPException_(

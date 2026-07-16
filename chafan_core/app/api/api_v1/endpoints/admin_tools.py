@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Response
 
 from chafan_core.app.config import settings
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.feed import get_site_activities
 from chafan_core.utils.base import HTTPException_
 from chafan_core.app.responders.rss import build_rss
@@ -18,12 +18,13 @@ router = APIRouter()
 @router.get("/full_site_activity/{passcode}/rss.xml")
 def get_site_activity(
         *, response: Response,
-        cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+        ctx: RequestContext = Depends(deps.get_request_context),
         passcode: str
 ) -> str:
     """
     Get full cha.fan activity.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info("Generating RSS for all sites")
     code = settings.DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE
     if code is None or code == "" or code != passcode:

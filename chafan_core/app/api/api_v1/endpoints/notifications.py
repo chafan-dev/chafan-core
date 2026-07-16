@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.limiter import limiter
 from chafan_core.app.schemas.notification import NotificationUpdate
@@ -17,8 +18,9 @@ router = APIRouter()
 @router.get("/unread/", response_model=List[schemas.Notification])
 def get_unread_notifications(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     notifs = [
         cached_layer.materializer.notification_schema_from_orm(n)
         for n in crud.notification.get_unread(
@@ -32,8 +34,9 @@ def get_unread_notifications(
 @router.get("/read/", response_model=List[schemas.Notification])
 def get_read_notifications(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     # TODO: pagination
     notifs = [
         cached_layer.materializer.notification_schema_from_orm(n)

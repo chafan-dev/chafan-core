@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from chafan_core.app import crud, schemas, security
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.submissions import _create_submission
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.security import VerifiedTelegramID, VerifyTelegramID
 from chafan_core.utils.base import HTTPException_
@@ -16,9 +16,10 @@ router = APIRouter()
 @router.post("/verify-telegram-id/", response_model=schemas.VerifyTelegramResponse)
 def verify_telegram_id(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     data: VerifyTelegramID,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if (
         (not settings.OFFICIAL_BOT_SECRET)
         or data.verifier_secret != settings.OFFICIAL_BOT_SECRET
@@ -45,10 +46,11 @@ def verify_telegram_id(
 @router.post("/submissions/", response_model=schemas.Submission)
 def create_submission(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     submission_in: schemas.SubmissionCreate,
     verified_id: VerifiedTelegramID,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if (
         not settings.OFFICIAL_BOT_SECRET
     ) or verified_id.verifier_secret != settings.OFFICIAL_BOT_SECRET:
