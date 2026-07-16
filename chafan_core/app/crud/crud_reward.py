@@ -3,8 +3,7 @@ import datetime
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models
-from chafan_core.app.services import reputation as rep_manager
+from chafan_core.app import coins, crud, models
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models import Reward
 from chafan_core.app.schemas import RewardCreate, RewardUpdate
@@ -18,7 +17,7 @@ class CRUDReward(CRUDBase[Reward, RewardCreate, RewardUpdate]):
         obj_in: RewardCreate,
         giver: models.User,
     ) -> Reward:
-        rep_manager.deduct_coins(db, giver, obj_in.coin_amount, "reward_create")
+        coins.deduct_coins(db, giver, obj_in.coin_amount, "reward_create")
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         obj_in_data = jsonable_encoder(obj_in)
         obj_in_data["expired_at"] = utc_now + datetime.timedelta(

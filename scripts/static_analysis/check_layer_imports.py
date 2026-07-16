@@ -102,12 +102,16 @@ def main() -> int:
                 or mod.startswith("chafan_core.app.crud.")
                 or mod.startswith("chafan_core.app.responders")
             ):
-                warnings.append(
-                    f"{rel}:{lineno}: api still imports {mod} (migrate to services)"
-                )
-            # from chafan_core.app import crud
-            if layer == "api" and mod == "chafan_core.app.crud":
-                pass  # already covered
+                # Temporary allowlist: large auth/profile modules still mid-migration.
+                allow = {
+                    "chafan_core/app/api/api_v1/endpoints/login.py",
+                    "chafan_core/app/api/api_v1/endpoints/people.py",
+                }
+                msg = f"{rel}:{lineno}: api must not import {mod}"
+                if str(rel) in allow:
+                    warnings.append(msg + " (allowlisted)")
+                else:
+                    errors.append(msg)
 
     for w in warnings:
         print(f"WARN  {w}")

@@ -84,15 +84,7 @@ def award_article_created(db: Session, user: models.User, article: models.Articl
 # Coin mutations. All coin changes route through these two functions.
 # ---------------------------------------------------------------------------
 
-def deduct_coins(db: Session, user: models.User, amount: int, reason: str) -> None:
-    user.remaining_coins -= amount
-    db.add(user)
-    logger.info(f"deduct_coins user_id={user.id} amount={amount} reason={reason}")
-
-def award_coins(db: Session, user: models.User, amount: int, reason: str) -> None:
-    user.remaining_coins += amount
-    db.add(user)
-    logger.info(f"award_coins user_id={user.id} amount={amount} reason={reason}")
+from chafan_core.app.coins import award_coins, deduct_coins  # noqa: F401
 
 
 # ---------------------------------------------------------------------------

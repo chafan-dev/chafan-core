@@ -7,8 +7,7 @@ from typing import List
 
 from pydantic.tools import parse_obj_as
 
-from chafan_core.app import crud, schemas
-from chafan_core.app.services import reputation as rep_manager
+from chafan_core.app import coins, crud, schemas
 from chafan_core.app.common import OperationType
 from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.schemas.event import (
@@ -134,7 +133,7 @@ def claim_reward(ctx, *, reward_id: int) -> schemas.Reward:
             detail="The reward condition is not met yet",
         )
     reward.claimed_at = utc_now
-    rep_manager.award_coins(db, current_user, reward.coin_amount, "reward_claim")
+    coins.award_coins(db, current_user, reward.coin_amount, "reward_claim")
     db.add(reward)
     db.commit()
     db.refresh(reward)
@@ -184,7 +183,7 @@ def refund_reward(ctx, *, reward_id: int) -> schemas.Reward:
         )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     reward.refunded_at = utc_now
-    rep_manager.award_coins(db, current_user, reward.coin_amount, "reward_refund")
+    coins.award_coins(db, current_user, reward.coin_amount, "reward_refund")
     db.add(reward)
     db.commit()
     db.refresh(reward)
