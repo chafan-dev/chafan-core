@@ -26,6 +26,7 @@ from chafan_core.app.schemas.event import (
     CreateSiteNeedApprovalInternal,
     EventInternal,
 )
+from chafan_core.app.services import sites as sites_service
 from chafan_core.app.user_permission import user_in_site
 
 from chafan_core.utils.base import EntityType, HTTPException_, filter_not_none, unwrap
@@ -109,8 +110,11 @@ def create_site(
             )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     super_user = crud.user.get_superuser(db)
-    new_site = cached_layer.create_site(
-        site_in=site_in, moderator=current_user, category_topic_id=category_topic_id
+    new_site = sites_service.create_site(
+        db,
+        site_in=site_in,
+        moderator=current_user,
+        category_topic_id=category_topic_id,
     )
     crud.coin_payment.make_payment(
         db,
@@ -128,7 +132,12 @@ def create_site(
         payer=current_user,
         payee=super_user,
     )
-    cached_layer.create_site_profile(owner=new_site.moderator, site_uuid=new_site.uuid)
+    sites_service.create_site_profile(
+        db,
+        cached_layer.materializer,
+        owner=new_site.moderator,
+        site_uuid=new_site.uuid,
+    )
     return schemas.CreateSiteResponse(
         created_site=cached_layer.site_schema_from_orm(new_site)
     )
@@ -358,7 +367,12 @@ def site_apply(
             db, owner_id=current_user.id, site_id=site.id
         )
         if not existing_profile:
-            cached_layer.create_site_profile(owner=current_user, site_uuid=site.uuid)
+            sites_service.create_site_profile(
+                db,
+                cached_layer.materializer,
+                owner=current_user,
+                site_uuid=site.uuid,
+            )
         return schemas.SiteApplicationResponse(auto_approved=True)
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     crud.notification.create_with_content(
@@ -396,8 +410,10 @@ def remove_my_site_membership(
     )
     if application is not None:
         application.pending = False
-    cached_layer.remove_site_profile(
-        owner_id=cached_layer.unwrapped_principal_id(), site_id=site.id
+    sites_service.remove_site_profile(
+        db,
+        owner_id=cached_layer.unwrapped_principal_id(),
+        site_id=site.id,
     )
     db.commit()
     return schemas.GenericResponse()
@@ -435,8 +451,8 @@ def get_related(
         ):
             related_sites[s.id] = s
 
-    for site_id in cached_layer.get_similar_entity_ids(
-        id=site.id, entity_type=EntityType.sites, topK=5
+    for site_id in sites_service.related_site_ids(
+        cached_layer.get_db(), site.id, top_k=5
     ):
         if site_id not in related_sites:
             related_sites[site_id] = unwrap(

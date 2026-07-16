@@ -280,7 +280,11 @@ def create_user_open(
     crud.audit_log.create_with_user(
         db, ipaddr="0.0.0.0", user_id=1, api="Open new account email " + email
     )
-    invitation_link_valid = cached_layer.try_consume_invitation_link_by_uuid(invitation_link_uuid)
+    from chafan_core.app.services import invitations as invitations_service
+
+    invitation_link_valid = invitations_service.try_consume_invitation_link_by_uuid(
+        db, invitation_link_uuid
+    )
     if not invitation_link_valid:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -522,7 +526,9 @@ def get_link_preview(
             status_code=400,
             detail="Invalid hostname for link preview.",
         )
-    response_text = cached_layer.request_text(url)
+    from chafan_core.app.services import link_preview
+
+    response_text = link_preview.request_text(url)
     if not response_text:
         raise HTTPException_(
             status_code=400,

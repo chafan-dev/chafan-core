@@ -12,6 +12,7 @@ from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.schemas.event import EventInternal, InviteJoinSiteInternal
+from chafan_core.app.services import sites as sites_service
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
@@ -54,7 +55,12 @@ def invite_new_user(
         db, owner_id=invited_user.id, site_id=site.id
     )
     if not existing_profile:
-        cached_layer.create_site_profile(owner=invited_user, site_uuid=site.uuid)
+        sites_service.create_site_profile(
+            db,
+            cached_layer.materializer,
+            owner=invited_user,
+            site_uuid=site.uuid,
+        )
         application = crud.application.get_by_applicant_and_site(
             db, applicant=invited_user, site=site
         )

@@ -11,6 +11,7 @@ from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.materialize import user_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, FollowUserInternal
+from chafan_core.app.services import sites as sites_service
 from chafan_core.app.schemas.user import (
     UserUpdateLoginPhoneNumber,
     UserUpdateMe,
@@ -905,7 +906,11 @@ def unsubscribe_article_column(
 def get_site_profiles(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
 ) -> Any:
-    return cached_layer.get_site_profiles()
+    return sites_service.site_profiles_for_user(
+        cached_layer.get_db(),
+        cached_layer.materializer,
+        cached_layer.unwrapped_principal_id(),
+    )
 
 
 @router.get(

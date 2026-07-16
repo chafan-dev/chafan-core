@@ -9,6 +9,8 @@ from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.schemas.invitation_link import InvitationLinkCreate
+from chafan_core.app.services import invitations as invitations_service
+from chafan_core.app.services import sites as sites_service
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
@@ -49,7 +51,9 @@ def create_invitation_link(
 def get_daily_invitation_link(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    return cached_layer.get_daily_invitation_link()
+    return invitations_service.get_daily_invitation_link(
+        cached_layer.get_db(), cached_layer.materializer
+    )
 
 
 @router.get("/{uuid}", response_model=schemas.InvitationLink)
@@ -93,7 +97,9 @@ def join_site_with_invitation_link(
         db, owner_id=current_user.id, site_id=invitation_link.invited_to_site_id
     )
     if not existing_profile:
-        cached_layer.create_site_profile(
+        sites_service.create_site_profile(
+            db,
+            cached_layer.materializer,
             owner=current_user,
             site_uuid=invitation_link.invited_to_site.uuid,
         )

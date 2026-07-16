@@ -36,8 +36,14 @@ def get_article(
     current_user_id = cached_layer.principal_id
     article = cached_layer.get_article_by_uuid(uuid, current_user_id)
     if article is None:
-        cached_layer.create_audit(
-                api=f"get_article {uuid} retrieved None", request=request, user_id=current_user_id)
+        from chafan_core.app.services import audit as audit_service
+
+        audit_service.create_audit(
+            cached_layer.get_db(),
+            api=f"get_article {uuid} retrieved None",
+            request=request,
+            user_id=current_user_id,
+        )
         raise HTTPException_(
             status_code=400,
             detail="The article doesn't exist in the system.",
