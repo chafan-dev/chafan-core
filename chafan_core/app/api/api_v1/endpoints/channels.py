@@ -2,13 +2,14 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.user_permission import check_user_in_channel
-from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import channels as channels_service
+from chafan_core.app.services import messages as messages_service
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -21,15 +22,7 @@ def get_channel(
     id: int,
 ) -> Any:
     """Get channel that user belongs to."""
-    channel = crud.channel.get(ctx.get_db(), id=id)
-    if channel is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The channel doesn't exist in the system.",
-        )
-    current_user = ctx.get_current_active_user()
-    check_user_in_channel(current_user, channel)
-    return ctx.channel_schema_from_orm(channel)
+    return channels_service.get_channel(ctx, id)
 
 
 @router.get("/{id}/messages/", response_model=List[schemas.Message])
@@ -39,17 +32,7 @@ def get_channel_messages(
     id: int,
 ) -> Any:
     """Get channel's all messages that user belongs to."""
-    channel = crud.channel.get(ctx.get_db(), id=id)
-    if channel is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The channel doesn't exist in the system.",
-        )
-    current_user = ctx.get_current_active_user()
-    check_user_in_channel(current_user, channel)
-    return [
-        ctx.materializer.message_schema_from_orm(m) for m in channel.messages
-    ]
+    return messages_service.list_channel_messages(ctx, id)
 
 
 @router.post("/", response_model=schemas.Channel)
@@ -60,20 +43,4 @@ def create_channel(
 ) -> Any:
     """Create new private channel by the current user."""
     logger.info("create_channel")
-    private_with_user = crud.user.get_by_uuid(
-        ctx.get_db(), uuid=channel_in.private_with_user_uuid
-    )
-    if private_with_user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    current_user = ctx.get_current_active_user()
-    return ctx.channel_schema_from_orm(
-        crud.channel.get_or_create_private_channel_with(
-            ctx.get_db(),
-            host_user=current_user,
-            with_user=private_with_user,
-            obj_in=channel_in,
-        )
-    )
+    return channels_service.create_private_channel(ctx, channel_in=channel_in)
