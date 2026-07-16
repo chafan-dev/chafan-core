@@ -195,24 +195,23 @@ def can_read_answer(db: Session, *, answer: models.Answer, principal_id: int) ->
 
 
 def can_read_article(*, article: models.Article, principal_id: int) -> bool:
-    if article.is_deleted:
-        return False
-    if principal_id == article.author_id:
-        return True
-    return is_live_article(article)
+    from chafan_core.app.responders import article as article_responder
+
+    return article_responder.can_read_article(
+        article=article, principal_id=principal_id
+    )
 
 
 def visitor_can_read_article(*, article: models.Article) -> bool:
-    if not is_live_article(article):
-        return False
-    return article.visibility == ContentVisibility.ANYONE
+    from chafan_core.app.responders import article as article_responder
+
+    return article_responder.visitor_can_read_article(article=article)
 
 
 def get_answer_text_preview(answer: models.Answer) -> Tuple[str, bool]:
-    text = answer.body_prerendered_text
-    if len(text) > _MAX_ANSWER_BODY_CHARS:
-        return text[:_MAX_ANSWER_BODY_CHARS] + "...", True
-    return text, False
+    from chafan_core.app.responders import answer as answer_responder
+
+    return answer_responder.get_answer_text_preview(answer)
 
 
 def user_schema_from_orm(user: models.User) -> schemas.User:
@@ -266,6 +265,10 @@ class Materializer(object):
         else:
             self.principal = None
 
+    def get_db(self) -> Session:
+        """Duck-type with RequestContext so responders can take either."""
+        return self.broker.get_db()
+
     def preview_of_user(self, user: models.User) -> schemas.UserPreview:
         if not user.is_active:
             return _ANONYMOUS_USER_PREVIEW
@@ -307,38 +310,9 @@ class Materializer(object):
     def preview_of_question(
         self, question: models.Question
     ) -> Optional[schemas.QuestionPreview]:
-        """One question preview for any principal allowed to read the site."""
-        if not user_in_site(
-            self.broker.get_db(),
-            site=question.site,
-            user_id=self.principal_id,
-            op_type=OperationType.ReadSite,
-        ):
-            return None
-        if question.is_hidden and (
-            self.principal_id is None or self.principal_id != question.author_id
-        ):
-            return None
-        desc = None
-        if question.description:
-            desc = RichText(
-                source=question.description,
-                editor=question.description_editor,
-                rendered_text=question.description_text,
-            )
-        return schemas.QuestionPreview(
-            uuid=question.uuid,
-            title=question.title,
-            author=self.preview_of_user(question.author),
-            is_placed_at_home=question.is_placed_at_home,
-            created_at=question.created_at,
-            desc=desc,
-            answers_count=len(get_live_answers_of_question(question)),
-            upvotes=self.get_question_upvotes(question),
-            site=self.site_schema_from_orm(question.site),
-            upvotes_count=question.upvotes_count,
-            comments_count=len(question.comments),
-        )
+        import chafan_core.app.responders as responders
+
+        return responders.question.preview_of_question(self, question)
 
     # Back-compat alias during Step 1 migration of call sites.
     def preview_of_question_for_visitor(
@@ -350,34 +324,16 @@ class Materializer(object):
     def get_answer_preview_base(
         self, answer: models.Answer
     ) -> schemas.answer.AnswerPreviewBase:
-        preview_body, truncated = get_answer_text_preview(answer)
-        return schemas.answer.AnswerPreviewBase(
-            uuid=answer.uuid,
-            body=preview_body,
-            body_is_truncated=truncated,
-            author=self.preview_of_user(answer.author),
-            upvotes_count=answer.upvotes_count,
-            is_hidden_by_moderator=answer.is_hidden_by_moderator,
-            featured_at=answer.featured_at,
-        )
+        from chafan_core.app.responders import answer as answer_responder
+
+        return answer_responder.answer_preview_base(self, answer)
 
     def preview_of_answer(
         self, answer: models.Answer
     ) -> Optional[schemas.AnswerPreview]:
-        """One answer preview for any principal allowed to read the answer."""
-        if not user_permission.answer_read_allowed(
-            self.broker.get_db(), answer, self.principal_id
-        ):
-            return None
-        question = self.preview_of_question(answer.question)
-        if question is None:
-            return None
-        base = self.get_answer_preview_base(answer)
-        return schemas.AnswerPreview(
-            **base.dict(),
-            question=question,
-            full_answer=None,
-        )
+        from chafan_core.app.responders import answer as answer_responder
+
+        return answer_responder.preview_of_answer(self, answer)
 
     # Back-compat alias during Step 1 migration of call sites.
     def preview_of_answer_for_visitor(
@@ -389,21 +345,9 @@ class Materializer(object):
     def preview_of_article(
         self, article: models.Article
     ) -> Optional[schemas.ArticlePreview]:
-        if self.principal_id:
-            if not can_read_article(article=article, principal_id=self.principal_id):
-                return None
-        else:
-            if not visitor_can_read_article(article=article):
-                return None
-        return schemas.ArticlePreview(
-            uuid=article.uuid,
-            author=self.preview_of_user(article.author),
-            article_column=self.article_column_schema_from_orm(article.article_column),
-            title=article.title,
-            body_text=article.body_text,
-            is_published=article.is_published,
-            upvotes_count=article.upvotes_count,
-        )
+        from chafan_core.app.responders import article as article_responder
+
+        return article_responder.preview_of_article(self, article)
 
     def message_schema_from_orm(self, message: models.Message) -> schemas.Message:
         from chafan_core.app.responders import misc as misc_responder
@@ -623,31 +567,9 @@ class Materializer(object):
     def submission_schema_from_orm(
         self, submission: models.Submission
     ) -> Optional[schemas.Submission]:
-        if not user_in_site(
-            self.broker.get_db(),
-            site=submission.site,
-            user_id=self.principal_id,
-            op_type=OperationType.ReadSite,
-        ):
-            return None
-        if submission.is_hidden:
-            return None
-        base = schemas.SubmissionInDB.from_orm(submission)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(submission.site)
-        d["comments"] = filter_not_none(
-            [self.comment_schema_from_orm(c) for c in submission.comments]
-        )
-        d["author"] = self.preview_of_user(submission.author)
-        d["contributors"] = [self.preview_of_user(u) for u in submission.contributors]
-        d["view_times"] = 0  # view_counters.get_views(submission.uuid, "submission")
-        if submission.description is not None:
-            d["desc"] = RichText(
-                source=submission.description,
-                rendered_text=submission.description_text,
-                editor=submission.description_editor,
-            )
-        return schemas.Submission(**d)
+        import chafan_core.app.responders as responders
+
+        return responders.submission.submission_schema_from_orm(self, submission)
 
     # Back-compat alias during Step 1 migration of call sites.
     def submission_for_visitor_schema_from_orm(
@@ -735,27 +657,10 @@ class Materializer(object):
     def get_question_upvotes(
         self, question: models.Question
     ) -> schemas.QuestionUpvotes:
-        db = self.broker.get_db()
-        valid_upvotes = (
-            db.query(models.QuestionUpvotes)
-            .filter_by(question_id=question.id, cancelled=False)
-            .count()
-        )
-        if self.principal_id:
-            upvoted = (
-                db.query(models.QuestionUpvotes)
-                .filter_by(
-                    question_id=question.id,
-                    voter_id=self.principal_id,
-                    cancelled=False,
-                )
-                .first()
-                is not None
-            )
-        else:
-            upvoted = False
-        return schemas.QuestionUpvotes(
-            question_uuid=question.uuid, count=valid_upvotes, upvoted=upvoted
+        import chafan_core.app.responders as responders
+
+        return responders.question.get_question_upvotes(
+            self.get_db(), question, self.principal_id
         )
 
     def channel_schema_from_orm(self, channel: models.Channel) -> schemas.Channel:
