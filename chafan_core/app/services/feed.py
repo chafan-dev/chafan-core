@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from chafan_core.app import schemas
-from chafan_core.app.feed import get_activities_v2, get_random_activities
+from chafan_core.app.services.feed_impl import get_activities_v2, get_random_activities
 
 import logging
 

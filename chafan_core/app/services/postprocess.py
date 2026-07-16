@@ -9,9 +9,7 @@ from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.config import settings
-from chafan_core.app.feed import (
-        new_activity_into_feed,
-)
+from chafan_core.app.services.feed_impl import new_activity_into_feed
 from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
     create_article_activity,
@@ -48,7 +46,7 @@ from chafan_core.app.text_analysis import (
     update_question_keywords,
     update_submission_keywords,
 )
-from chafan_core.app.webhook_utils import (
+from chafan_core.app.services.webhook_delivery import (
     SiteNewAnswerEvent,
     SiteNewQuestionEvent,
     SiteNewSubmissionEvent,
@@ -57,7 +55,7 @@ from chafan_core.app.webhook_utils import (
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import get_utc_now
 from chafan_core.app.models.activity import Activity
-import chafan_core.app.rep_manager as rep
+import chafan_core.app.services.reputation as rep
 
 
 import logging
