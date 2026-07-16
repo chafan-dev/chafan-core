@@ -65,7 +65,7 @@ class CRUDReport(CRUDBase[Report, ReportCreate, ReportUpdate]):
             created_at=utc_now,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

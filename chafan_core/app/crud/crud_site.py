@@ -75,7 +75,7 @@ class CRUDSite(CRUDBase[Site, SiteCreate, SiteUpdate]):
             **obj_in_data, uuid=self.get_unique_uuid(db), created_at=utc_now
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

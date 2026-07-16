@@ -51,7 +51,7 @@ class CRUDAuditLog(CRUDBase[AuditLog, AuditLogCreate, AuditLogUpdate]):
             request_info=request_info,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
 
 
 audit_log = CRUDAuditLog(AuditLog)

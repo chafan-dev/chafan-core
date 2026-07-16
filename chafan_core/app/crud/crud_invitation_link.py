@@ -35,7 +35,7 @@ class CRUDInvitationLink(
             remaining_quota=100,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

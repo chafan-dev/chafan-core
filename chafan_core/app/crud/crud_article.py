@@ -43,7 +43,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
             uuid=self.get_unique_uuid(db)
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         db.add(
             create_article_activity(
@@ -51,7 +51,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
                 created_at=utc_now,
             )
         )
-        db.commit()
+        db.flush()
         return db_obj
 
     def search(self, db: Session, *, q: str) -> List[Article]:
@@ -71,7 +71,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
         db_obj.topics.clear()
         db_obj.topics = new_topics
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -85,7 +85,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
             article_upvote = ArticleUpvotes(article=db_obj, voter=voter)
             db.add(article_upvote)
             db_obj.upvotes_count += 1
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             db.add(
                 upvote_article_activity(
@@ -94,11 +94,11 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
                     created_at=datetime.datetime.now(tz=datetime.timezone.utc),
                 )
             )
-            db.commit()
+            db.flush()
         elif article_upvote.cancelled:
             db_obj.upvotes_count += 1
             article_upvote.cancelled = False
-            db.commit()
+            db.flush()
         return db_obj
 
     def cancel_upvote(
@@ -113,7 +113,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
             db_obj.upvotes_count -= 1
             assert db_obj.upvotes_count >= 0
             article_upvote.cancelled = True
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -124,7 +124,7 @@ class CRUDArticle(CRUDBase[Article, ArticleCreate, ArticleUpdate]):
         for archive in article.archives:
             archive.body = "[DELETED]"
         db.add(article)
-        db.commit()
+        db.flush()
 
     def update_checked(
         self, db: Session, *, db_obj: Article, obj_in: Dict[str, Any]

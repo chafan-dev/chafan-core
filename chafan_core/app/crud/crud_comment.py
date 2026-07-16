@@ -79,7 +79,7 @@ class CRUDComment(CRUDBase[Comment, CommentCreate, CommentUpdate]):
             updated_at=utc_now
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -88,7 +88,7 @@ class CRUDComment(CRUDBase[Comment, CommentCreate, CommentUpdate]):
         comment.body = "[DELETED]"
         comment.body_text = "[DELETED]"
         db.add(comment)
-        db.commit()
+        db.flush()
 
     def upvote(self, db: Session, *, db_obj: Comment, voter: models.User) -> Comment:
         comment_upvote = (
@@ -100,12 +100,12 @@ class CRUDComment(CRUDBase[Comment, CommentCreate, CommentUpdate]):
             comment_upvote = models.comment.CommentUpvotes(comment=db_obj, voter=voter)
             db.add(comment_upvote)
             db_obj.upvotes_count += 1
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         elif comment_upvote.cancelled:
             db_obj.upvotes_count += 1
             comment_upvote.cancelled = False
-            db.commit()
+            db.flush()
         return db_obj
 
     def cancel_upvote(
@@ -120,7 +120,7 @@ class CRUDComment(CRUDBase[Comment, CommentCreate, CommentUpdate]):
             db_obj.upvotes_count -= 1
             assert db_obj.upvotes_count >= 0
             comment_upvote.cancelled = True
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 

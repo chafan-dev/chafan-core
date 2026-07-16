@@ -27,7 +27,7 @@ class CRUDCoinPayment(CRUDBase[CoinPayment, CoinPaymentCreate, CoinPaymentUpdate
             payer_id=payer.id,
         )
         db.add(payment)
-        db.commit()
+        db.flush()
         db.refresh(payment)
         return payment
 
