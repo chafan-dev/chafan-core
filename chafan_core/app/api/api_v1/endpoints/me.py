@@ -10,7 +10,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import get_redis_cli
-from chafan_core.app.materialize import user_schema_from_orm
+from chafan_core.app.responders.user import user_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, FollowUserInternal
 from chafan_core.app.services import sites as sites_service
 from chafan_core.app.schemas.user import (
