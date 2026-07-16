@@ -25,7 +25,7 @@ router = APIRouter()
 
 
 @router.get(
-    "/pinned-questions/", response_model=List[schemas.QuestionPreviewForVisitor]
+    "/pinned-questions/", response_model=List[schemas.QuestionPreview]
 )
 def pinned_questions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -34,13 +34,13 @@ def pinned_questions(
     key = f"chafan:api:/discovery/pinned-questions"
     value = redis.get(key)
     if value:
-        return TypeAdapter(List[schemas.QuestionPreviewForVisitor]).validate_json(value)
+        return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
 
-    def runnable(db: Session) -> List[schemas.QuestionPreviewForVisitor]:
+    def runnable(db: Session) -> List[schemas.QuestionPreview]:
         questions = crud.question.get_placed_at_home(db)
         data = filter_not_none(
             [
-                cached_layer.materializer.preview_of_question_for_visitor(q)
+                cached_layer.materializer.preview_of_question(q)
                 for q in questions
             ]
         )
@@ -55,7 +55,7 @@ def pinned_questions(
 
 def _get_pending_questions(
     cached_layer: CachedLayer,
-) -> Union[List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]]:
+) -> List[schemas.QuestionPreview]:
     if cached_layer.principal_id:
         current_user = crud.user.get(
             cached_layer.get_db(), id=cached_layer.principal_id
@@ -74,25 +74,23 @@ def _get_pending_questions(
             )
         return questions
     else:
-        questions_for_visitors: List[schemas.QuestionPreviewForVisitor] = []
+        questions: List[schemas.QuestionPreview] = []
         for site in crud.site.get_all_public_readable(cached_layer.get_db()):
-            questions_for_visitors.extend(
+            questions.extend(
                 filter_not_none(
                     [
-                        cached_layer.materializer.preview_of_question_for_visitor(q)
+                        cached_layer.materializer.preview_of_question(q)
                         for q in site.questions
                         if len(get_live_answers_of_question(q)) == 0 and not q.is_hidden
                     ]
                 )[:10]
             )
-        return questions_for_visitors
+        return questions
 
 
 @router.get(
     "/pending-questions/",
-    response_model=Union[
-        List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]
-    ],
+    response_model=List[schemas.QuestionPreview],
 )
 def get_pending_questions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -101,12 +99,7 @@ def get_pending_questions(
     key = f"chafan:pending-questions-for-user:{cached_layer.principal_id}"
     value = redis.get(key)
     if value is not None:
-        if cached_layer.principal_id:
-            return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
-        else:
-            return TypeAdapter(List[schemas.QuestionPreviewForVisitor]).validate_json(
-                value
-            )
+        return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
     data = _get_pending_questions(cached_layer)
     if not is_dev():
         redis.set(
@@ -117,9 +110,7 @@ def get_pending_questions(
 
 @router.get(
     "/interesting-questions/",
-    response_model=Union[
-        List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]
-    ],
+    response_model=List[schemas.QuestionPreview],
 )
 def get_interesting_questions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

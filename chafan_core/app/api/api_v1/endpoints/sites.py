@@ -225,12 +225,7 @@ def get_site_info(
     return site_data
 
 
-site_questions_T = Union[
-    List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]
-]
-
-
-@router.get("/{uuid}/questions/", response_model=site_questions_T)
+@router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
 def get_site_questions(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

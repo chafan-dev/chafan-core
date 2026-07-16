@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, validator
 
-from chafan_core.app.schemas.comment import Comment, CommentForVisitor
+from chafan_core.app.schemas.comment import Comment
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.site import Site
@@ -61,7 +61,7 @@ class QuestionUpvotes(BaseModel):
     upvoted: bool
 
 
-# Additional properties to return via API
+# Additional properties to return via API (one schema for all allowed readers)
 class Question(QuestionInDBBase):
     desc: Optional[RichText] = None
     author: UserPreview
@@ -71,15 +71,7 @@ class Question(QuestionInDBBase):
     answers_count: int
     view_times: int
     upvotes: Optional[QuestionUpvotes] = None
-
-
-class QuestionForVisitor(QuestionInDBBase):
-    desc: Optional[RichText] = None
-    comments: List[CommentForVisitor]
-    answers_count: int
-    author: UserPreview
-    site: Site
-    upvotes: Optional[QuestionUpvotes] = None
+    upvoted: bool = False
 
 
 # Additional properties stored in DB
@@ -91,8 +83,8 @@ class QuestionPreviewForSearch(BaseModel):
     uuid: str
     title: str
 
-#class QuestionPreviewForVisitor(QuestionPreviewForSearch):
-class QuestionPreviewForVisitor(BaseModel):
+
+class QuestionPreview(BaseModel):
     uuid: str
     title: str
     author: UserPreview
@@ -101,9 +93,6 @@ class QuestionPreviewForVisitor(BaseModel):
     created_at: datetime.datetime
     answers_count: int
     upvotes: Optional[QuestionUpvotes]
-
-
-class QuestionPreview(QuestionPreviewForVisitor):
     site: Site
     upvotes_count: int
     comments_count: int

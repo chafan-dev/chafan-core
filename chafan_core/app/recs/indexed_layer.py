@@ -40,29 +40,20 @@ def _get_interesting_question_ids(user: models.User) -> List[int]:
 
 def get_interesting_questions(
     cached_layer: CachedLayer,
-) -> Union[List[schemas.QuestionPreview], List[schemas.QuestionPreviewForVisitor]]:
+) -> List[schemas.QuestionPreview]:
     current_user = cached_layer.try_get_current_user()
     if not current_user:
-        visitor = crud.user.try_get_visitor_user(cached_layer.get_db())
-        if not visitor:
+        current_user = crud.user.try_get_visitor_user(cached_layer.get_db())
+        if not current_user:
             return []
-        return filter_not_none(
-            [
-                cached_layer.materializer.preview_of_question_for_visitor(
-                    unwrap(crud.question.get(cached_layer.get_db(), id=q_id))
-                )
-                for q_id in _get_interesting_question_ids(visitor)
-            ]
-        )
-    else:
-        return filter_not_none(
-            [
-                cached_layer.materializer.preview_of_question(
-                    unwrap(crud.question.get(cached_layer.get_db(), id=q_id))
-                )
-                for q_id in _get_interesting_question_ids(current_user)
-            ]
-        )
+    return filter_not_none(
+        [
+            cached_layer.materializer.preview_of_question(
+                unwrap(crud.question.get(cached_layer.get_db(), id=q_id))
+            )
+            for q_id in _get_interesting_question_ids(current_user)
+        ]
+    )
 
 
 def _get_interesting_user_ids(user: models.User) -> List[int]:
