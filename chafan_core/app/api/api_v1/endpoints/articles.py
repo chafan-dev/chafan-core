@@ -33,17 +33,16 @@ def get_article(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import articles as articles_service
     from chafan_core.app.services import audit as audit_service
 
-    current_user_id = cached_layer.principal_id
+    current_user_id = ctx.principal_id
     article = articles_service.get_article_by_uuid(
-        cached_layer.get_db(), uuid, current_user_id
+        ctx.get_db(), uuid, current_user_id
     )
     if article is None:
         audit_service.create_audit(
-            cached_layer.get_db(),
+            ctx.get_db(),
             api=f"get_article {uuid} retrieved None",
             request=request,
             user_id=current_user_id,
@@ -58,7 +57,7 @@ def get_article(
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
-    data = articles_service.article_schema(cached_layer, article)
+    data = articles_service.article_schema(ctx, article)
     if data is None:
         raise HTTPException_(
             status_code=400,
@@ -73,16 +72,15 @@ def bump_views_counter(
     uuid: str,
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info("add view for article " + uuid)
-    article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    article = crud.article.get_by_uuid(ctx.get_db(), uuid=uuid)
     if article is None:
         raise HTTPException_(
             status_code=400,
             detail="The article doesn't exist in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
-    view_counters.add_view_async(cached_layer, "article", article.id)
+    view_counters.add_view_async(ctx, "article", article.id)
     return schemas.GenericResponse()
 
 
@@ -191,10 +189,9 @@ def create_article(
     """
     Create new article authored by the current user in one of the belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     crud.audit_log.create_with_user(
-        cached_layer.get_db(),
+        ctx.get_db(),
         ipaddr=client_ip(request),
         user_id=current_user.id,
         api="post article",
@@ -208,7 +205,7 @@ def create_article(
         )
     check_writing_session(article_in.writing_session_uuid)
     article_column = crud.article_column.get_by_uuid(
-        cached_layer.get_db(), uuid=article_in.article_column_uuid
+        ctx.get_db(), uuid=article_in.article_column_uuid
     )
     if article_column is None:
         raise HTTPException_(
@@ -221,7 +218,7 @@ def create_article(
             detail="The article column is not owned by current user.",
         )
     new_article = crud.article.create_with_author(
-        cached_layer.get_db(), obj_in=article_in, author_id=current_user.id
+        ctx.get_db(), obj_in=article_in, author_id=current_user.id
     )
     if new_article.is_published:
         from chafan_core.app.task import postprocess_new_article
@@ -229,7 +226,7 @@ def create_article(
         background_tasks.add_task(postprocess_new_article, new_article.id)
     from chafan_core.app.services import articles as articles_service
 
-    data = articles_service.article_schema(cached_layer, new_article)
+    data = articles_service.article_schema(ctx, new_article)
     assert data is not None
     return data
 
@@ -243,17 +240,16 @@ def update_article(
     article_in: schemas.ArticleUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user_id = cached_layer.unwrapped_principal_id()
+    current_user_id = ctx.unwrapped_principal_id()
     crud.audit_log.create_with_user(
-        cached_layer.get_db(),
+        ctx.get_db(),
         ipaddr=client_ip(request),
         user_id=current_user_id,
         api="post article",
         request_info={"article_in": jsonable_encoder(article_in), "uuid": uuid},
     )
 
-    article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    article = crud.article.get_by_uuid(ctx.get_db(), uuid=uuid)
     if article is None:
         raise HTTPException_(
             status_code=400,
@@ -285,9 +281,9 @@ def update_article(
                 editor=article.editor,
                 created_at=article.updated_at,
             )
-            cached_layer.get_db().add(archive)
+            ctx.get_db().add(archive)
             article.archives.append(archive)
-            cached_layer.get_db().commit()
+            ctx.get_db().commit()
         if not article.is_published:
             article_in_dict["initial_published_at"] = utc_now
         article_in_dict["is_published"] = True
@@ -301,7 +297,7 @@ def update_article(
 
     was_published = article.is_published
     article = crud.article.update_checked(
-        cached_layer.get_db(), db_obj=article, obj_in=article_in_dict
+        ctx.get_db(), db_obj=article, obj_in=article_in_dict
     )
 
     if article.is_published:
@@ -310,7 +306,7 @@ def update_article(
         background_tasks.add_task(postprocess_updated_article, article.id, was_published)
     from chafan_core.app.services import articles as articles_service
 
-    data = articles_service.article_schema(cached_layer, article)
+    data = articles_service.article_schema(ctx, article)
     assert data is not None
     return data
 

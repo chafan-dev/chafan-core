@@ -7,7 +7,6 @@ from fastapi.encoders import jsonable_encoder
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.answers import _update_answer
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
@@ -83,7 +82,7 @@ def _check_suggestion_author(
 
 
 def _accept_answer_suggest_edit(
-    cached_layer: CachedLayer,
+    ctx: RequestContext,
     answer_suggest_edit: models.AnswerSuggestEdit,
     background_tasks: BackgroundTasks,
 ) -> None:
@@ -97,7 +96,7 @@ def _accept_answer_suggest_edit(
             editor=answer_suggest_edit.body_editor,
         )
     _update_answer(
-        cached_layer,
+        ctx,
         answer=answer_suggest_edit.answer,
         answer_in=AnswerUpdate(
             updated_content=body_rich_text,
@@ -120,9 +119,8 @@ def update_answer_suggest_edits(
     update_in: AnswerSuggestEditUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
-    current_user_id = cached_layer.unwrapped_principal_id()
+    db = ctx.get_db()
+    current_user_id = ctx.unwrapped_principal_id()
     answer_suggest_edit = crud.answer_suggest_edit.get_by_uuid(db, uuid=uuid)
     if answer_suggest_edit is None:
         raise HTTPException_(
@@ -161,7 +159,7 @@ def update_answer_suggest_edits(
                     answer_suggest_edit.author
                 )
             db.commit()
-            _accept_answer_suggest_edit(cached_layer, answer_suggest_edit, background_tasks=background_tasks)
+            _accept_answer_suggest_edit(ctx, answer_suggest_edit, background_tasks=background_tasks)
         elif new_status == "rejected":
             _check_author(answer_suggest_edit, current_user_id)
             update_dict["rejected_at"] = utc_now
@@ -190,4 +188,4 @@ def update_answer_suggest_edits(
     s = crud.answer_suggest_edit.update(
         db, db_obj=answer_suggest_edit, obj_in=update_dict
     )
-    return unwrap(cached_layer.materializer.answer_suggest_edit_schema_from_orm(s))
+    return unwrap(ctx.materializer.answer_suggest_edit_schema_from_orm(s))

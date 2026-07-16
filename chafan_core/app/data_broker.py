@@ -1,7 +1,7 @@
 """Legacy session holder.
 
-Prefer RequestContext (chafan_core.app.infra.request_context). DataBroker remains
-as a thin compatibility wrapper used by CachedLayer and existing call sites.
+Prefer RequestContext (chafan_core.app.infra.request_context). DataBroker is a
+RequestContext subclass kept for historical imports and close() semantics.
 use_read_replica is ignored (D6: single Postgres, no replica).
 """
 

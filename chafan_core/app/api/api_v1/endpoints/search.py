@@ -29,11 +29,10 @@ def search_users(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
-    users = crud.user.search_by_handle_or_full_name(cached_layer.get_db(), fragment=q)
-    return [cached_layer.preview_of_user(u) for u in users]
+    users = crud.user.search_by_handle_or_full_name(ctx.get_db(), fragment=q)
+    return [ctx.preview_of_user(u) for u in users]
 
 
 @router.get("/sites/", response_model=List[schemas.Site])
@@ -45,11 +44,10 @@ def search_sites(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
-    sites = crud.site.search(cached_layer.get_db(), fragment=q)
-    return [sites_service.site_schema(cached_layer, s) for s in sites]
+    sites = crud.site.search(ctx.get_db(), fragment=q)
+    return [sites_service.site_schema(ctx, s) for s in sites]
 
 
 @router.get("/topics/", response_model=List[schemas.Topic])
@@ -113,12 +111,11 @@ def search_submissions(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
-    submissions = crud.submission.search(cached_layer.get_db(), q=q)
+    submissions = crud.submission.search(ctx.get_db(), q=q)
     return filter_not_none(
-        [submissions_service.submission_schema(cached_layer, q) for q in submissions]
+        [submissions_service.submission_schema(ctx, q) for q in submissions]
     )
 
 

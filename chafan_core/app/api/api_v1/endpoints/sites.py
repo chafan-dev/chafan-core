@@ -45,9 +45,8 @@ def create_site(
     """
     Create new site as user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     needs_approval = settings.CREATE_SITE_FORCE_NEED_APPROVAL
     if current_user.remaining_coins < settings.CREATE_SITE_COIN_DEDUCTION:
         needs_approval = True
@@ -78,7 +77,7 @@ def create_site(
         )
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         crud.notification.create_with_content(
-            cached_layer.broker,
+            ctx.broker,
             receiver_id=admin.id,
             event=EventInternal(
                 created_at=utc_now,
@@ -89,7 +88,7 @@ def create_site(
             ),
         )
         return schemas.CreateSiteResponse(
-            application_channel=cached_layer.channel_schema_from_orm(channel)
+            application_channel=ctx.channel_schema_from_orm(channel)
         )
     site = crud.site.get_by_subdomain(db, subdomain=site_in.subdomain)
     if site:
@@ -136,12 +135,12 @@ def create_site(
     )
     sites_service.create_site_profile(
         db,
-        cached_layer.materializer,
+        ctx.materializer,
         owner=new_site.moderator,
         site_uuid=new_site.uuid,
     )
     return schemas.CreateSiteResponse(
-        created_site=sites_service.site_schema(cached_layer, new_site)
+        created_site=sites_service.site_schema(ctx, new_site)
     )
 
 
@@ -155,15 +154,14 @@ def config_site(
     """
     Configure a site as moderator.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     site = crud.site.get_by_uuid(db, uuid=uuid)
     if not site:
         raise HTTPException_(
             status_code=404,
             detail="The site with this id does not exist in the system",
         )
-    if cached_layer.principal_id != site.moderator_id:
+    if ctx.principal_id != site.moderator_id:
         raise HTTPException_(
             status_code=400,
             detail="Unauthorized.",
@@ -201,7 +199,7 @@ def config_site(
         new_site.topics = new_topics
         db.add(new_site)
         db.commit()
-    return sites_service.site_schema(cached_layer, new_site)
+    return sites_service.site_schema(ctx, new_site)
 
 
 from chafan_core.app.common import OperationType
@@ -216,10 +214,9 @@ def get_site_info(
     """
     Get a site's basic info.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info(f"user {current_user_id} requesting site {subdomain}")
-    #site_data = cached_layer.get_site_info(subdomain=subdomain)
-    db = cached_layer.get_db()
+    #site_data = ctx.get_site_info(subdomain=subdomain)
+    db = ctx.get_db()
     site = crud.site.get_by_subdomain(db, subdomain=subdomain)
 
     if not site:
@@ -234,7 +231,7 @@ def get_site_info(
             status_code=404,
             detail="The site with this id does not exist in the system",
         )
-    site_data = sites_service.site_schema(cached_layer, site)
+    site_data = sites_service.site_schema(ctx, site)
     return site_data
 
 
@@ -291,7 +288,6 @@ def get_site_submissions(
     """
     Get a site's submissions.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(db, uuid)
     if current_user_id:
         check_user_in_site(
@@ -304,7 +300,7 @@ def get_site_submissions(
                 detail="Unauthorized.",
             )
     return submissions_service.site_submissions_for_user(
-        cached_layer, site=site, user_id=current_user_id, skip=skip, limit=limit
+        ctx, site=site, user_id=current_user_id, skip=skip, limit=limit
     )
 
 
@@ -448,24 +444,23 @@ def get_related(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    site = get_site(cached_layer.get_db(), uuid)
+    site = get_site(ctx.get_db(), uuid)
     related_sites: Dict[int, models.Site] = {}
     if site.category_topic is not None:
         for s in crud.site.get_all_with_category_topic_ids(
-            cached_layer.get_db(), site.category_topic.id
+            ctx.get_db(), site.category_topic.id
         ):
             related_sites[s.id] = s
 
     for site_id in sites_service.related_site_ids(
-        cached_layer.get_db(), site.id, top_k=5
+        ctx.get_db(), site.id, top_k=5
     ):
         if site_id not in related_sites:
             related_sites[site_id] = unwrap(
-                crud.site.get(cached_layer.get_db(), site_id)
+                crud.site.get(ctx.get_db(), site_id)
             )
 
     return [
-        sites_service.site_schema(cached_layer, s)
+        sites_service.site_schema(ctx, s)
         for s in related_sites.values()
     ]

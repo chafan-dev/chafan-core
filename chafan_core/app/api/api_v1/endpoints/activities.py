@@ -6,7 +6,6 @@ from fastapi.param_functions import Query
 
 from chafan_core.app import schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import report_msg
 from chafan_core.app.schemas.activity import UserFeedSettings
@@ -21,7 +20,7 @@ router = APIRouter()
 
 
 def _update_feed_seq(
-    cached_layer: CachedLayer, s: schemas.FeedSequence, full_answers: bool
+    ctx: RequestContext, s: schemas.FeedSequence, full_answers: bool
 ) -> schemas.FeedSequence:
     for a in s.activities:
         if hasattr(a.event.content, "answer") and full_answers:
@@ -31,7 +30,7 @@ def _update_feed_seq(
             from chafan_core.app.services import answers as answers_service
 
             answer.full_answer = answers_service.get_answer_schema(
-                cached_layer, answer.uuid
+                ctx, answer.uuid
             )
     return s
 
@@ -50,14 +49,13 @@ def get_feed(
     """
     Get activity feed.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user_id: int = unwrap(cached_layer.principal_id)
+    current_user_id: int = unwrap(ctx.principal_id)
     logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
 
     from chafan_core.app.services import feed as feed_service
 
     activities = feed_service.get_user_activity(
-        cached_layer,
+        ctx,
         current_user_id=current_user_id,
         before_activity_id=before_activity_id,
         limit=limit,
@@ -66,7 +64,7 @@ def get_feed(
     )
 
     data = schemas.FeedSequence(activities=activities, random=random)
-    return _update_feed_seq(cached_layer, data, full_answers=full_answers)
+    return _update_feed_seq(ctx, data, full_answers=full_answers)
 
 
 @router.get("/settings", response_model=schemas.UserFeedSettings)

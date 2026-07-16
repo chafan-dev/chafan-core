@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 def article_schema_from_orm(
     cached_layer, article: models.Article, principal_id
 ) -> Optional[schemas.Article]:
-    db = cached_layer.broker.get_db()
+    db = cached_layer.get_db()
     if not user_permission.article_read_allowed(db, article, principal_id):
         return None
 
@@ -41,9 +41,7 @@ def article_schema_from_orm(
     d["bookmarked"] = bookmarked
     d["author"] = cached_layer.materializer.preview_of_user(article.author)
     d["upvoted"] = upvoted
-    d["view_times"] = view_counters.get_viewcount_article(
-        cached_layer.broker, article.id
-    )
+    d["view_times"] = view_counters.get_viewcount_article(cached_layer, article.id)
     d["archives_count"] = len(article.archives)
 
     if article.is_published:

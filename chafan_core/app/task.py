@@ -7,7 +7,6 @@ from sqlalchemy.orm.session import Session
 
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.cache import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
 from chafan_core.app.config import settings
 from chafan_core.app.feed import (
@@ -273,7 +272,7 @@ def postprocess_new_question(question_id: int) -> None:
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
             call_webhook(
-                CachedLayer(broker, None),
+                broker,
                 webhook=webhook,
                 event=SiteNewQuestionEvent(question=question),
             )
@@ -328,7 +327,7 @@ def postprocess_new_submission(submission_id: int) -> None:
         postprocess_submission_common(submission)
         for webhook in submission.site.webhooks:
             call_webhook(
-                CachedLayer(broker, None),
+                broker,
                 webhook=webhook,
                 event=SiteNewSubmissionEvent(submission=submission),
             )
@@ -482,7 +481,7 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
         update_answer_keywords(answer)
         for webhook in answer.site.webhooks:
             call_webhook(
-                CachedLayer(broker),
+                broker,
                 webhook=webhook,
                 event=SiteNewAnswerEvent(answer=answer),
             )
