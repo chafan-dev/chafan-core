@@ -34,7 +34,7 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
             created_at=utc_now,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         db.add(
             create_submission_activity(
@@ -43,7 +43,7 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
                 created_at=utc_now,
             )
         )
-        db.commit()
+        db.flush()
         return db_obj
 
     def update_topics(
@@ -52,7 +52,7 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
         db_obj.topics.clear()
         db_obj.topics = new_topics
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -79,7 +79,7 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
             submission_upvote = SubmissionUpvotes(submission=db_obj, voter=voter)
             db.add(submission_upvote)
             db_obj.upvotes_count += 1
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             db.add(
                 upvote_submission_activity(
@@ -89,11 +89,11 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
                     created_at=datetime.datetime.now(tz=datetime.timezone.utc),
                 )
             )
-            db.commit()
+            db.flush()
         elif submission_upvote.cancelled:
             db_obj.upvotes_count += 1
             submission_upvote.cancelled = False
-            db.commit()
+            db.flush()
         return db_obj
 
     def cancel_upvote(
@@ -108,7 +108,7 @@ class CRUDSubmission(CRUDBase[Submission, SubmissionCreate, SubmissionUpdate]):
             db_obj.upvotes_count -= 1
             assert db_obj.upvotes_count >= 0
             submission_upvote.cancelled = True
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 

@@ -35,7 +35,7 @@ class CRUDApplication(CRUDBase[Application, ApplicationCreate, ApplicationUpdate
             created_at=datetime.datetime.now(tz=datetime.timezone.utc),
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

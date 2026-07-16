@@ -18,7 +18,7 @@ class CRUDWebhook(CRUDBase[Webhook, WebhookCreate, WebhookUpdate]):
         obj_in_data["updated_at"] = datetime.datetime.now(tz=datetime.timezone.utc)
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

@@ -20,7 +20,7 @@ class CRUDProfile(CRUDBase[Profile, ProfileCreate, ProfileUpdate]):
         profile = self.get_by_user_and_site(db, owner_id=owner_id, site_id=site_id)
         if profile:
             db.delete(profile)
-            db.commit()
+            db.flush()
             return profile
         return None
 
@@ -31,7 +31,7 @@ class CRUDProfile(CRUDBase[Profile, ProfileCreate, ProfileUpdate]):
         assert owner is not None
         db_obj = Profile(owner_id=owner.id, site_id=site.id)
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

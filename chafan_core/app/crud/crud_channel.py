@@ -16,7 +16,7 @@ from chafan_core.app.schemas.channel import (
 class CRUDChannel(CRUDBase[Channel, ChannelCreate, ChannelUpdate]):
     def add_user(self, db: Session, *, db_obj: Channel, user: models.User) -> Channel:
         db_obj.members.append(user)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -75,11 +75,11 @@ class CRUDChannel(CRUDBase[Channel, ChannelCreate, ChannelUpdate]):
                         obj_in.subject.site_in
                     )
             db.add(channel)
-            db.commit()
+            db.flush()
             db.refresh(channel)
             channel.members.append(host_user)
             channel.members.append(with_user)
-            db.commit()
+            db.flush()
             db.refresh(channel)
         return channel
 

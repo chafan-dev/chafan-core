@@ -28,7 +28,7 @@ class CRUDFormResponse(CRUDBase[FormResponse, FormResponseCreate, FormResponseUp
             form_id=form.id,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         return db_obj
 
 

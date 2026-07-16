@@ -36,7 +36,7 @@ class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
             created_at=utc_now,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -46,7 +46,7 @@ class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
         db_obj.topics.clear()
         db_obj.topics = new_topics
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -76,7 +76,7 @@ class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
             question_upvote = QuestionUpvotes(question=db_obj, voter=voter)
             db.add(question_upvote)
             db_obj.upvotes_count += 1
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             db.add(
                 upvote_question_activity(
@@ -86,11 +86,11 @@ class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
                     created_at=datetime.datetime.now(tz=datetime.timezone.utc),
                 )
             )
-            db.commit()
+            db.flush()
         elif question_upvote.cancelled:
             db_obj.upvotes_count += 1
             question_upvote.cancelled = False
-            db.commit()
+            db.flush()
         return db_obj
 
     def cancel_upvote(
@@ -105,7 +105,7 @@ class CRUDQuestion(CRUDBase[Question, QuestionCreate, QuestionUpdate]):
             db_obj.upvotes_count -= 1
             assert db_obj.upvotes_count >= 0
             question_upvote.cancelled = True
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 

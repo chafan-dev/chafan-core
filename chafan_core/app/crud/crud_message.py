@@ -28,7 +28,7 @@ class CRUDMessage(CRUDBase[Message, MessageCreate, MessageUpdate]):
             created_at=utc_now,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         db_obj.channel.updated_at = utc_now
         for member in db_obj.channel.members:
