@@ -45,9 +45,9 @@ def get_readable_question(
     return question
 
 
-def question_schema(cached_layer, question: models.Question) -> Optional[schemas.Question]:
+def question_schema(ctx, question: models.Question) -> Optional[schemas.Question]:
     return responders.question.question_schema_from_orm(
-        cached_layer.broker, cached_layer.principal_id, question, cached_layer
+        ctx, ctx.principal_id, question, ctx
     )
 
 

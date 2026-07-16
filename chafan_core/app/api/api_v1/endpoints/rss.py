@@ -19,13 +19,12 @@ def get_site_activity(
 ) -> str:
     """Get a site's activity. Pilot: RequestContext dependency."""
     logger.info("Generating RSS for site " + subdomain)
-    cached_layer = deps.cached_layer_from_context(ctx)
-    site = cached_layer.get_site_by_subdomain(subdomain)
+    site = ctx.get_site_by_subdomain(subdomain)
     if site is None:
         raise HTTPException_(status_code=404, detail="No such site " + subdomain)
     if not site.public_readable:
         raise HTTPException_(status_code=405, detail="Not allowed " + subdomain)
-    activities = get_site_activities(cached_layer, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
+    activities = get_site_activities(ctx, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
     logger.info("api get: " + str(activities))
     rss_str = build_rss(activities, site)
     return Response(content=rss_str, media_type="application/rss+xml")

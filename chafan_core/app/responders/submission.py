@@ -36,9 +36,7 @@ def submission_schema_from_orm(
     d["contributors"] = [
         cached_layer.preview_of_user(u) for u in submission.contributors
     ]
-    d["view_times"] = view_counters.get_viewcount_submission(
-        cached_layer.broker, submission.id
-    )
+    d["view_times"] = view_counters.get_viewcount_submission(cached_layer, submission.id)
     if submission.description is not None:
         d["desc"] = RichText(
             source=submission.description,

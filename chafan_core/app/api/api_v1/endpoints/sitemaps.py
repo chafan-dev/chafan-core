@@ -15,4 +15,4 @@ def read_sitemaps(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
     """Retrieve site map. Pilot: Depends on RequestContext."""
-    return sites_service.get_site_maps(deps.cached_layer_from_context(ctx))
+    return sites_service.get_site_maps(ctx)

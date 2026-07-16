@@ -761,16 +761,15 @@ class Materializer(object):
         self,
         answer_suggest_edit: models.AnswerSuggestEdit,
     ) -> Optional[schemas.AnswerSuggestEdit]:
-        from chafan_core.app.cached_layer import CachedLayer
         from chafan_core.app.services import answers as answers_service
 
         base = schemas.AnswerSuggestEditInDB.from_orm(answer_suggest_edit)
         d = base.dict()
         d["author"] = self.preview_of_user(answer_suggest_edit.author)
         # Full answer schema lives on services.answers / responders.
+        # self.broker is RequestContext/DataBroker (has materializer + principal).
         answer = answers_service.answer_schema(
-            CachedLayer(self.broker, self.principal_id),
-            answer_suggest_edit.answer,
+            self.broker, answer_suggest_edit.answer
         )
         if not answer:
             return None

@@ -1,3 +1,4 @@
+from chafan_core.app.infra.request_context import RequestContext
 from typing import Dict, List, NamedTuple, Optional, Set, Any
 import sentry_sdk
 import json
@@ -29,10 +30,6 @@ from chafan_core.app.schemas.event import (
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.db.session import ReadSessionLocal, SessionLocal
 from chafan_core.utils.base import map_, unwrap
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from chafan_core.app.cached_layer import CachedLayer
 
 import logging
 logger = logging.getLogger(__name__)
@@ -267,14 +264,14 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
     return None #TODO throw exception
 
 def get_content_from_eventjson(
-        cached_layer: "CachedLayer",
+        cached_layer: "RequestContext",
         event_json: str) -> Optional[BaseCrudModel]:
     event = EventInternal.parse_raw(event_json)
     content = retrieve_content(event, cached_layer)
     return content
 
 def get_site_activities(
-    cached_layer: "CachedLayer",
+    cached_layer: "RequestContext",
     site,
     limit: int,
     all_sites = False) -> List[BaseCrudModel]:
@@ -297,7 +294,7 @@ def get_site_activities(
 
 def get_activities_v2(
     *,
-    cached_layer: "CachedLayer",
+    cached_layer: "RequestContext",
     before_activity_id: Optional[int],
     limit: int,
     receiver_user_id: int,

@@ -5,7 +5,6 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 
 from chafan_core.app import schemas, security
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.infra.request_context import RequestContext
@@ -55,7 +54,7 @@ def get_request_context(
 ) -> Generator:
     """Preferred per-request context (principal + lazy db/redis).
 
-    Yields a DataBroker (RequestContext subclass) so Materializer/CachedLayer
+    Yields a DataBroker (RequestContext subclass) so Materializer/RequestContext
     can share the same instance when needed. close_legacy_commit keeps
     historical request-end commit until services own transactions.
     """
@@ -85,19 +84,6 @@ def get_data_broker_with_params(*, use_read_replica: bool = False) -> Any:
             broker.close()
 
     return _f
-
-
-def cached_layer_from_context(ctx: RequestContext) -> CachedLayer:
-    """Build a transitional CachedLayer on a RequestContext/DataBroker.
-
-    Prefer calling services with RequestContext directly. This helper exists
-    only while responders/materializer still expect a CachedLayer façade.
-    """
-    broker = ctx if isinstance(ctx, DataBroker) else DataBroker(principal_id=ctx.principal_id)
-    if not isinstance(ctx, DataBroker):
-        broker._db = ctx._db
-        broker._redis = ctx._redis
-    return CachedLayer(broker, ctx.principal_id)
 
 
 def get_db(

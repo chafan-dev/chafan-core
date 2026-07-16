@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def add_view_async(
-    cached_layer_or_none,  # accepts CachedLayer or None; redis taken from infra when needed
+    cached_layer_or_none,  # accepts RequestContext or None; redis taken from infra when needed
     object_type: Literal["question", "answer", "profile", "article", "submission"],
     obj_id: int,
 ) -> None:
