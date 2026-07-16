@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.utils.base import HTTPException_, filter_not_none
 
 router = APIRouter()
@@ -46,11 +46,12 @@ def create_topic(
 @router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
 def get_topic_questions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
     if topic is None:

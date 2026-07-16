@@ -5,7 +5,7 @@ from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.schemas.form import (
     FormField,
     MultipleChoicesField,
@@ -51,9 +51,10 @@ def validate_form_response(
 @router.post("/", response_model=schemas.FormResponse)
 def create_form_response(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     form_response_in: schemas.FormResponseCreate,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     form = crud.form.get_by_uuid(db, uuid=form_response_in.form_uuid)
     if form is None:

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
@@ -13,9 +13,10 @@ router = APIRouter()
 @router.get("/{uuid}", response_model=schemas.Form)
 def get_form(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     form = crud.form.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if form is None:
         raise HTTPException_(
@@ -27,8 +28,9 @@ def get_form(
 
 @router.get("/", response_model=List[schemas.Form], include_in_schema=False)
 def get_forms(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
         cached_layer.materializer.form_schema_from_orm(form)
@@ -38,10 +40,11 @@ def get_forms(
 
 @router.post("/", response_model=schemas.Form, include_in_schema=False)
 def create_form(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     form_in: schemas.FormCreate,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return cached_layer.materializer.form_schema_from_orm(
         crud.form.create_with_author(
@@ -59,9 +62,10 @@ def create_form(
 )
 def get_form_responses(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     form = crud.form.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if form is None:
         raise HTTPException_(

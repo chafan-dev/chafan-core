@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
@@ -24,13 +24,14 @@ def invite_new_user(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     user_invite_in: schemas.UserInvite,
 ) -> Any:
     """
     Invite internal user by id to a site.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = None
     # if the site is specified, first check whether the current user is allowed to add new member to site
     site = get_site(db, user_invite_in.site_uuid)

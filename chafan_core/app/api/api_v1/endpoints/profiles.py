@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.materialize import (
@@ -22,7 +22,7 @@ router = APIRouter()
 )
 def view_profile(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     site_uuid: str,
     owner_uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
@@ -30,6 +30,7 @@ def view_profile(
     """
     View profile as one self or another user in the same site.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     site = get_site(db, site_uuid)
     if user_in_site(
@@ -53,13 +54,14 @@ def view_profile(
 @router.get("/members/{site_uuid}", response_model=List[schemas.Profile])
 def get_profiles(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     site_uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
     """
     Get profiles of a site as moderator or site member.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     site = get_site(db, site_uuid)
     if current_user_id != site.moderator_id:
