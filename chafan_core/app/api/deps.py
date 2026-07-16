@@ -8,6 +8,7 @@ from chafan_core.app import schemas, security
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.config import settings
 from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.utils.base import HTTPException_, unwrap
 
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -49,6 +50,31 @@ def try_get_current_user_id(
         return None
 
 
+def get_request_context(
+    current_user_id: Optional[int] = Depends(try_get_current_user_id),
+) -> Generator:
+    """Preferred per-request context (principal + lazy db/redis).
+
+    close_legacy_commit keeps historical request-end commit behavior until
+    services own transaction boundaries.
+    """
+    ctx = RequestContext(principal_id=current_user_id)
+    try:
+        yield ctx
+    finally:
+        ctx.close_legacy_commit()
+
+
+def get_request_context_logged_in(
+    current_user_id: int = Depends(get_current_user_id),
+) -> Generator:
+    ctx = RequestContext(principal_id=current_user_id)
+    try:
+        yield ctx
+    finally:
+        ctx.close_legacy_commit()
+
+
 def get_data_broker_with_params(*, use_read_replica: bool = False) -> Any:
     def _f() -> Generator:
         try:
@@ -84,6 +110,7 @@ def get_db(
 
 
 def get_read_db(
-    broker: DataBroker = Depends(get_data_broker_with_params(use_read_replica=True)),
+    broker: DataBroker = Depends(get_data_broker_with_params(use_read_replica=False)),
 ) -> Generator:
+    # D6: no read replica — same session factory as get_db.
     yield broker.get_db()
