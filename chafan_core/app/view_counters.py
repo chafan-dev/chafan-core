@@ -1,20 +1,23 @@
 from typing import Literal
 
 import logging
+
+from chafan_core.app.infra import cache as infra_cache
+
 logger = logging.getLogger(__name__)
-
-#from chafan_core.app.cached_layer import CachedLayer
-
 
 
 def add_view_async(
-    cached_layer, # TODO 2025-07-20 due to cyclic dep, turn off this type hint: CachedLayer,
+    cached_layer_or_none,  # accepts CachedLayer or None; redis taken from infra when needed
     object_type: Literal["question", "answer", "profile", "article", "submission"],
-    obj_id: int
+    obj_id: int,
 ) -> None:
-
+    """Enqueue a view bump. Prefer infra_cache; optional layer still accepted for callers."""
     assert object_type in ["question", "answer", "article", "submission"]
-    cached_layer.bump_view(object_type, obj_id)
+    redis_cli = None
+    if cached_layer_or_none is not None and hasattr(cached_layer_or_none, "get_redis"):
+        redis_cli = cached_layer_or_none.get_redis()
+    infra_cache.bump_view(object_type, obj_id, redis_cli)
 
 
 def add_view(

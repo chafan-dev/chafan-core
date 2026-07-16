@@ -13,15 +13,51 @@ from chafan_core.utils.base import EntityType, filter_not_none, unwrap
 MAX_SAMPLED_RELATED_FOLLOWED = 20
 
 
-def get_followers(cached_layer, user: models.User, skip: int, limit: int) -> List[UserPreview]:
+def get_user_follows(
+    cached_layer, followed: models.User
+) -> schemas.UserFollows:
+    current_user = cached_layer.try_get_current_user()
+    if current_user:
+        followed_by_me = followed in current_user.followed
+    else:
+        followed_by_me = False
+    return schemas.UserFollows(
+        user_uuid=followed.uuid,
+        followers_count=followed.followers.count(),
+        followed_count=followed.followed.count(),  # type: ignore
+        followed_by_me=followed_by_me,
+    )
+
+
+def preview_of_user(cached_layer, user: models.User) -> schemas.UserPreview:
+    """User preview with social annotations for the current principal."""
+    user_preview = cached_layer.materializer.preview_of_user(user)
+    principal_id = cached_layer.principal_id
+    if principal_id:
+        m = cached_layer.get_follow_follow_fanout()
+        if principal_id in m and user_preview.uuid in m[principal_id]:
+            user_preview.social_annotations.follow_follows = m[principal_id][
+                user_preview.uuid
+            ]
+        else:
+            user_preview.social_annotations.follow_follows = 0
+    user_preview.follows = get_user_follows(cached_layer, user)
+    return user_preview
+
+
+def get_followers(
+    cached_layer, user: models.User, skip: int, limit: int
+) -> List[UserPreview]:
     return [
-        cached_layer.preview_of_user(u) for u in user.followers[skip : skip + limit]
+        preview_of_user(cached_layer, u) for u in user.followers[skip : skip + limit]
     ]
 
 
-def get_followed(cached_layer, user: models.User, skip: int, limit: int) -> List[UserPreview]:
+def get_followed(
+    cached_layer, user: models.User, skip: int, limit: int
+) -> List[UserPreview]:
     return [
-        cached_layer.preview_of_user(u) for u in user.followed[skip : skip + limit]
+        preview_of_user(cached_layer, u) for u in user.followed[skip : skip + limit]
     ]
 
 
@@ -56,4 +92,4 @@ def get_related_users(cached_layer, target_user: models.User) -> List[UserPrevie
         if user_id not in related_users:
             related_users[user_id] = unwrap(crud.user.get(db, user_id))
 
-    return [cached_layer.preview_of_user(u) for u in related_users.values()]
+    return [preview_of_user(cached_layer, u) for u in related_users.values()]

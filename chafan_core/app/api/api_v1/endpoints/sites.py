@@ -185,7 +185,7 @@ def config_site(
             )
         del site_in_dict["category_topic_uuid"]
         site_in_dict["category_topic_id"] = category_topic.id
-    new_site = cached_layer.update_site(old_site=site, update_dict=site_in_dict)
+    new_site = sites_service.update_site(db, old_site=site, update_dict=site_in_dict)
     if site_in.topic_uuids is not None:
         new_topics = []
         for topic_uuid in site_in.topic_uuids:
