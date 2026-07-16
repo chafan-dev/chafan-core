@@ -14,7 +14,7 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import get_redis_cli, is_dev
 from chafan_core.app.model_utils import get_live_answers_of_question
 from chafan_core.app.recs import indexed_layer
-from chafan_core.app.task_utils import execute_with_db
+from chafan_core.app.infra.runtime import execute_with_db
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import filter_not_none
 from chafan_core.utils.constants import MAX_FEATURED_ANSWERS_LIMIT
