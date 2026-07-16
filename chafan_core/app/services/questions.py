@@ -34,13 +34,13 @@ def get_readable_question(
     *,
     uuid: str,
     principal_id: Optional[int],
-    cached_layer,
+    ctx,
 ) -> Optional[models.Question]:
     """Fetch question if principal may read it (hidden-question gate)."""
     question = get_question_model(db, uuid)
     if question is None:
         return None
-    if not user_permission.question_read_allowed(cached_layer, question, principal_id):
+    if not user_permission.question_read_allowed(ctx, question, principal_id):
         return None
     return question
 
