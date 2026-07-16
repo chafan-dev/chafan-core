@@ -1,42 +1,23 @@
-import datetime
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
+from typing import Any, Dict, Mapping, Optional, Tuple
 import logging
 logger = logging.getLogger(__name__)
 
-import sentry_sdk
-from pydantic.tools import parse_obj_as
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import OperationType, report_msg
-from chafan_core.app.config import settings
+from chafan_core.app.common import OperationType
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.model_utils import (
-    get_live_answers_of_question,
-    is_live_answer,
-    is_live_article,
-)
-from chafan_core.app.schemas import event as event_module
-from chafan_core.app.schemas.answer import AnswerInDBBase
+from chafan_core.app.model_utils import is_live_answer
 from chafan_core.app.schemas.answer_archive import AnswerArchiveInDB
 from chafan_core.app.schemas.article_archive import ArticleArchiveInDB
-from chafan_core.app.schemas.event import (
-    ClaimAnswerQuestionRewardInternal,
-    CreateAnswerQuestionRewardInternal,
-    Event,
-    EventInternal,
-)
-from chafan_core.app.schemas.notification import Notification, NotificationInDBBase
+from chafan_core.app.schemas.event import Event
+from chafan_core.app.schemas.notification import Notification
 from chafan_core.app.schemas.question import QuestionPreviewForSearch
-from chafan_core.app.schemas.reward import AnsweredQuestionCondition, RewardCondition
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.schemas.security import IntlPhoneNumber
 from chafan_core.utils.base import (
     ContentVisibility,
     HTTPException_,
-    filter_not_none,
     map_,
-    unwrap,
 )
 from chafan_core.utils.constants import (
     unknown_user_full_name,
@@ -85,40 +66,12 @@ def check_user_in_channel(current_user: models.User, channel: models.Channel) ->
     user_permission.check_user_in_channel(current_user, channel)
 
 
-_VISIBLE_QUESTION_CONDITIONS = {
-    "is_hidden": False,
-}
-
-_VISIBLE_SUBMISSION_CONDITIONS = {
-    "is_hidden": False,
-}
-
-
 def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
     return questions.filter_by(**conditions)
 
 
 def is_eligible_item(question: models.Question, conditions: Mapping[str, Any]) -> bool:
     return all(getattr(question, k) == v for k, v in conditions.items())
-
-
-_KEYS = [
-    "reward",
-    "submission",
-    "article",
-    "article_column",
-    "subject",
-    "question",
-    "answer",
-    "comment",
-    "reply",
-    "parent_comment",
-    "user",
-    "site",
-    "channel",
-    "submission_suggestion",
-    "answer_suggest_edit",
-]
 
 
 def submission_archive_schema_from_orm(
@@ -215,33 +168,9 @@ def get_answer_text_preview(answer: models.Answer) -> Tuple[str, bool]:
 
 
 def user_schema_from_orm(user: models.User) -> schemas.User:
-    base = schemas.UserInDBBase.from_orm(user)
-    d = base.dict()
-    if user.flags:
-        d["flag_list"] = user.flags.split()
-    else:
-        d["flag_list"] = []
+    from chafan_core.app.responders import user as user_responder
 
-    enough_coins = user.remaining_coins >= settings.CREATE_SITE_COIN_DEDUCTION
-    if settings.CREATE_SITE_FORCE_NEED_APPROVAL:
-        d["can_create_public_site"] = False
-        d["can_create_private_site"] = False
-    else:
-        d["can_create_public_site"] = (
-            user.karma >= settings.MIN_KARMA_CREATE_PUBLIC_SITE and enough_coins
-        )
-        d["can_create_private_site"] = (
-            user.karma >= settings.MIN_KARMA_CREATE_PRIVATE_SITE and enough_coins
-        )
-    if user.is_superuser:
-        d["can_create_public_site"] = True
-        d["can_create_private_site"] = True
-    if user.phone_number_country_code and user.phone_number_subscriber_number:
-        d["phone_number"] = IntlPhoneNumber(
-            country_code=user.phone_number_country_code,
-            subscriber_number=user.phone_number_subscriber_number,
-        )
-    return schemas.User(**d)
+    return user_responder.user_schema_from_orm(user)
 
 
 # Should I put it into a class?
@@ -423,146 +352,9 @@ class Materializer(object):
         return schemas.Task(**d)
 
     def materialize_event(self, event_internal_json: str) -> Optional[Event]:
-        try:
-            event = EventInternal.parse_raw(event_internal_json)
-        except Exception:
-            import time
+        from chafan_core.app.responders import event as event_responder
 
-            if time.time() % 2 == 0:
-                sentry_sdk.capture_message(
-                    f"Failed to materialize event: {event_internal_json}",
-                )
-            return None
-        db = self.broker.get_db()
-        kwargs = {}
-        for k, v in event.content.dict().items():
-            if k == "verb":
-                kwargs["verb"] = v
-            else:
-                if k in ("invited_email", "payment_amount", "message"):
-                    kwargs[k] = v
-                else:
-                    assert k.endswith("_id"), k
-                    k = k[:-3]
-                    assert k in _KEYS, k
-                    if k == "subject" or k == "user":
-                        kwargs[k] = map_(crud.user.get(db, id=v), self.preview_of_user)
-                    elif k == "question":
-                        question = crud.question.get(db, id=v)
-                        if question is None:
-                            return None
-                        question_data = self.preview_of_question(question)
-                        if question_data is None:
-                            return None
-                        kwargs[k] = question_data
-                    elif k == "submission":
-                        submission = crud.submission.get(db, id=v)
-                        if submission is None:
-                            return None
-                        submission_data = self.submission_schema_from_orm(submission)
-                        if submission_data is None:
-                            return None
-                        kwargs[k] = submission_data
-                    elif k == "submission_suggestion":
-                        submission_suggestion = crud.submission_suggestion.get(db, id=v)
-                        if submission_suggestion is None:
-                            return None
-                        submission_suggestion_data = (
-                            self.submission_suggestion_schema_from_orm(
-                                submission_suggestion
-                            )
-                        )
-                        if submission_suggestion_data is None:
-                            return None
-                        kwargs[k] = submission_suggestion_data
-                    elif k == "answer_suggest_edit":
-                        answer_suggest_edit = crud.answer_suggest_edit.get(db, id=v)
-                        if answer_suggest_edit is None:
-                            return None
-                        answer_suggest_edit_data = (
-                            self.answer_suggest_edit_schema_from_orm(
-                                answer_suggest_edit
-                            )
-                        )
-                        if answer_suggest_edit_data is None:
-                            return None
-                        kwargs[k] = answer_suggest_edit_data
-                    elif k == "reward":
-                        reward = crud.reward.get(db, id=v)
-                        if reward is None:
-                            return None
-                        kwargs["reward"] = self.reward_schema_from_orm(reward)
-                        if isinstance(
-                            event.content, CreateAnswerQuestionRewardInternal
-                        ) or isinstance(
-                            event.content, ClaimAnswerQuestionRewardInternal
-                        ):
-                            condition = RewardCondition.parse_obj(reward.condition)
-                            assert isinstance(
-                                condition.content, AnsweredQuestionCondition
-                            )
-                            question = crud.question.get_by_uuid(
-                                db, uuid=condition.content.question_uuid
-                            )
-                            assert question is not None
-                            question_data = self.preview_of_question(question)
-                            if question_data is None:
-                                return None
-                            kwargs["question"] = question_data
-                    elif k == "answer":
-                        answer = crud.answer.get(db, id=v)
-                        if answer is None:
-                            return None
-                        assert answer.body is not None
-                        answer_preview = self.preview_of_answer(answer)
-                        if answer_preview:
-                            kwargs[k] = answer_preview
-                        else:
-                            return None
-                    elif k == "article":
-                        article = crud.article.get(db, id=v)
-                        if article is None:
-                            return None
-                        data = self.preview_of_article(article)
-                        if data is None:
-                            return None
-                        else:
-                            kwargs[k] = data
-                    elif k == "article_column":
-                        article_column = crud.article_column.get(db, id=v)
-                        if article_column is None:
-                            return None
-                        kwargs[k] = self.article_column_schema_from_orm(article_column)
-                    elif k in ["comment", "parent_comment", "reply"]:
-                        comment = crud.comment.get(db, id=v)
-                        if comment:
-                            comment_data = self.comment_schema_from_orm(comment)
-                            if comment_data:
-                                kwargs[k] = comment_data
-                            else:
-                                return None
-                    elif k == "site":
-                        kwargs[k] = map_(
-                            crud.site.get(db, id=v), self.site_schema_from_orm
-                        )
-                    elif k == "channel":
-                        kwargs[k] = map_(
-                            crud.channel.get(db, id=v), self.channel_schema_from_orm
-                        )
-                    else:
-                        raise Exception(k)
-        event_content_class = event.content.__class__.__name__
-        if event_content_class.endswith("Internal"):
-            new_class = getattr(event_module, event_content_class[: -len("Internal")])
-        else:
-            new_class = getattr(event_module, event_content_class)
-        try:
-            return Event(created_at=event.created_at, content=new_class(**kwargs))
-        except Exception as e:
-            report_msg(
-                f"Event construction exception: kwargs={kwargs}, exception={e}, event_internal_json={event_internal_json}"
-            )
-            return None
+        return event_responder.materialize_event(self, event_internal_json)
 
     def submission_schema_from_orm(
         self, submission: models.Submission
@@ -581,71 +373,29 @@ class Materializer(object):
     def notification_schema_from_orm(
         self, notification: models.Notification
     ) -> Optional[Notification]:
-        base = NotificationInDBBase.from_orm(notification)
-        if notification.event_json:
-            event = self.materialize_event(notification.event_json)
-            if event is None:
-                return None
-            d = base.dict()
-            d["event"] = event
-            return Notification(**d)
-        return None
+        from chafan_core.app.responders import event as event_responder
+
+        return event_responder.notification_schema_from_orm(self, notification)
 
     def submission_suggestion_schema_from_orm(
         self,
         submission_suggestion: models.SubmissionSuggestion,
     ) -> Optional[schemas.SubmissionSuggestion]:
-        base = schemas.SubmissionSuggestionInDB.from_orm(submission_suggestion)
-        d = base.dict()
-        d["author"] = self.preview_of_user(submission_suggestion.author)
-        submission = self.submission_schema_from_orm(submission_suggestion.submission)
-        if not submission:
-            return None
-        d["submission"] = submission
-        if submission_suggestion.topic_uuids:
-            d["topics"] = [
-                schemas.Topic.from_orm(
-                    unwrap(crud.topic.get_by_uuid(self.broker.get_db(), uuid=uuid))
-                )
-                for uuid in submission_suggestion.topic_uuids
-            ]
-        if submission_suggestion.description:
-            d["desc"] = RichText(
-                source=submission_suggestion.description,
-                rendered_text=submission_suggestion.description_text,
-                editor=submission_suggestion.description_editor,
-            )
-        else:
-            d["desc"] = None
-        return schemas.SubmissionSuggestion(**d)
+        from chafan_core.app.responders import suggestions as suggestions_responder
+
+        return suggestions_responder.submission_suggestion_schema_from_orm(
+            self, submission_suggestion
+        )
 
     def answer_suggest_edit_schema_from_orm(
         self,
         answer_suggest_edit: models.AnswerSuggestEdit,
     ) -> Optional[schemas.AnswerSuggestEdit]:
-        from chafan_core.app.services import answers as answers_service
+        from chafan_core.app.responders import suggestions as suggestions_responder
 
-        base = schemas.AnswerSuggestEditInDB.from_orm(answer_suggest_edit)
-        d = base.dict()
-        d["author"] = self.preview_of_user(answer_suggest_edit.author)
-        # Full answer schema lives on services.answers / responders.
-        # self.broker is RequestContext/DataBroker (has materializer + principal).
-        answer = answers_service.answer_schema(
-            self.broker, answer_suggest_edit.answer
+        return suggestions_responder.answer_suggest_edit_schema_from_orm(
+            self, answer_suggest_edit
         )
-        if not answer:
-            return None
-        d["answer"] = answer
-        if answer_suggest_edit.body:
-            assert answer_suggest_edit.body_editor
-            d["body_rich_text"] = RichText(
-                source=answer_suggest_edit.body,
-                rendered_text=answer_suggest_edit.body_text,
-                editor=answer_suggest_edit.body_editor,
-            )
-        else:
-            d["body_rich_text"] = None
-        return schemas.AnswerSuggestEdit(**d)
 
     def comment_schema_from_orm(
         self, comment: models.Comment
