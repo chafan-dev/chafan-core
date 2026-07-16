@@ -4,6 +4,7 @@ import logging
 import chafan_core.app.responders as responders
 from chafan_core.app import models, schemas, user_permission, view_counters
 from chafan_core.app.common import OperationType
+from chafan_core.app.responders._util import get_db, shaper
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import filter_not_none
 
@@ -17,20 +18,18 @@ def submission_schema_from_orm(
     if submission.is_hidden:
         return None
     if not user_permission.user_in_site(
-        cached_layer.get_db(),
+        get_db(cached_layer),
         site=submission.site,
         user_id=cached_layer.principal_id,
         op_type=OperationType.ReadSite,
     ):
         return None
+    mat = shaper(cached_layer)
     base = schemas.SubmissionInDB.from_orm(submission)
     d = base.dict()
     d["site"] = responders.site.site_schema_from_orm(cached_layer, submission.site)
     d["comments"] = filter_not_none(
-        [
-            cached_layer.materializer.comment_schema_from_orm(c)
-            for c in submission.comments
-        ]
+        [mat.comment_schema_from_orm(c) for c in submission.comments]
     )
     d["author"] = cached_layer.preview_of_user(submission.author)
     d["contributors"] = [
