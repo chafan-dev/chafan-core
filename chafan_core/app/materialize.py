@@ -53,11 +53,36 @@ _ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
 
 
 import chafan_core.app.user_permission as user_permission
+# Back-compat wrappers — prefer chafan_core.app.user_permission.
+# Call through functions (not aliases) to avoid circular-import init issues.
+
+
 def get_active_site_profile(
     db: Session, *, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
-    # TODO remove it from materialize
     return user_permission.get_active_site_profile(db, site, user_id)
+
+
+def user_in_site(
+    db: Session,
+    *,
+    site: models.Site,
+    user_id: Optional[int],
+    op_type: OperationType,
+) -> bool:
+    return user_permission.user_in_site(db, site, user_id, op_type)
+
+
+def check_user_in_site(
+    db: Session, *, site: models.Site, user_id: int, op_type: OperationType
+) -> None:
+    user_permission.check_user_in_site(
+        db, site=site, user_id=user_id, op_type=op_type
+    )
+
+
+def check_user_in_channel(current_user: models.User, channel: models.Channel) -> None:
+    user_permission.check_user_in_channel(current_user, channel)
 
 
 _VISIBLE_QUESTION_CONDITIONS = {
@@ -75,39 +100,6 @@ def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
 
 def is_eligible_item(question: models.Question, conditions: Mapping[str, Any]) -> bool:
     return all(getattr(question, k) == v for k, v in conditions.items())
-
-
-def user_in_site(
-    db: Session,
-    *,
-    site: models.Site,
-    user_id: Optional[int],
-    op_type: OperationType,
-) -> bool:
-    # TODO remove it from materialize
-    return user_permission.user_in_site(db, site, user_id, op_type)
-
-
-def check_user_in_site(
-    db: Session, *, site: models.Site, user_id: int, op_type: OperationType
-) -> None:
-    if not user_in_site(db, site=site, user_id=user_id, op_type=op_type):
-        raise HTTPException_(
-            status_code=400,
-            detail="Current user is not allowed in this site.",
-        )
-
-
-def check_user_in_channel(current_user: models.User, channel: models.Channel) -> None:
-    if (
-        current_user not in channel.members
-        and current_user is not channel.admin
-        and current_user is not channel.private_with_user
-    ):
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
 
 
 _KEYS = [
@@ -174,19 +166,9 @@ def answer_archive_schema_from_orm(
 
 
 def root_route(comment: models.Comment) -> Optional[str]:
-    if comment.answer is not None:
-        return (
-            f"/questions/{comment.answer.question.uuid}/answers/{comment.answer.uuid}"
-        )
-    elif comment.question is not None:
-        return f"/questions/{comment.question.uuid}"
-    elif comment.article is not None:
-        return f"/articles/{comment.article.uuid}"
-    elif comment.submission is not None:
-        return f"/submissions/{comment.submission.uuid}"
-    elif comment.parent_comment is not None:
-        return root_route(comment.parent_comment)
-    return None
+    from chafan_core.app.responders.comment import root_route as _root_route
+
+    return _root_route(comment)
 
 
 _MAX_ANSWER_BODY_CHARS = 100
@@ -785,44 +767,12 @@ class Materializer(object):
             d["body_rich_text"] = None
         return schemas.AnswerSuggestEdit(**d)
 
-    # TODO: optimize -- principal can be unchecked if the parent (e.g. answer) is already checked with principal
     def comment_schema_from_orm(
         self, comment: models.Comment
     ) -> Optional[schemas.Comment]:
-        db = self.broker.get_db()
-        if comment.site and not user_in_site(
-            db,
-            site=comment.site,
-            user_id=self.principal_id,
-            op_type=OperationType.ReadSite,
-        ):
-            return None
-        base = schemas.CommentInDBBase.from_orm(comment)
-        upvoted = False
-        if self.principal_id is not None:
-            upvoted = (
-                db.query(models.CommentUpvotes)
-                .filter_by(
-                    comment_id=comment.id,
-                    voter_id=self.principal_id,
-                    cancelled=False,
-                )
-                .first()
-                is not None
-            )
-        d = base.dict()
-        d["author"] = self.preview_of_user(comment.author)
-        d["upvoted"] = upvoted
-        d["root_route"] = root_route(comment)
-        d["content"] = RichText(
-            source=comment.body,
-            rendered_text=comment.body_text,
-            editor=comment.editor,
-        )
-        d["child_comments"] = filter_not_none(
-            [self.comment_schema_from_orm(c) for c in comment.child_comments]
-        )
-        return schemas.Comment(**d)
+        from chafan_core.app.responders import comment as comment_responder
+
+        return comment_responder.comment_schema_from_orm(self, comment)
 
     def get_question_upvotes(
         self, question: models.Question

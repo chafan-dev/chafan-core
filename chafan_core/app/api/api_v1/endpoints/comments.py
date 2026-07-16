@@ -1,19 +1,14 @@
-import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.common import OperationType
-from chafan_core.app.materialize import check_user_in_site
+from chafan_core.app.services import comments as comments_service
 from chafan_core.app.task import postprocess_comment_update, postprocess_new_comment
 from chafan_core.utils.base import HTTPException_
-
-import logging
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -24,20 +19,12 @@ def get_comment(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    """
-    Get a comment in one of the current user's belonging sites.
-    """
-    comment = crud.comment.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if comment is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment doesn't exist in the system.",
-        )
-    data = ctx.materializer.comment_schema_from_orm(comment)
+    """Get a comment in one of the current user's belonging sites."""
+    data = comments_service.get_comment_schema(ctx, uuid)
     if data is None:
         raise HTTPException_(
             status_code=400,
-            detail="Unauthorized.",
+            detail="The comment doesn't exist in the system.",
         )
     return data
 
@@ -49,51 +36,29 @@ def get_comment_upvotes(
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    comment = crud.comment.get_by_uuid(db, uuid=uuid)
-    if comment is None:
+    data = comments_service.get_comment_upvotes(
+        db, uuid=uuid, principal_id=current_user_id
+    )
+    if data is None:
         raise HTTPException_(
             status_code=400,
             detail="The comment doesn't exist in the system.",
         )
-    valid_upvotes = (
-        db.query(models.CommentUpvotes)
-        .filter_by(comment_id=comment.id, cancelled=False)
-        .count()
-    )
-    if current_user_id:
-        upvoted = (
-            db.query(models.CommentUpvotes)
-            .filter_by(comment_id=comment.id, voter_id=current_user_id, cancelled=False)
-            .first()
-            is not None
-        )
-    else:
-        upvoted = False
-    return schemas.CommentUpvotes(
-        comment_uuid=comment.uuid, count=valid_upvotes, upvoted=upvoted
-    )
+    return data
 
 
 @router.delete("/{uuid}", response_model=schemas.GenericResponse)
 def delete_comment(
     *,
-    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    comment = crud.comment.get_by_uuid(db, uuid=uuid)
-    if comment is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment doesn't exist in the system.",
-        )
-    if comment.author_id != current_user_id:
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
-    crud.comment.delete_forever(db, comment=comment)
+    err = comments_service.delete_comment(
+        db, uuid=uuid, principal_id=current_user_id
+    )
+    if err is not None:
+        raise HTTPException_(status_code=400, detail=err)
     return schemas.GenericResponse()
 
 
@@ -101,49 +66,17 @@ def delete_comment(
 def create_comment(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
-    db: Session = Depends(deps.get_db),
     comment_in: schemas.CommentCreate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    """
-    Create new comment authored by the current active user in one of the belonging sites.
-    """
-    current_user_id = ctx.unwrapped_principal_id()
-
-    def check_site(site: models.Site) -> None:
-        check_user_in_site(
-            db,
-            site=site,
-            user_id=current_user_id,
-            op_type=OperationType.WriteSiteComment,
-        )
-
-    parents = sum(
-        int(id is not None)
-        for id in [
-            comment_in.question_uuid,
-            comment_in.submission_uuid,
-            comment_in.answer_uuid,
-            comment_in.parent_comment_uuid,
-            comment_in.article_uuid,
-        ]
-    )
-    if parents != 1:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment has too many or too few parent ids.",
-        )
-    comment = crud.comment.create_with_author(
-        db, obj_in=comment_in, author_id=current_user_id, check_site=check_site
-    )
+    """Create new comment authored by the current active user."""
+    comment, comment_data = comments_service.create_comment(ctx, comment_in=comment_in)
     background_tasks.add_task(
         postprocess_new_comment,
         comment.id,
         comment_in.shared_to_timeline,
         comment_in.mentioned,
     )
-    comment_data = ctx.materializer.comment_schema_from_orm(comment)
-    assert comment_data is not None
     return comment_data
 
 
@@ -155,44 +88,17 @@ def update_comment(
     comment_in: schemas.CommentUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    """
-    Update comment authored by the current user in one of the belonging sites.
-    """
-    current_user_id = ctx.principal_id
-    comment = crud.comment.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if comment is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment doesn't exist in the system.",
-        )
-    if comment.author_id != current_user_id:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment is not authored by the current user.",
-        )
-    if comment.site is not None:
-        check_user_in_site(
-            ctx.get_db(),
-            site=comment.site,
-            user_id=current_user_id,
-            op_type=OperationType.WriteSiteComment,
-        )
-    utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-    comment_in_dict = comment_in.dict(exclude_none=True)
-    comment_in_dict["updated_at"] = utc_now
-    was_shared_to_timeline = comment.shared_to_timeline
-    new_comment = crud.comment.update(
-        ctx.get_db(), db_obj=comment, obj_in=comment_in_dict
+    """Update comment authored by the current user."""
+    comment, comment_data, was_shared = comments_service.update_comment(
+        ctx, uuid=uuid, comment_in=comment_in
     )
     background_tasks.add_task(
         postprocess_comment_update,
         comment.id,
-        was_shared_to_timeline,
+        was_shared,
         shared_to_timeline=comment_in.shared_to_timeline,
         mentioned=comment_in.mentioned,
     )
-    comment_data = ctx.materializer.comment_schema_from_orm(new_comment)
-    assert comment_data is not None
     return comment_data
 
 
@@ -202,49 +108,8 @@ def upvote_comment(
     *,
     uuid: str,
 ) -> Any:
-    """
-    Upvote comment as the current user.
-    """
-    current_user = ctx.get_current_active_user()
-    db = ctx.get_db()
-    comment = crud.comment.get_by_uuid(db, uuid=uuid)
-    if comment is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment doesn't exist in the system.",
-        )
-    if comment.site:
-        check_user_in_site(
-            db,
-            site=comment.site,
-            user_id=current_user.id,
-            op_type=OperationType.ReadSite,
-        )
-    upvoted = (
-        db.query(models.CommentUpvotes)
-        .filter_by(comment_id=comment.id, voter_id=current_user.id, cancelled=False)
-        .first()
-        is not None
-    )
-    if not upvoted:
-        if current_user.id == comment.author_id:
-            raise HTTPException_(
-                status_code=400,
-                detail="Author can't upvote authored comment.",
-            )
-        # Don't swap the statements before and after!
-        comment = crud.comment.upvote(db, db_obj=comment, voter=current_user)
-        db.commit()
-        db.refresh(comment)
-    valid_upvotes = (
-        db.query(models.CommentUpvotes)
-        .filter_by(comment_id=comment.id, cancelled=False)
-        .count()
-    )
-    # FIXME: maybe returning upvotes from a different endpoint thus using different caching logic.
-    return schemas.CommentUpvotes(
-        comment_uuid=comment.uuid, count=valid_upvotes, upvoted=True
-    )
+    """Upvote comment as the current user."""
+    return comments_service.upvote_comment(ctx, uuid=uuid)
 
 
 @router.delete("/{uuid}/upvotes/", response_model=schemas.CommentUpvotes)
@@ -253,39 +118,5 @@ def cancel_upvote_comment(
     *,
     uuid: str,
 ) -> Any:
-    """
-    Cancel upvote for comment as the current user.
-    """
-    current_user = ctx.get_current_active_user()
-    db = ctx.get_db()
-    comment = crud.comment.get_by_uuid(db, uuid=uuid)
-    if comment is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The comment doesn't exist in the system.",
-        )
-    if comment.site:
-        check_user_in_site(
-            db,
-            site=comment.site,
-            user_id=current_user.id,
-            op_type=OperationType.ReadSite,
-        )
-    upvoted = (
-        db.query(models.CommentUpvotes)
-        .filter_by(comment_id=comment.id, voter_id=current_user.id, cancelled=False)
-        .first()
-        is not None
-    )
-    if upvoted:
-        comment = crud.comment.cancel_upvote(db, db_obj=comment, voter=current_user)
-        db.commit()
-        db.refresh(comment)
-    valid_upvotes = (
-        db.query(models.CommentUpvotes)
-        .filter_by(comment_id=comment.id, cancelled=False)
-        .count()
-    )
-    return schemas.CommentUpvotes(
-        comment_uuid=comment.uuid, count=valid_upvotes, upvoted=False
-    )
+    """Cancel upvote for comment as the current user."""
+    return comments_service.cancel_upvote_comment(ctx, uuid=uuid)

@@ -4,7 +4,7 @@ from typing import List
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models
-from chafan_core.app.materialize import get_active_site_profile
+from chafan_core.app.user_permission import get_active_site_profile
 from chafan_core.app.recs.ranking import rank_users
 
 _MAX_SITE_INTERESTING_QUESTION_SIZE = 20

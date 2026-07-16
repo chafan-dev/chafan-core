@@ -17,7 +17,7 @@ from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.materialize import check_user_in_site
+from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.app.schemas.application import ApplicationCreate
 from chafan_core.app.schemas.channel import SiteCreationSubject
 from chafan_core.app.schemas.event import (
