@@ -61,6 +61,18 @@ class RequestContext:
             self._materializer = Materializer(self, self.principal_id)  # type: ignore[arg-type]
         return self._materializer
 
+    def as_principal(self, principal_id: Optional[int]) -> "Materializer":
+        """Schema shaper for a different principal (feed, notifications, payments).
+
+        Shares this context's db/redis. Reuses .materializer when principal_id
+        matches the request principal.
+        """
+        if principal_id == self.principal_id:
+            return self.materializer
+        from chafan_core.app.materialize import Materializer
+
+        return Materializer(self, principal_id)  # type: ignore[arg-type]
+
     def try_get_current_user(self) -> Optional["models.User"]:
         if self.principal_id is None:
             return None

@@ -1,8 +1,8 @@
 """Thin Materializer façade + back-compat re-exports.
 
 Schema shaping lives in responders/*; permission helpers live in
-user_permission. This module remains for historical imports and as the
-Materializer class used by RequestContext.materializer, feed, and mq.
+user_permission. Prefer RequestContext.materializer / as_principal() over
+constructing Materializer directly.
 """
 
 from __future__ import annotations

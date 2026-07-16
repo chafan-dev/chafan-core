@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.event import (
     AnswerQuestionInternal,
@@ -213,7 +212,7 @@ def materialize_activity(
     receiver_id: int,
     feed_settings: Optional[UserFeedSettings],
 ) -> Optional[schemas.Activity]:
-    materializer = Materializer(data_broker, receiver_id)
+    materializer = data_broker.as_principal(receiver_id)
     output_event = materializer.materialize_event(unwrap(activity.event_json))
     if output_event:
         origins = []

@@ -1,14 +1,9 @@
-
 import logging
-logger = logging.getLogger(__name__)
-
 
 from chafan_core.app import models
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.materialize import Materializer
 from chafan_core.app.schemas.mq import WsUserMsg
 
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +12,7 @@ def get_ws_queue_for_user(user_id: int) -> str:
 
 
 def push_notification(data_broker: DataBroker, *, notif: models.Notification) -> None:
-    n = Materializer(data_broker, notif.receiver_id).notification_schema_from_orm(
+    n = data_broker.as_principal(notif.receiver_id).notification_schema_from_orm(
         notif,
     )
     logger.info("push_notification " + str(n)[:100])
