@@ -35,7 +35,7 @@ from dotenv import load_dotenv  # isort:skip
 load_dotenv()  # isort:skip
 
 from chafan_core.app import crud, schemas
-from chafan_core.app import rep_manager as rep
+from chafan_core.app.services import reputation as rep
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.validators import (
     StrippedNonEmptyBasicStr,

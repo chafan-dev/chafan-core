@@ -56,7 +56,7 @@ def post_submission_suggestions(
         author_id=current_user.id,
         submission=submission,
     )
-    from chafan_core.app.task import postprocess_new_submission_suggestion
+    from chafan_core.app.services.postprocess import postprocess_new_submission_suggestion
 
     background_tasks.add_task(postprocess_new_submission_suggestion, s.id)
     from chafan_core.app.responders import suggestions as suggestions_responder
@@ -112,7 +112,7 @@ def _accept_submission_suggestion(
         background_tasks=background_tasks,
     )
     # Rebate the suggestion author
-    from chafan_core.app.task import postprocess_accept_submission_suggestion
+    from chafan_core.app.services.postprocess import postprocess_accept_submission_suggestion
 
     background_tasks.add_task(
         postprocess_accept_submission_suggestion, submission_suggestion.id

@@ -57,7 +57,7 @@ def post_answer_suggest_edits(
         author_id=current_user.id,
         answer=answer,
     )
-    from chafan_core.app.task import postprocess_new_answer_suggest_edit
+    from chafan_core.app.services.postprocess import postprocess_new_answer_suggest_edit
 
     background_tasks.add_task(postprocess_new_answer_suggest_edit, s.id)
     from chafan_core.app.responders import suggestions as suggestions_responder
@@ -112,7 +112,7 @@ def _accept_answer_suggest_edit(
         background_tasks=background_tasks,
     )
     # Rebate the suggestion author
-    from chafan_core.app.task import postprocess_accept_answer_suggest_edit
+    from chafan_core.app.services.postprocess import postprocess_accept_answer_suggest_edit
 
     background_tasks.add_task(postprocess_accept_answer_suggest_edit, answer_suggest_edit.id)
 

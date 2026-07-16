@@ -1,11 +1,10 @@
-from chafan_core.app.infra.request_context import RequestContext
 import datetime
 from typing import List, Optional, Union
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.schemas.preview import UserPreview
-from chafan_core.app.task import (
+from chafan_core.app.services.postprocess import (
     refresh_interesting_question_ids_for_user,
     refresh_interesting_user_ids_for_user,
 )

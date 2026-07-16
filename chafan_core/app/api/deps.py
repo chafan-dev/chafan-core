@@ -51,17 +51,16 @@ def try_get_current_user_id(
 def get_request_context(
     current_user_id: Optional[int] = Depends(try_get_current_user_id),
 ) -> Generator:
-    """Preferred per-request context (principal + lazy db/redis).
-
-    Use ctx.principal_view for the request principal, or ctx.as_principal(id)
-    for another viewer. close_legacy_commit keeps historical request-end
-    commit until services own transactions.
-    """
+    """Per-request context. Commits on success; rolls back on error."""
     ctx = RequestContext(principal_id=current_user_id)
     try:
         yield ctx
+        ctx.commit()
+    except Exception:
+        ctx.rollback()
+        raise
     finally:
-        ctx.close_legacy_commit()
+        ctx.close()
 
 
 def get_request_context_logged_in(
@@ -70,14 +69,22 @@ def get_request_context_logged_in(
     ctx = RequestContext(principal_id=current_user_id)
     try:
         yield ctx
+        ctx.commit()
+    except Exception:
+        ctx.rollback()
+        raise
     finally:
-        ctx.close_legacy_commit()
+        ctx.close()
 
 
 def get_db() -> Generator:
-    """Plain write session; commits at request end (legacy)."""
+    """Plain DB session. Commits on success; rolls back on error."""
     ctx = RequestContext()
     try:
         yield ctx.get_db()
+        ctx.commit()
+    except Exception:
+        ctx.rollback()
+        raise
     finally:
-        ctx.close_legacy_commit()
+        ctx.close()
