@@ -23,8 +23,7 @@ def create_report(
     """
     Create new report authored by the current active user in one of the belonging sites.
     """
-    layer = deps.cached_layer_from_context(ctx)
-    current_user_id = layer.unwrapped_principal_id()
+    current_user_id = ctx.unwrapped_principal_id()
     object_ids = sum(
         int(id is not None)
         for id in [
@@ -52,4 +51,4 @@ def create_report(
     report = crud.report.create_with_author(
         db, obj_in=report_in, author_id=current_user_id, check_site=check_site
     )
-    return layer.materializer.report_schema_from_orm(report)
+    return ctx.materializer.report_schema_from_orm(report)

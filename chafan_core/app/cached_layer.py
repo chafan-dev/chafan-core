@@ -1,168 +1,43 @@
-from typing import Any, Dict, List, Optional, Tuple
+"""Transitional façade over RequestContext + materializer.
+
+Prefer RequestContext for sessions/principal and services/ for domain logic.
+Kept only while responders and a few call sites still expect this duck type.
+"""
+
+from typing import List, Optional
 
 import redis
-import fastapi
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.data_broker import DataBroker
-# TODO 2025-07-20 CachedLayer should not dependent on Materializer
-from chafan_core.app.materialize import Materializer
-from chafan_core.app.recs import matrices as recs_matrices
 from chafan_core.app import services
-from chafan_core.app.infra import cache as infra_cache
 from chafan_core.app.schemas.answer import AnswerPreview
-from chafan_core.app.schemas.preview import UserPreview
-from chafan_core.app.schemas.site import SiteCreate
-from chafan_core.utils.base import (
-    EntityType,
-    unwrap,
-)
+from chafan_core.utils.base import unwrap
 
 import logging
 logger = logging.getLogger(__name__)
 
-MatrixType = Dict[int, List[int]]
-
-# User.id -> { User.uuid -> count }
-WeightedMatrixType = Dict[int, Dict[str, int]]
-
-# List of { year, contributions }
-UserContributions = List[Tuple[int, List[int]]]
-
-
-DAILY_INVITATION_LINK_ID_CACHE_KEY = infra_cache.DAILY_INVITATION_LINK_ID_CACHE_KEY
-BUMP_VIEW_COUNT_QUEUE_CACHE_KEY = infra_cache.BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
-
 
 class CachedLayer(object):
-    """Transitional façade over RequestContext + responders/materialize.
-
-    Prefer RequestContext for sessions/principal. This class still hosts
-    domain helpers until they move to services/.
-    """
+    """Thin adapter: principal + db/redis/materializer from broker RequestContext."""
 
     def __init__(self, broker: DataBroker, principal_id: Optional[int] = None) -> None:
-        # Keep principal on the shared RequestContext (broker is a DataBroker/RequestContext).
         if principal_id is not None:
             broker.principal_id = principal_id
         elif broker.principal_id is not None:
             principal_id = broker.principal_id
         self.broker = broker
         self.principal_id = principal_id
-        self.materializer = Materializer(self.broker, self.principal_id)
+        # Share request-scoped materializer / principal cache with the context.
         self._principal: Optional[models.User] = None
-        self._user_contributions_map: Dict[int, UserContributions] = {}
-        self._follow_follow_fanout: Optional[WeightedMatrixType] = None
-        self._entity_similarity_matrices: Dict[EntityType, MatrixType] = {}
 
-    def bump_view(self, object_type: str, obj_id: int):
-        infra_cache.bump_view(object_type, obj_id, self.get_redis())
-
-    # Content caching removed (D1 / target architecture Step 3).
-    # Redis remains for ephemeral state only (OTP, view-bump queue, daily invitation id).
-
-    def question_schema_from_orm(self, question: models.Question) -> Optional[schemas.Question]:
-        logger.info("called cached.layer for question " + str(question))
-        return services.questions.question_schema(self, question)
-
-    def submission_schema_from_orm(self, submission: models.Submission):
-        logger.info("called cached layer for submission to wrap submission " + str(submission.id))
-        return services.submissions.submission_schema(self, submission)
-
-    def article_schema_from_orm(self, article: models.Article):
-        logger.info("called cached layer for article")
-        return services.articles.article_schema(self, article)
-
-    def get_article_by_uuid(self, uuid: str, current_user_id: Optional[int] = None) -> Optional[models.Article]:
-        return services.articles.get_article_by_uuid(
-            self.get_db(), uuid, current_user_id
-        )
-
-    def get_article_by_id(self, article_id: int, current_user_id: Optional[int] = None) -> Optional[models.Article]:
-        return services.articles.get_article_by_id(
-            self.get_db(), article_id, current_user_id
-        )
-
-    def get_answer_by_id(self, answer_id: int):
-        return services.answers.get_answer_by_id(self.get_db(), answer_id)
-
-    def answer_schema_from_orm(self, answer):
-        return services.answers.answer_schema(self, answer)
-
-    def get_answer(self, uuid: str) -> Optional[schemas.Answer]:
-        return services.answers.get_answer_schema(self, uuid)
-
-    def get_submissions_for_user(self) -> List[schemas.Submission]:
-        return services.submissions.submissions_for_user(self, self.principal_id)
-
-    def get_site_by_subdomain(self, subdomain: str):
-        return services.sites.get_site_by_subdomain(self.get_db(), subdomain)
-
-    def get_site_info(self, *, subdomain: str) -> Optional[schemas.Site]:
-        return services.sites.get_site_info(self, subdomain=subdomain)
-
-    def get_site_submissions_for_user(
-        self, *, site: models.Site, user_id: Optional[int], skip: int, limit: int
-    ) -> List[schemas.Submission]:
-        return services.submissions.site_submissions_for_user(
-            self, site=site, user_id=user_id, skip=skip, limit=limit
-        )
-
-    def update_site(
-        self, *, old_site: models.Site, update_dict: Dict[str, Any]
-    ) -> models.Site:
-        return services.sites.update_site(
-            self.get_db(), old_site=old_site, update_dict=update_dict
-        )
-
-    def create_site(
-        self,
-        *,
-        site_in: SiteCreate,
-        moderator: models.User,
-        category_topic_id: Optional[int],
-    ) -> models.Site:
-        return services.sites.create_site(
-            self.get_db(),
-            site_in=site_in,
-            moderator=moderator,
-            category_topic_id=category_topic_id,
-        )
+    @property
+    def materializer(self):
+        return self.broker.materializer
 
     def get_redis(self) -> redis.Redis:
         return self.broker.get_redis()
-
-    def get_answer_upvotes(self, uuid: str) -> Optional[schemas.AnswerUpvotes]:
-        return services.answers.get_answer_upvotes(
-            self.get_db(), uuid=uuid, principal_id=self.principal_id
-        )
-
-    def delete_answer(self, uuid: str) -> Optional[str]:
-        """Returns error msg"""
-        return services.answers.delete_answer(
-            self.get_db(), uuid=uuid, principal_id=self.principal_id
-        )
-
-    def compute_entity_similarity_matrix(self, entity_type: EntityType) -> MatrixType:
-        return recs_matrices.compute_entity_similarity_matrix(self.get_db(), entity_type)
-
-    def get_entity_similarity_matrix(self, entity_type: EntityType) -> MatrixType:
-        if entity_type in self._entity_similarity_matrices:
-            return self._entity_similarity_matrices[entity_type]
-        matrix = self.compute_entity_similarity_matrix(entity_type)
-        self._entity_similarity_matrices[entity_type] = matrix
-        return matrix
-
-    def compute_follow_follow_fanout(self) -> WeightedMatrixType:
-        return recs_matrices.compute_follow_follow_fanout(self.get_db())
-
-    def get_follow_follow_fanout(self) -> WeightedMatrixType:
-        if self._follow_follow_fanout:
-            return self._follow_follow_fanout
-        matrix = self.compute_follow_follow_fanout()
-        self._follow_follow_fanout = matrix
-        return matrix
 
     def get_db(self) -> Session:
         return self.broker.get_db()
@@ -173,7 +48,6 @@ class CachedLayer(object):
     def try_get_current_user(self) -> Optional[models.User]:
         if self._principal:
             return self._principal
-        # Prefer RequestContext principal resolution when broker is a context.
         user = self.broker.try_get_current_user()
         if user is not None:
             self._principal = user
@@ -194,16 +68,29 @@ class CachedLayer(object):
     def preview_of_user(self, user: models.User) -> schemas.UserPreview:
         return services.people.preview_of_user(self, user)
 
-    def create_audit(self, api: str, request: Optional[fastapi.Request] = None,
-                     user_id: Optional[int] = None,
-                     request_info: dict = dict()):
-        services.audit.create_audit(
-            self.get_db(),
-            api=api,
-            request=request,
-            user_id=user_id,
-            request_info=request_info,
-        )
+    def preview_of_answer(self, answer: models.Answer) -> Optional[AnswerPreview]:
+        return self.materializer.preview_of_answer(answer)
+
+    def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
+        return services.sites.site_schema(self, site)
+
+    def channel_schema_from_orm(self, channel: models.Channel) -> schemas.Channel:
+        return self.materializer.channel_schema_from_orm(channel)
+
+    def get_follow_follow_fanout(self):
+        return self.broker.get_follow_follow_fanout()
+
+    def get_user_follows(self, followed: models.User) -> schemas.UserFollows:
+        return services.people.get_user_follows(self, followed)
+
+    def get_user_contributions(self, user: models.User):
+        return self.broker.get_user_contributions(user)
+
+    def get_site_by_subdomain(self, subdomain: str):
+        return services.sites.get_site_by_subdomain(self.get_db(), subdomain)
+
+    def get_site_info(self, *, subdomain: str) -> Optional[schemas.Site]:
+        return services.sites.get_site_info(self, subdomain=subdomain)
 
     def update_notification(
         self,
@@ -211,128 +98,3 @@ class CachedLayer(object):
         notif_in: schemas.NotificationUpdate,
     ) -> None:
         crud.notification.update(self.get_db(), db_obj=notif, obj_in=notif_in)
-
-    def notification_schema_from_orm(
-        self, notif: models.Notification
-    ) -> Optional[schemas.Notification]:
-        if self.principal_id is None:
-            return None
-        return self.materializer.notification_schema_from_orm(notif)
-
-    def get_question_by_id(self, question_id: int):
-        return services.questions.get_question_by_id(self.get_db(), question_id)
-
-    def get_question_model_http(self, uuid: str) -> models.Question:
-        return services.questions.get_question_model_http(self.get_db(), uuid)
-
-    def get_question_by_uuid(self, uuid: str, current_user_id: Optional[int] = None) -> Optional[models.Question]:
-        return services.questions.get_readable_question(
-            self.get_db(),
-            uuid=uuid,
-            principal_id=current_user_id,
-            cached_layer=self,
-        )
-
-    def get_question_subscription(
-        self, question: models.Question
-    ) -> Optional[schemas.UserQuestionSubscription]:
-        return services.questions.get_question_subscription(self, question)
-
-    def get_followers(
-        self, user: models.User, skip: int, limit: int
-    ) -> List[UserPreview]:
-        return services.people.get_followers(self, user, skip, limit)
-
-    def get_followed(
-        self, user: models.User, skip: int, limit: int
-    ) -> List[UserPreview]:
-        return services.people.get_followed(self, user, skip, limit)
-
-    def preview_of_answer(
-        self, answer: models.Answer
-    ) -> Optional[AnswerPreview]:
-        return self.materializer.preview_of_answer(answer)
-
-    def get_authored_answers_for_principal(
-        self, author: models.User
-    ) -> List[schemas.AnswerPreview]:
-        return services.people.get_authored_answers_for_principal(self, author)
-
-    def get_user_follows(self, followed: models.User) -> schemas.UserFollows:
-        return services.people.get_user_follows(self, followed)
-
-    def get_daily_invitation_link(self) -> schemas.InvitationLink:
-        return services.invitations.get_daily_invitation_link(
-            self.get_db(), self.materializer
-        )
-
-    def channel_schema_from_orm(self, channel: models.Channel) -> schemas.Channel:
-        return self.materializer.channel_schema_from_orm(channel)
-
-    def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
-        return services.sites.site_schema(self, site)
-
-    def compute_user_contributions_map(self, user: models.User) -> UserContributions:
-        return recs_matrices.compute_user_contributions(user)
-
-    def get_user_activity(
-            self,
-            current_user_id: int,
-            before_activity_id: Optional[int],
-            limit: int,
-            random: bool,
-            subject_user_uuid: Optional[str]):
-        return services.feed.get_user_activity(
-            self,
-            current_user_id=current_user_id,
-            before_activity_id=before_activity_id,
-            limit=limit,
-            random=random,
-            subject_user_uuid=subject_user_uuid,
-        )
-
-    def get_user_contributions(self, user: models.User) -> UserContributions:
-        if user.id in self._user_contributions_map:
-            return self._user_contributions_map[user.id]
-        matrix = self.compute_user_contributions_map(user)
-        self._user_contributions_map[user.id] = matrix
-        return matrix
-
-    def get_related_user(self, target_user: models.User) -> List[UserPreview]:
-        return services.people.get_related_users(self, target_user)
-
-    def get_similar_entity_ids(
-        self, id: int, entity_type: EntityType, topK: int = 10
-    ) -> List[int]:
-        return recs_matrices.similar_entity_ids(
-            self.get_db(),
-            entity_id=id,
-            entity_type=entity_type,
-            top_k=topK,
-            matrix=self.get_entity_similarity_matrix(entity_type),
-        )
-
-    def request_text(self, url: str) -> Optional[str]:
-        return services.link_preview.request_text(url)
-
-    def get_site_profiles(self) -> List[schemas.Profile]:
-        return services.sites.site_profiles_for_user(
-            self.get_db(), self.materializer, self.unwrapped_principal_id()
-        )
-
-    def create_site_profile(
-        self, *, owner: models.User, site_uuid: str
-    ) -> schemas.Profile:
-        return services.sites.create_site_profile(
-            self.get_db(), self.materializer, owner=owner, site_uuid=site_uuid
-        )
-
-    def remove_site_profile(self, *, owner_id: int, site_id: int) -> None:
-        services.sites.remove_site_profile(
-            self.get_db(), owner_id=owner_id, site_id=site_id
-        )
-
-    def try_consume_invitation_link_by_uuid(self, invitation_uuid: str) -> bool:
-        return services.invitations.try_consume_invitation_link_by_uuid(
-            self.get_db(), invitation_uuid
-        )

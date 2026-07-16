@@ -51,8 +51,7 @@ def get_topic_questions(
     skip: int = 0,
     limit: int = 100,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
     if topic is None:
         raise HTTPException_(
@@ -63,7 +62,7 @@ def get_topic_questions(
     questions: List[models.Question] = topic.questions[skip : (skip + limit)]
     return filter_not_none(
         [
-            cached_layer.materializer.preview_of_question(question)
+            ctx.materializer.preview_of_question(question)
             for question in questions
             if not question.is_hidden
         ]

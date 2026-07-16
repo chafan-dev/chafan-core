@@ -7,7 +7,7 @@ instead of reaching into CachedLayer for sessions.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -17,6 +17,11 @@ from chafan_core.db.session import SessionLocal
 if TYPE_CHECKING:
     import redis
     from chafan_core.app import models
+    from chafan_core.app.materialize import Materializer
+
+# User.id -> { User.uuid -> count }
+WeightedMatrixType = Dict[int, Dict[str, int]]
+UserContributions = List[Tuple[int, List[int]]]
 
 
 class RequestContext:
@@ -27,6 +32,9 @@ class RequestContext:
         self._redis: Optional["redis.Redis"] = None
         self._db: Optional[Session] = None
         self._principal: Optional["models.User"] = None
+        self._materializer: Optional["Materializer"] = None
+        self._follow_follow_fanout: Optional[WeightedMatrixType] = None
+        self._user_contributions_map: Dict[int, UserContributions] = {}
         # True once a service has explicitly committed the unit of work.
         self._committed: bool = False
 
@@ -39,6 +47,16 @@ class RequestContext:
         if self._db is None:
             self._db = SessionLocal()
         return self._db
+
+    @property
+    def materializer(self) -> "Materializer":
+        """Lazy Materializer bound to this request's principal and db."""
+        if self._materializer is None:
+            from chafan_core.app.materialize import Materializer
+
+            # Materializer only needs get_db(); DataBroker/RequestContext both work.
+            self._materializer = Materializer(self, self.principal_id)  # type: ignore[arg-type]
+        return self._materializer
 
     def try_get_current_user(self) -> Optional["models.User"]:
         if self.principal_id is None:
@@ -65,6 +83,25 @@ class RequestContext:
         if self.principal_id is None:
             raise RuntimeError("No principal_id on RequestContext")
         return self.principal_id
+
+    def get_follow_follow_fanout(self) -> WeightedMatrixType:
+        """Request-scoped follow-follow fanout matrix (recs)."""
+        if self._follow_follow_fanout is None:
+            from chafan_core.app.recs import matrices as recs_matrices
+
+            self._follow_follow_fanout = recs_matrices.compute_follow_follow_fanout(
+                self.get_db()
+            )
+        return self._follow_follow_fanout
+
+    def get_user_contributions(self, user: "models.User") -> UserContributions:
+        if user.id not in self._user_contributions_map:
+            from chafan_core.app.recs import matrices as recs_matrices
+
+            self._user_contributions_map[user.id] = (
+                recs_matrices.compute_user_contributions(user)
+            )
+        return self._user_contributions_map[user.id]
 
     def mark_committed(self) -> None:
         """Call after an explicit service-level commit."""

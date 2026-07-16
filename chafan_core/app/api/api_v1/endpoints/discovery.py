@@ -31,8 +31,7 @@ router = APIRouter()
 def pinned_questions(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    redis = cached_layer.get_redis()
+    redis = ctx.get_redis()
     key = f"chafan:api:/discovery/pinned-questions"
     value = redis.get(key)
     if value:
@@ -42,7 +41,7 @@ def pinned_questions(
         questions = crud.question.get_placed_at_home(db)
         data = filter_not_none(
             [
-                cached_layer.materializer.preview_of_question(q)
+                ctx.materializer.preview_of_question(q)
                 for q in questions
             ]
         )

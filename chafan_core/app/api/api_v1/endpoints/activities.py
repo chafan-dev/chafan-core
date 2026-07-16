@@ -73,8 +73,7 @@ def get_feed(
 def get_settings(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    return cached_layer.get_current_active_user().feed_settings
+    return ctx.get_current_active_user().feed_settings
 
 
 @router.put("/settings/blocked-origins/", response_model=schemas.GenericResponse)
@@ -83,8 +82,7 @@ def update_blocked_origins(
     *,
     update_in: schemas.UpdateOrigins,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     if current_user.feed_settings:
         settings = UserFeedSettings.parse_obj(current_user.feed_settings)
     else:

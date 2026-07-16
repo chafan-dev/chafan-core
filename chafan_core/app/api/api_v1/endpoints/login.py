@@ -266,7 +266,6 @@ def create_user_open(
     code: str = Body(...),
     invitation_link_uuid: str = Body(...),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if (not settings.USERS_OPEN_REGISTRATION):
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -275,7 +274,7 @@ def create_user_open(
     check_email(email)
     check_password(password)
 
-    db = cached_layer.get_db()
+    db = ctx.get_db()
 
     # TODO audit log should support user_id is NULL. 2025-Jul-06
     crud.audit_log.create_with_user(
@@ -450,9 +449,8 @@ def claim_welcome_test_rewards(
     *,
     id: int,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     if current_user.claimed_welcome_test_rewards_with_form_response_id is not None:
         raise HTTPException_(status_code=400, detail="Claimed.")
     form_response = crud.form_response.get(db, id=id)
@@ -522,7 +520,6 @@ _HOSTNAMES_FOR_LINK_PREVIEW = set(
 def get_link_preview(
     ctx: RequestContext = Depends(deps.get_request_context), *, url: str
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     parsed = urlparse(url)
     if parsed.hostname not in _HOSTNAMES_FOR_LINK_PREVIEW:
         raise HTTPException_(

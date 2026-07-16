@@ -268,8 +268,7 @@ def get_question_archives(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
     if question is None:
         raise HTTPException_(
@@ -277,7 +276,7 @@ def get_question_archives(
             detail="The question doesn't exist in the system.",
         )
     return [
-        cached_layer.materializer.question_archive_schema_from_orm(a)
+        ctx.materializer.question_archive_schema_from_orm(a)
         for a in question.archives
     ]
 
@@ -449,9 +448,8 @@ def cancel_upvote_question(
     """
     Cancel upvote for question as the current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
     if question is None:
         raise HTTPException_(

@@ -61,11 +61,10 @@ def search_topics(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     return crud.topic.get_ilike(
-        cached_layer.get_db(), fragment=q, column=models.Topic.name
+        ctx.get_db(), fragment=q, column=models.Topic.name
     )
 
 
@@ -79,10 +78,9 @@ def search_questions(
     # This API is very time consuming! Must check user logged in
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
-    questions = crud.question.search(cached_layer.get_db(), q=q)
+    questions = crud.question.search(ctx.get_db(), q=q)
 # TODO no search hit limit
     return filter_not_none(
         [preview_of_question_as_search_hit(q) for q in questions]
@@ -98,12 +96,11 @@ def search_articles(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
-    articles = crud.article.search(cached_layer.get_db(), q=q)
+    articles = crud.article.search(ctx.get_db(), q=q)
     return filter_not_none(
-        [cached_layer.materializer.preview_of_article(a) for a in articles]
+        [ctx.materializer.preview_of_article(a) for a in articles]
     )
 
 
@@ -134,10 +131,9 @@ def search_answers(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
-    answers = crud.answer.search(cached_layer.get_db(), q=q)
+    answers = crud.answer.search(ctx.get_db(), q=q)
     return filter_not_none(
-        [cached_layer.materializer.preview_of_answer(a) for a in answers]
+        [ctx.materializer.preview_of_answer(a) for a in answers]
     )

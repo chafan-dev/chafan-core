@@ -20,15 +20,14 @@ def get_message(
     """
     Get message from a channel that user belongs to.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    message = crud.message.get(cached_layer.get_db(), id=id)
+    message = crud.message.get(ctx.get_db(), id=id)
     if message is None:
         raise HTTPException_(
             status_code=400,
             detail="The message doesn't exist in the system.",
         )
-    check_user_in_channel(cached_layer.get_current_active_user(), message.channel)
-    return cached_layer.materializer.message_schema_from_orm(message)
+    check_user_in_channel(ctx.get_current_active_user(), message.channel)
+    return ctx.materializer.message_schema_from_orm(message)
 
 
 @router.post("/", response_model=schemas.Message)
@@ -40,18 +39,17 @@ def create_message(
     """
     Create new message authored by the current user in one of the belonging channels.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    channel = crud.channel.get(cached_layer.get_db(), id=message_in.channel_id)
+    channel = crud.channel.get(ctx.get_db(), id=message_in.channel_id)
     if channel is None:
         raise HTTPException_(
             status_code=400,
             detail="The channel doesn't exist in the system.",
         )
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     check_user_in_channel(current_user, channel)
-    return cached_layer.materializer.message_schema_from_orm(
+    return ctx.materializer.message_schema_from_orm(
         crud.message.create_with_author(
-            cached_layer.broker,
+            ctx,
             obj_in=message_in,
             author=current_user,
         )
