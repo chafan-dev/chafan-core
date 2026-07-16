@@ -27,6 +27,9 @@ from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
+from chafan_core.app.recs import matrices as recs_matrices
+from chafan_core.app import services
+from chafan_core.app.infra import cache as infra_cache
 from chafan_core.app.schemas.answer import AnswerPreview
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.site import SiteCreate
@@ -72,11 +75,11 @@ NOTIF_FOR_RECEIVER_CACHE_KEY = (
 AUTHOR_ANSWERS_FOR_USER_CACHE_KEY = "chafan:user-answers:{author_id}:{user_id}"
 USER_FOLLOWERS_CACHE_KEY = "chafan:{user_id}:user-followers:{skip}-{limit}"
 USER_FOLLOWED_CACHE_KEY = "chafan:{user_id}:user-followed:{skip}-{limit}"
-DAILY_INVITATION_LINK_ID_CACHE_KEY = "chafan:daily-invitation-link-id"
+DAILY_INVITATION_LINK_ID_CACHE_KEY = infra_cache.DAILY_INVITATION_LINK_ID_CACHE_KEY
 RELATED_USERS_CACHE_KEY = "chafan:related-users:{user_id}"
 REQUEST_TEXT_CACHE_KEY = "chafan:request-text:{url}"
 
-BUMP_VIEW_COUNT_QUEUE_CACHE_KEY = "chafan:bump-view-count"
+BUMP_VIEW_COUNT_QUEUE_CACHE_KEY = infra_cache.BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
 
 class CachedLayer(object):
     """Transitional façade over RequestContext + responders/materialize.
@@ -99,9 +102,8 @@ class CachedLayer(object):
         self._follow_follow_fanout: Optional[WeightedMatrixType] = None
         self._entity_similarity_matrices: Dict[EntityType, MatrixType] = {}
 
-    def bump_view(self, object_type: str, obj_id:int):
-        obj_str = f"{object_type}:{obj_id}"
-        self.get_redis().rpush(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, obj_str)
+    def bump_view(self, object_type: str, obj_id: int):
+        infra_cache.bump_view(object_type, obj_id, self.get_redis())
 
 
 
@@ -330,13 +332,12 @@ class CachedLayer(object):
         moderator: models.User,
         category_topic_id: Optional[int],
     ) -> models.Site:
-        site = crud.site.create_with_permission_type(
+        return services.sites.create_site(
             self.get_db(),
-            obj_in=site_in,
+            site_in=site_in,
             moderator=moderator,
             category_topic_id=category_topic_id,
         )
-        return site
 
     def get_redis(self) -> redis.Redis:
         return self.broker.get_redis()
@@ -377,15 +378,12 @@ class CachedLayer(object):
 
     def delete_answer(self, uuid: str) -> Optional[str]:
         """Returns error msg"""
-        db = self.get_db()
-        answer = crud.answer.get_by_uuid(db, uuid=uuid)
-        if answer is None:
-            return "The answer doesn't exist in the system."
-        if answer.author_id != self.principal_id:
-            return "Unauthorized."
-        crud.answer.delete_forever(db, answer=answer)
-        self.invalidate_answer_cache(uuid)
-        return None
+        err = services.answers.delete_answer(
+            self.get_db(), uuid=uuid, principal_id=self.principal_id
+        )
+        if err is None:
+            self.invalidate_answer_cache(uuid)
+        return err
 
     def invalidate_answer_upvotes_cache(self, uuid: str) -> None:
         return
@@ -397,67 +395,22 @@ class CachedLayer(object):
             self.invalidate_submission_caches(comment.submission)
 
     def compute_entity_similarity_matrix(self, entity_type: EntityType) -> MatrixType:
-        entities: List[Tuple[int, Set[str]]] = []
-        if entity_type == EntityType.sites:
-            for site in crud.site.get_all(self.get_db()):
-                if site.keywords:
-                    entities.append((site.id, set(site.keywords)))
-        elif entity_type == EntityType.users:
-            for user in crud.user.get_all_active_users(self.get_db()):
-                if user.keywords:
-                    entities.append((user.id, set(user.keywords)))
-        else:
-            raise Exception(f"Unknown entity type: {entity_type}")
-
-        matrix: MatrixType = {}
-        for query_id, query_keywords in entities:
-            candidates = []
-            for candidate_id, candidate_keywords in entities:
-                if candidate_id == query_id:
-                    continue
-                candidates.append(
-                    (candidate_id, len(candidate_keywords.intersection(query_keywords)))
-                )
-            candidates.sort(key=lambda p: p[1], reverse=True)
-            matrix[query_id] = [query_id for query_id, _ in candidates[:50]]
-        return matrix
+        return recs_matrices.compute_entity_similarity_matrix(self.get_db(), entity_type)
 
     def get_entity_similarity_matrix(self, entity_type: EntityType) -> MatrixType:
         if entity_type in self._entity_similarity_matrices:
             return self._entity_similarity_matrices[entity_type]
-
-        def f() -> MatrixType:
-            return self.compute_entity_similarity_matrix(entity_type)
-
-        matrix = self._get_cached(
-            key=SIMILAR_ENTITY_CACHE_KEY.format(entity_type=entity_type),
-            typeObj=MatrixType,
-            fetch=f,
-            hours=24,
-        )
+        matrix = self.compute_entity_similarity_matrix(entity_type)
         self._entity_similarity_matrices[entity_type] = matrix
         return matrix
 
     def compute_follow_follow_fanout(self) -> WeightedMatrixType:
-        matrix: WeightedMatrixType = {}
-        for user in crud.user.get_all_active_users(self.get_db()):
-            user_ids: Counter = Counter()
-            for followed in user.followed:
-                for followed_followed in followed.followed:
-                    if followed_followed.id != user.id:
-                        user_ids[followed_followed.uuid] += 1
-            matrix[user.id] = dict(user_ids)
-        return matrix
+        return recs_matrices.compute_follow_follow_fanout(self.get_db())
 
     def get_follow_follow_fanout(self) -> WeightedMatrixType:
         if self._follow_follow_fanout:
             return self._follow_follow_fanout
-        matrix = self._get_cached(
-            key=FOLLOW_FOLLOW_FANOUT_CACHE_KEY,
-            typeObj=WeightedMatrixType,
-            fetch=self.compute_follow_follow_fanout,
-            hours=12,
-        )
+        matrix = self.compute_follow_follow_fanout()
         self._follow_follow_fanout = matrix
         return matrix
 
@@ -500,21 +453,16 @@ class CachedLayer(object):
         user_preview.follows = self.get_user_follows(user)
         return user_preview
 
-    def create_audit(self, api:str, request: Optional[fastapi.Request]=None,
-                     user_id:Optional[int]=None,
-                     request_info:dict=dict()):
-        ip = "0.0.0.0"
-        if request is not None:
-            ip = client_ip(request)
-        if user_id is None:
-            user_id = 1
-        crud.audit_log.create_with_user(
-        self.get_db(),
-        ipaddr=ip,
-        user_id=user_id,
-        api=api,
-        request_info=request_info
-    )
+    def create_audit(self, api: str, request: Optional[fastapi.Request] = None,
+                     user_id: Optional[int] = None,
+                     request_info: dict = dict()):
+        services.audit.create_audit(
+            self.get_db(),
+            api=api,
+            request=request,
+            user_id=user_id,
+            request_info=request_info,
+        )
 
 
     def update_notification(
@@ -636,22 +584,8 @@ class CachedLayer(object):
         )
 
     def get_daily_invitation_link(self) -> schemas.InvitationLink:
-        db = self.get_db()
-
-        def f() -> int:
-            return crud.invitation_link.create_invitation(
-                db, invited_to_site_id=None, inviter=crud.user.get_superuser(db)
-            ).id
-
-        cached_id = self._get_cached(
-            key=DAILY_INVITATION_LINK_ID_CACHE_KEY,
-            typeObj=int,
-            fetch=f,
-            hours=24,
-            cache_if_dev=True,
-        )
-        return self.materializer.invitation_link_schema_from_orm(
-            unwrap(crud.invitation_link.get(db, id=cached_id))
+        return services.invitations.get_daily_invitation_link(
+            self.get_db(), self.materializer
         )
 
     def channel_schema_from_orm(self, channel: models.Channel) -> schemas.Channel:
@@ -661,48 +595,7 @@ class CachedLayer(object):
         return responders.site.site_schema_from_orm(self, site)
 
     def compute_user_contributions_map(self, user: models.User) -> UserContributions:
-        d: Dict[int, Dict[int, Dict[str, int]]] = {}
-
-        def incr(timestamp: datetime.datetime, action: str) -> None:
-            year = timestamp.year
-            day = min(timestamp.timetuple().tm_yday, 364)
-            if year not in d:
-                d[year] = {}
-            if day not in d[year]:
-                d[year][day] = {}
-            if action not in d[year][day]:
-                d[year][day][action] = 0
-            d[year][day][action] += 1
-
-        for answer in user.answers:
-            incr(answer.updated_at, "answer")
-        for article in user.articles:
-            incr(article.created_at, "article")
-        for question in user.questions:
-            incr(question.created_at, "question")
-        for submission in user.submissions:
-            incr(submission.created_at, "submission")
-        ret: UserContributions = []
-        if not d:
-            return ret
-        for year in reversed(range(min(d.keys()), max(d.keys()) + 1)):
-            day_contribs = []
-            for day in range(1, 365):
-                if year not in d or day not in d[year]:
-                    day_contribs.append(0)
-                else:
-                    v = 0
-                    if "answer" in d[year][day]:
-                        v += max(d[year][day]["answer"], 2)
-                    if "question" in d[year][day]:
-                        v += max(d[year][day]["question"], 1)
-                    if "submission" in d[year][day]:
-                        v += max(int(float(d[year][day]["submission"]) / 2.0), 1)
-                    if "article" in d[year][day]:
-                        v += max(d[year][day]["article"], 2)
-                    day_contribs.append(min(int(v), 3))
-            ret.append((year, day_contribs))
-        return ret
+        return recs_matrices.compute_user_contributions(user)
 
     def get_user_activity(
             self,
@@ -744,16 +637,7 @@ class CachedLayer(object):
     def get_user_contributions(self, user: models.User) -> UserContributions:
         if user.id in self._user_contributions_map:
             return self._user_contributions_map[user.id]
-
-        def f() -> UserContributions:
-            return self.compute_user_contributions_map(user)
-
-        matrix = self._get_cached(
-            key=USER_CONTRIBUTIONS_MAP_CACHE_KEY.format(user_id=user.id),
-            typeObj=UserContributions,
-            fetch=f,
-            hours=24,
-        )
+        matrix = self.compute_user_contributions_map(user)
         self._user_contributions_map[user.id] = matrix
         return matrix
 
@@ -788,85 +672,35 @@ class CachedLayer(object):
     def get_similar_entity_ids(
         self, id: int, entity_type: EntityType, topK: int = 10
     ) -> List[int]:
-        m = self.get_entity_similarity_matrix(entity_type=entity_type)
-        if id not in m:
-            return []
-        return m[id][:topK]
-
-    def request_text(self, url: str) -> Optional[str]:
-        def f() -> Optional[str]:
-            try:
-                response = requests.get(
-                    url,
-                    timeout=1,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36"
-                    },
-                )
-                if response.ok:
-                    return response.text
-            except Exception as e:
-                sentry_sdk.capture_exception(e)
-            return None
-
-        return self._get_cached(
-            key=REQUEST_TEXT_CACHE_KEY.format(url=url),
-            typeObj=Optional[str],
-            fetch=f,
-            hours=24,
+        return recs_matrices.similar_entity_ids(
+            self.get_db(),
+            entity_id=id,
+            entity_type=entity_type,
+            top_k=topK,
+            matrix=self.get_entity_similarity_matrix(entity_type),
         )
 
+    def request_text(self, url: str) -> Optional[str]:
+        return services.link_preview.request_text(url)
+
     def get_site_profiles(self) -> List[schemas.Profile]:
-        user_id = self.unwrapped_principal_id()
-        db = self.get_db()
-
-        def f() -> List[schemas.Profile]:
-            current_user = crud.user.get(db, id=user_id)
-            assert current_user is not None
-            return [
-                self.materializer.profile_schema_from_orm(p)
-                for p in rank_site_profiles(current_user.profiles)
-            ]
-
-        return self._get_cached(
-            key=USER_SITE_PROFILES.format(user_id=user_id),
-            typeObj=List[schemas.Profile],
-            fetch=f,
-            hours=24,
+        return services.sites.site_profiles_for_user(
+            self.get_db(), self.materializer, self.unwrapped_principal_id()
         )
 
     def create_site_profile(
         self, *, owner: models.User, site_uuid: str
     ) -> schemas.Profile:
-        data = crud.profile.create_with_owner(
-            self.get_db(),
-            obj_in=schemas.ProfileCreate(
-                owner_uuid=owner.uuid,
-                site_uuid=site_uuid,
-            ),
+        return services.sites.create_site_profile(
+            self.get_db(), self.materializer, owner=owner, site_uuid=site_uuid
         )
-        return self.materializer.profile_schema_from_orm(data)
 
     def remove_site_profile(self, *, owner_id: int, site_id: int) -> None:
-        crud.profile.remove_by_user_and_site(
+        services.sites.remove_site_profile(
             self.get_db(), owner_id=owner_id, site_id=site_id
         )
 
-
-    # TODO maybe this is not the best place to put it  2025-Jul-06
-    def try_consume_invitation_link_by_uuid(
-            self, invitation_uuid:str) -> bool:
-        logger.info(f"Consumed invitation link uuid=${invitation_uuid}")
-        db = self.get_db()
-        invitation_link = crud.invitation_link.get_by_uuid(db, uuid=invitation_uuid)
-        if invitation_link is None:
-            logger.info(f"Invalid invitation uuid=${invitation_uuid}")
-            return False
-        logger.info("got in db " + str(invitation_link))
-        if invitation_link.remaining_quota < 1:
-            logger.info(f"Invitation quota has exceeded limit uuid=${invitation_uuid}")
-            return False
-        invitation_link.remaining_quota -= 1
-        db.add(invitation_link)
-        db.commit()
-        return True
+    def try_consume_invitation_link_by_uuid(self, invitation_uuid: str) -> bool:
+        return services.invitations.try_consume_invitation_link_by_uuid(
+            self.get_db(), invitation_uuid
+        )
