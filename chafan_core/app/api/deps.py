@@ -89,8 +89,9 @@ def get_data_broker_with_params(*, use_read_replica: bool = False) -> Any:
 def get_cached_layer(
     current_user_id: Optional[int] = Depends(try_get_current_user_id),
 ) -> Generator:
+    # DataBroker is a RequestContext; principal lives on the context.
+    broker = DataBroker(principal_id=current_user_id)
     try:
-        broker = DataBroker()
         yield CachedLayer(broker, current_user_id)
     finally:
         broker.close()
@@ -98,9 +99,12 @@ def get_cached_layer(
 
 def get_cached_layer_logged_in(
     current_user_id: int = Depends(get_current_user_id),
-    broker: DataBroker = Depends(get_data_broker_with_params()),
 ) -> Generator:
-    yield CachedLayer(broker, current_user_id)
+    broker = DataBroker(principal_id=current_user_id)
+    try:
+        yield CachedLayer(broker, current_user_id)
+    finally:
+        broker.close()
 
 
 def get_db(

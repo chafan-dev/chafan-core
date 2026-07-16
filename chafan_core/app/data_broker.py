@@ -25,8 +25,12 @@ class DataBroker(RequestContext):
     keep working until services own transactions.
     """
 
-    def __init__(self, use_read_replica: bool = False) -> None:
-        super().__init__(principal_id=None)
+    def __init__(
+        self,
+        use_read_replica: bool = False,
+        principal_id: Optional[int] = None,
+    ) -> None:
+        super().__init__(principal_id=principal_id)
         # Kept for signature compatibility; ReadSessionLocal is an alias of SessionLocal.
         self.use_read_replica = use_read_replica
 
