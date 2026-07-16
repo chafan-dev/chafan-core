@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-from chafan_core.app.schemas.comment import Comment, CommentForVisitor
+from chafan_core.app.schemas.comment import Comment
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.question import QuestionPreview
 from chafan_core.app.schemas.richtext import RichText
@@ -58,7 +58,7 @@ class AnswerUpvotes(BaseModel):
     upvoted: bool
 
 
-# Additional properties to return via API
+# One schema for any principal allowed to read the answer
 class Answer(AnswerInDBBase):
     content: RichText
     comments: List[Comment] = []
@@ -70,17 +70,6 @@ class Answer(AnswerInDBBase):
     bookmarked: bool
     view_times: int
     archives_count: int
-    upvotes: Optional[AnswerUpvotes] = None
-    suggest_editable: bool = False
-
-
-class AnswerForVisitor(AnswerInDBBase):
-    content: RichText
-    author: UserPreview
-    site: Site
-    view_times: int
-    comments: List[CommentForVisitor] = []
-    question: QuestionPreview
     upvotes: Optional[AnswerUpvotes] = None
     suggest_editable: bool = False
 
@@ -102,9 +91,4 @@ class AnswerPreviewBase(BaseModel):
 
 class AnswerPreview(AnswerPreviewBase):
     question: QuestionPreview
-    full_answer: Optional[Answer]
-
-
-class AnswerPreviewForVisitor(AnswerPreviewBase):
-    question: QuestionPreview
-    full_answer: Optional[AnswerForVisitor]
+    full_answer: Optional[Answer] = None

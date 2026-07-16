@@ -15,10 +15,8 @@ from .activity import (
 from .answer import (
     Answer,
     AnswerCreate,
-    AnswerForVisitor,
     AnswerInDBBase,
     AnswerPreview,
-    AnswerPreviewForVisitor,
     AnswerUpdate,
     AnswerUpvotes,
 )

@@ -398,27 +398,12 @@ class Materializer(object):
             featured_at=answer.featured_at,
         )
 
-    def preview_of_answer_for_visitor(
-        self,
-        answer: models.Answer,
-    ) -> Optional[schemas.AnswerPreviewForVisitor]:
-        if not visitor_can_read_answer(answer=answer):
-            return None
-        question = self.preview_of_question(answer.question)
-        if not question:
-            return None
-        base = self.get_answer_preview_base(answer)
-        return schemas.AnswerPreviewForVisitor(
-            **base.dict(),
-            question=question,
-            full_answer=None,
-        )
-
     def preview_of_answer(
         self, answer: models.Answer
     ) -> Optional[schemas.AnswerPreview]:
-        if self.principal_id and not can_read_answer(
-            self.broker.get_db(), answer=answer, principal_id=self.principal_id
+        """One answer preview for any principal allowed to read the answer."""
+        if not user_permission.answer_read_allowed(
+            self.broker.get_db(), answer, self.principal_id
         ):
             return None
         question = self.preview_of_question(answer.question)
@@ -430,6 +415,13 @@ class Materializer(object):
             question=question,
             full_answer=None,
         )
+
+    # Back-compat alias during Step 1 migration of call sites.
+    def preview_of_answer_for_visitor(
+        self,
+        answer: models.Answer,
+    ) -> Optional[schemas.AnswerPreview]:
+        return self.preview_of_answer(answer)
 
     def preview_of_article(
         self, article: models.Article
@@ -755,89 +747,6 @@ class Materializer(object):
             )
             return None
 
-    def answer_for_visitor_schema_from_orm(
-        self,
-        answer: models.Answer,
-    ) -> Optional[schemas.AnswerForVisitor]:
-        if not visitor_can_read_answer(answer=answer):
-            return None
-        base = AnswerInDBBase.from_orm(answer)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(answer.site)
-        d["comments"] = filter_not_none(
-            [self.comment_for_visitor_schema_from_orm(c) for c in answer.comments]
-        )
-        q = self.preview_of_question(answer.question)
-        if q is None:
-            return None
-        d["question"] = q
-        d["author"] = self.preview_of_user(answer.author)
-        d["view_times"] = 0 #view_counters.get_views(answer.uuid, "answer")
-        d["content"] = RichText(
-            source=answer.body,
-            rendered_text=answer.body_prerendered_text,
-            editor=answer.editor,
-        )
-        return schemas.AnswerForVisitor(**d)
-
-    def answer_schema_from_orm(self, answer: models.Answer) -> Optional[schemas.Answer]:
-        logger.error("TODO answer_schema_from_orm is deprecated in materialize")
-        if not self.principal_id:
-            return None
-        db = self.broker.get_db()
-        if not can_read_answer(db, answer=answer, principal_id=self.principal_id):
-            return None
-        upvoted = (
-            db.query(models.Answer_Upvotes)
-            .filter_by(answer_id=answer.id, voter_id=self.principal_id, cancelled=False)
-            .first()
-            is not None
-        )
-        comment_writable = user_in_site(
-            db,
-            site=answer.site,
-            user_id=self.principal_id,
-            op_type=OperationType.WriteSiteComment,
-        )
-        base = AnswerInDBBase.from_orm(answer)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(answer.site)
-        d["comments"] = filter_not_none(
-            [self.comment_schema_from_orm(c) for c in answer.comments]
-        )
-        d["author"] = self.preview_of_user(answer.author)
-        d["question"] = self.preview_of_question(answer.question)
-        d["upvoted"] = upvoted
-        d["comment_writable"] = comment_writable
-        d["bookmark_count"] = answer.bookmarkers.count()
-        d["archives_count"] = len(answer.archives)
-        principal = crud.user.get(db, id=self.principal_id)
-        assert principal is not None
-        d["bookmarked"] = answer in principal.bookmarked_answers
-        d["view_times"] = 0 #view_counters.get_views(answer.uuid, "answer")
-        if answer.is_published:
-            body = answer.body
-        else:
-            if answer.body_draft:
-                body = answer.body_draft
-            else:
-                body = answer.body
-        d["content"] = RichText(
-            source=body,
-            rendered_text=answer.body_prerendered_text,
-            editor=answer.editor,
-        )
-        d["suggest_editable"] = answer.body_draft is None
-        return schemas.Answer(**d)
-
-    def get_materalized_answer(
-        self, answer: models.Answer
-    ) -> Union[Optional[schemas.Answer], Optional[schemas.AnswerForVisitor]]:
-        if self.principal_id is not None:
-            return self.answer_schema_from_orm(answer)
-        else:
-            return self.answer_for_visitor_schema_from_orm(answer)
-
     def submission_for_visitor_schema_from_orm(
         self,
         submission: models.Submission,
@@ -938,10 +847,15 @@ class Materializer(object):
         self,
         answer_suggest_edit: models.AnswerSuggestEdit,
     ) -> Optional[schemas.AnswerSuggestEdit]:
+        from chafan_core.app.cached_layer import CachedLayer
+
         base = schemas.AnswerSuggestEditInDB.from_orm(answer_suggest_edit)
         d = base.dict()
         d["author"] = self.preview_of_user(answer_suggest_edit.author)
-        answer = self.answer_schema_from_orm(answer_suggest_edit.answer)
+        # Full answer schema lives on responders (via CachedLayer).
+        answer = CachedLayer(self.broker, self.principal_id).answer_schema_from_orm(
+            answer_suggest_edit.answer
+        )
         if not answer:
             return None
         d["answer"] = answer

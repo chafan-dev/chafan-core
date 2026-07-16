@@ -27,7 +27,7 @@ from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
-from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
+from chafan_core.app.schemas.answer import AnswerPreview
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.site import SiteCreate
 from chafan_core.utils.base import (
@@ -203,7 +203,7 @@ class CachedLayer(object):
         return answer_data
     def get_answer(
         self, uuid: str
-    ) -> Optional[Union[schemas.Answer, schemas.AnswerForVisitor]]:
+    ) -> Optional[schemas.Answer]:
         db = self.get_db()
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
@@ -284,25 +284,6 @@ class CachedLayer(object):
                 )
             print(submissions_for_visitors)
             return rank_submissions(submissions_for_visitors)
-
-    def get_answer_for_visitor(self, uuid: str) -> Optional[schemas.AnswerForVisitor]:
-        redis_cli = self.get_redis()
-        key = ANSWER_FOR_VISITOR_CACHE_KEY.format(uuid=uuid)
-        value = redis_cli.get(key)
-        if value is not None:
-            return schemas.AnswerForVisitor.model_validate_json(value)
-        db = self.get_db()
-        answer = crud.answer.get_by_uuid(db, uuid=uuid)
-        if answer is None:
-            return None
-        if answer.visibility != ContentVisibility.ANYONE:
-            return None
-        answer_data = self.materializer.answer_for_visitor_schema_from_orm(answer)
-        if answer_data is None:
-            return None
-        if not is_dev():
-            redis_cli.set(key, answer_data.json(), ex=datetime.timedelta(hours=12))
-        return answer_data
 
     def get_site_by_subdomain(self, subdomain: str):
         return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
@@ -708,43 +689,28 @@ class CachedLayer(object):
 
     def preview_of_answer(
         self, answer: models.Answer
-    ) -> Union[Optional[AnswerPreview], Optional[AnswerPreviewForVisitor]]:
-        if self.principal_id:
-            return self.materializer.preview_of_answer(answer)
-        else:
-            return self.materializer.preview_of_answer_for_visitor(answer)
+    ) -> Optional[AnswerPreview]:
+        return self.materializer.preview_of_answer(answer)
 
     def get_authored_answers_for_principal(
         self, author: models.User
-    ) -> Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]:
+    ) -> List[schemas.AnswerPreview]:
         key = AUTHOR_ANSWERS_FOR_USER_CACHE_KEY.format(
             author_id=author.id, user_id=self.principal_id
         )
 
-        def f() -> (
-            Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]
-        ):
+        def f() -> List[schemas.AnswerPreview]:
             logger.info(f"not found in redis, fetch postgresql author={author.id}")
-            if self.principal_id:
-                return filter_not_none(
-                    [
-                        self.materializer.preview_of_answer(answer)
-                        for answer in author.answers
-                    ]
-                )
-            else:
-                return filter_not_none(
-                    [
-                        self.materializer.preview_of_answer_for_visitor(answer)
-                        for answer in author.answers
-                    ]
-                )
+            return filter_not_none(
+                [
+                    self.materializer.preview_of_answer(answer)
+                    for answer in author.answers
+                ]
+            )
 
         return self._get_cached_non_empty(
             key=key,
-            typeObj=Union[
-                List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-            ],
+            typeObj=List[schemas.AnswerPreview],
             fallable_fetch=f,
             hours=24,
         )  # type: ignore
