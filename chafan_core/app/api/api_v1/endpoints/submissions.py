@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
+from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
@@ -36,7 +37,7 @@ router = APIRouter()
 def get_submissions_for_user(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
 ) -> Any:
-    return cached_layer.get_submissions_for_user()
+    return submissions_service.submissions_for_user(cached_layer, cached_layer.principal_id)
 
 
 @router.get(
@@ -140,7 +141,6 @@ def _create_submission(
         db, obj_in=submission_in, author_id=author.id
     )
     background_tasks.add_task(postprocess_new_submission, new_submission.id)
-    cached_layer.invalidate_submission_caches(new_submission)
     data = cached_layer.materializer.submission_schema_from_orm(new_submission)
     assert data is not None
     return data
@@ -215,7 +215,6 @@ def _update_submission(
         db, db_obj=submission, obj_in=submission_in_dict
     )
     background_tasks.add_task(postprocess_updated_submission, new_submission.id)
-    cached_layer.invalidate_submission_caches(new_submission)
     return cached_layer.materializer.submission_schema_from_orm(new_submission)
 
 
@@ -333,7 +332,6 @@ def hide_submission(
     submission = crud.submission.update(
         db, db_obj=submission, obj_in={"is_hidden": True}
     )
-    cached_layer.invalidate_submission_caches(submission)
     return cached_layer.materializer.submission_schema_from_orm(submission)
 
 
@@ -415,7 +413,6 @@ def upvote_submission(
         .filter_by(submission_id=submission.id, cancelled=False)
         .count()
     )
-    cached_layer.invalidate_submission_caches(submission)
     return schemas.SubmissionUpvotes(
         submission_uuid=submission.uuid, count=valid_upvotes, upvoted=True
     )
@@ -463,7 +460,6 @@ def cancel_upvote_submission(
         .filter_by(submission_id=submission.id, cancelled=False)
         .count()
     )
-    cached_layer.invalidate_submission_caches(submission)
     return schemas.SubmissionUpvotes(
         submission_uuid=submission.uuid, count=valid_upvotes, upvoted=False
     )

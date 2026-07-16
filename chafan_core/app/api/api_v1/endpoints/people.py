@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
+from chafan_core.app.services import people as people_service
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import OperationType, get_logger
 from chafan_core.app.materialize import user_in_site
@@ -283,7 +284,7 @@ def get_user_answers(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return cached_layer.get_authored_answers_for_principal(author)[skip : skip + limit]
+    return people_service.get_authored_answers_for_principal(cached_layer, author)[skip : skip + limit]
 
 
 @router.get("/{uuid}/work-exps/", response_model=List[schemas.UserWorkExperience])
@@ -336,7 +337,7 @@ def get_user_followers(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return cached_layer.get_followers(user, skip=skip, limit=limit)
+    return people_service.get_followers(cached_layer, user, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/followed/", response_model=List[schemas.UserPreview])
@@ -357,7 +358,7 @@ def get_user_followed(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return cached_layer.get_followed(user, skip=skip, limit=limit)
+    return people_service.get_followed(cached_layer, user, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/related/", response_model=List[schemas.UserPreview])
@@ -367,4 +368,4 @@ def get_related(
     uuid: str,
 ) -> Any:
     target_user = unwrap(crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid))
-    return cached_layer.get_related_user(target_user)
+    return people_service.get_related_users(cached_layer, target_user)
