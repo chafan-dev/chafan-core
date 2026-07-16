@@ -1,12 +1,9 @@
 
 from fastapi import APIRouter, Depends, Response
 
-from chafan_core.app.config import settings
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.services.feed_impl import get_site_activities
-from chafan_core.utils.base import HTTPException_
-from chafan_core.app.responders.rss import build_rss
+from chafan_core.app.services import rss as rss_service
 
 import logging
 logger = logging.getLogger(__name__)
@@ -25,11 +22,5 @@ def get_site_activity(
     Get full cha.fan activity.
     """
     logger.info("Generating RSS for all sites")
-    code = settings.DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE
-    if code is None or code == "" or code != passcode:
-        raise HTTPException_(status_code=405, detail="Not allowed ")
-    activities = get_site_activities(ctx, None, settings.LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS, True)
-    rss_str = build_rss(activities, site=None)
+    rss_str = rss_service.full_site_rss_xml(ctx, passcode=passcode)
     return Response(content=rss_str, media_type="application/rss+xml")
-
-
