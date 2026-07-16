@@ -8,7 +8,7 @@ from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.cached_layer import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
+from chafan_core.app.infra.cache import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
 from chafan_core.app.config import settings
 from chafan_core.app.feed import (
         new_activity_into_feed,
