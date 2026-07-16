@@ -6,7 +6,7 @@ def shaper(ctx):
 
     RequestContext has .principal_view; PrincipalView is itself the shaper.
     """
-    return getattr(ctx, "materializer", ctx)
+    return getattr(ctx, "principal_view", ctx)
 
 
 def get_db(ctx):
