@@ -65,3 +65,22 @@ def site_profiles_for_user(
         materializer.profile_schema_from_orm(p)
         for p in rank_site_profiles(current_user.profiles)
     ]
+
+
+def get_site_maps(cached_layer) -> schemas.site.SiteMaps:
+    """Build public site map (no redis content cache)."""
+    db = cached_layer.get_db()
+    sites = crud.site.get_all(db)
+    site_maps: dict = {}
+    sites_without_topics: List[schemas.Site] = []
+    for s in sites:
+        if not s.public_readable:
+            continue
+        site_data = cached_layer.site_schema_from_orm(s)
+        if s.category_topic is not None:
+            pass  # category_topic deprecated
+        sites_without_topics.append(site_data)
+    return schemas.site.SiteMaps(
+        site_maps=list(site_maps.values()),
+        sites_without_topics=sites_without_topics,
+    )

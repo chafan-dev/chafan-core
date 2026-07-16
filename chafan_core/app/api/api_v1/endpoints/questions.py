@@ -17,6 +17,7 @@ from chafan_core.app.schemas.event import (
     InviteAnswerInternal,
     UpvoteQuestionInternal,
 )
+from chafan_core.app.services import questions as questions_service
 from chafan_core.app.task import postprocess_new_question, postprocess_updated_question
 from chafan_core.utils.base import HTTPException_, filter_not_none
 
@@ -68,7 +69,12 @@ def get_question(
     """
     Get question in one of current_user's belonging sites.
     """
-    question = cached_layer.get_question_by_uuid(uuid)
+    question = questions_service.get_readable_question(
+        cached_layer.get_db(),
+        uuid=uuid,
+        principal_id=cached_layer.principal_id,
+        cached_layer=cached_layer,
+    )
     if question is None:
         raise HTTPException_(
             status_code=404,
@@ -89,13 +95,7 @@ def bump_views_counter(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     _current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    question = cached_layer.get_question_model_http(uuid)
-    if question is None:
-        raise HTTPException_(
-                status_code=404,
-                detail="No such question",
-        )
-    assert isinstance(question, models.Question)
+    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     view_counters.add_view_async(cached_layer, "question", question.id)
     return schemas.GenericResponse()
 
@@ -113,7 +113,7 @@ def get_question_answers(
     """
     Get question's answers' previews.
     """
-    question = cached_layer.get_question_model_http(uuid)
+    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     if not user_in_site(
         cached_layer.get_db(),
         site=question.site,
@@ -281,7 +281,7 @@ def get_question_upvotes(
     uuid: str,
 ) -> Any:
     return cached_layer.materializer.get_question_upvotes(
-        cached_layer.get_question_model_http(uuid)
+        questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     )
 
 
@@ -291,7 +291,7 @@ def hide_question(
     *,
     uuid: str,
 ) -> Any:
-    question = cached_layer.get_question_model_http(uuid)
+    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     if (
         question.site.moderator_id != cached_layer.principal_id
         and question.author_id != cached_layer.principal_id
@@ -315,7 +315,7 @@ def invite_answer(
     uuid: str,
     user_uuid: str,
 ) -> Any:
-    question = cached_layer.get_question_model_http(uuid)
+    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     check_user_in_site(
         cached_layer.get_db(),
         site=question.site,
@@ -366,7 +366,7 @@ def upvote_question(
     """
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
-    question = cached_layer.get_question_model_http(uuid)
+    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     check_user_in_site(
         db,
         site=question.site,
@@ -481,7 +481,12 @@ def get_question_page(
     uuid: str,
 ) -> Any:
     current_user_id = cached_layer.principal_id
-    question = cached_layer.get_question_by_uuid(uuid, current_user_id)
+    question = questions_service.get_readable_question(
+        cached_layer.get_db(),
+        uuid=uuid,
+        principal_id=current_user_id,
+        cached_layer=cached_layer,
+    )
     if question is None:
         from chafan_core.app.services import audit as audit_service
 
