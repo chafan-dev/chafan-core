@@ -3,11 +3,12 @@ from typing import Callable, Optional, TypeVar
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app.common import handle_exception
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 
 T = TypeVar("T")
 
 # TODO This file should be removed. These patterns provide little benefit today 2025-Jul-11
+
 
 def execute_with_db(
     db: Session, runnable: Callable[[Session], T], auto_commit: bool = True
@@ -25,18 +26,22 @@ def execute_with_db(
 
 
 def execute_with_broker(
-    runnable: Callable[[DataBroker], T],
-    use_read_replica: bool = False,
+    runnable: Callable[[RequestContext], T],
     auto_commit: bool = True,
 ) -> Optional[T]:
+    ctx = RequestContext()
     try:
-        broker = DataBroker(use_read_replica=use_read_replica)
-        ret = runnable(broker)
-        if auto_commit and broker.db:
-            broker.db.commit()
+        ret = runnable(ctx)
+        if auto_commit and ctx.db is not None:
+            ctx.db.commit()
+            ctx.mark_committed()
         return ret
     except Exception as e:
         handle_exception(e)
     finally:
-        broker.close()
+        if ctx.db is not None and not ctx._committed:
+            ctx.close()
+        elif ctx.db is not None:
+            ctx._db.close()
+            ctx._db = None
     return None

@@ -15,7 +15,7 @@ from chafan_core.app.common import get_redis_cli, is_dev
 from chafan_core.app.model_utils import get_live_answers_of_question
 from chafan_core.app.recs import indexed_layer
 from chafan_core.app.task_utils import execute_with_db
-from chafan_core.db.session import ReadSessionLocal
+from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import filter_not_none
 from chafan_core.utils.constants import MAX_FEATURED_ANSWERS_LIMIT
 
@@ -38,7 +38,7 @@ def pinned_questions(ctx) -> List[schemas.QuestionPreview]:
             )
         return data
 
-    return execute_with_db(ReadSessionLocal(), runnable)
+    return execute_with_db(SessionLocal(), runnable)
 
 
 def _get_pending_questions(ctx) -> List[schemas.QuestionPreview]:

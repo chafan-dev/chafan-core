@@ -1,4 +1,4 @@
-from typing import Any, Generator, Optional
+from typing import Generator, Optional
 
 from fastapi import Depends, status
 from fastapi.security import OAuth2PasswordBearer
@@ -6,7 +6,6 @@ from jose import jwt
 
 from chafan_core.app import schemas, security
 from chafan_core.app.config import settings
-from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.utils.base import HTTPException_, unwrap
 
@@ -54,11 +53,11 @@ def get_request_context(
 ) -> Generator:
     """Preferred per-request context (principal + lazy db/redis).
 
-    Yields a DataBroker (RequestContext subclass). Use ctx.materializer for the
-    request principal, or ctx.as_principal(id) for another viewer. close_legacy_commit
-    keeps historical request-end commit until services own transactions.
+    Use ctx.materializer for the request principal, or ctx.as_principal(id)
+    for another viewer. close_legacy_commit keeps historical request-end
+    commit until services own transactions.
     """
-    ctx: RequestContext = DataBroker(principal_id=current_user_id)
+    ctx = RequestContext(principal_id=current_user_id)
     try:
         yield ctx
     finally:
@@ -68,32 +67,17 @@ def get_request_context(
 def get_request_context_logged_in(
     current_user_id: int = Depends(get_current_user_id),
 ) -> Generator:
-    ctx: RequestContext = DataBroker(principal_id=current_user_id)
+    ctx = RequestContext(principal_id=current_user_id)
     try:
         yield ctx
     finally:
         ctx.close_legacy_commit()
 
 
-def get_data_broker_with_params(*, use_read_replica: bool = False) -> Any:
-    def _f() -> Generator:
-        try:
-            broker = DataBroker(use_read_replica=use_read_replica)
-            yield broker
-        finally:
-            broker.close()
-
-    return _f
-
-
-def get_db(
-    broker: DataBroker = Depends(get_data_broker_with_params()),
-) -> Generator:
-    yield broker.get_db()
-
-
-def get_read_db(
-    broker: DataBroker = Depends(get_data_broker_with_params(use_read_replica=False)),
-) -> Generator:
-    # D6: no read replica — same session factory as get_db.
-    yield broker.get_db()
+def get_db() -> Generator:
+    """Plain write session; commits at request end (legacy)."""
+    ctx = RequestContext()
+    try:
+        yield ctx.get_db()
+    finally:
+        ctx.close_legacy_commit()

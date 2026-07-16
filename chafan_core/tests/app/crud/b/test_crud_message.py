@@ -6,7 +6,7 @@ from chafan_core.app.schemas.channel import ChannelCreate
 from chafan_core.app.schemas.message import MessageCreate
 from chafan_core.app.schemas.user import UserCreate
 from chafan_core.app.models.message import Message
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.tests.utils.utils import (
     random_email,
     random_password,
@@ -36,7 +36,7 @@ def _create_test_channel(db: Session, host_user, with_user):
 
 
 def _create_message_directly(db: Session, channel_id: int, author_id: int, body: str):
-    """Helper to create a message directly without going through DataBroker."""
+    """Helper to create a message directly without going through RequestContext."""
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     message = Message(
         channel_id=channel_id,
@@ -139,18 +139,18 @@ def test_multiple_messages_in_channel(db: Session) -> None:
 
 
 def test_create_with_author_requires_broker(db: Session) -> None:
-    """Test that create_with_author uses DataBroker correctly.
+    """Test that create_with_author uses RequestContext correctly.
 
     Note: This test creates a message through the create_with_author method
-    which requires a DataBroker with Redis for notifications.
+    which requires a RequestContext with Redis for notifications.
     The test verifies the basic message creation works when Redis is available.
     """
     user1 = _create_test_user(db)
     user2 = _create_test_user(db)
     channel = _create_test_channel(db, host_user=user1, with_user=user2)
 
-    # Create a DataBroker and set the db session directly
-    broker = DataBroker()
+    # Create a RequestContext and set the db session directly
+    broker = RequestContext()
     broker.db = db
 
     message_in = MessageCreate(

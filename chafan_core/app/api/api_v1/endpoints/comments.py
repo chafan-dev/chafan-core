@@ -32,7 +32,7 @@ def get_comment(
 @router.get("/{uuid}/upvotes/", response_model=schemas.CommentUpvotes)
 def get_comment_upvotes(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
