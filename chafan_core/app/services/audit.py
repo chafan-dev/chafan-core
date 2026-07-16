@@ -35,7 +35,7 @@ def create_audit(
 
 
 def list_my_audit_logs(ctx) -> List[schemas.AuditLog]:
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return [
         misc_responder.audit_log_schema_from_orm(mat, audit_log)
         for audit_log in crud.audit_log.get_audit_logs(

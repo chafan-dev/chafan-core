@@ -40,14 +40,17 @@ def submission_suggestion_schema_from_orm(
 def answer_suggest_edit_schema_from_orm(
     mat, answer_suggest_edit: models.AnswerSuggestEdit
 ) -> Optional[schemas.AnswerSuggestEdit]:
-    from chafan_core.app.services import answers as answers_service
+    from chafan_core.app.responders import answer as answer_responder
 
     base = schemas.AnswerSuggestEditInDB.from_orm(answer_suggest_edit)
     d = base.dict()
     d["author"] = mat.preview_of_user(answer_suggest_edit.author)
     # Prefer broker (RequestContext) when present for full answer shaping.
     ctx = getattr(mat, "broker", mat)
-    answer = answers_service.answer_schema(ctx, answer_suggest_edit.answer)
+    principal_id = getattr(ctx, "principal_id", None)
+    answer = answer_responder.answer_schema_from_orm(
+        ctx, answer_suggest_edit.answer, principal_id
+    )
     if not answer:
         return None
     d["answer"] = answer

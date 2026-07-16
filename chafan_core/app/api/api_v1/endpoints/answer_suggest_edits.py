@@ -64,7 +64,7 @@ def post_answer_suggest_edits(
 
     return unwrap(
         suggestions_responder.answer_suggest_edit_schema_from_orm(
-            ctx.materializer, s
+            ctx.principal_view, s
         )
     )
 
@@ -198,6 +198,6 @@ def update_answer_suggest_edits(
 
     return unwrap(
         suggestions_responder.answer_suggest_edit_schema_from_orm(
-            ctx.materializer, s
+            ctx.principal_view, s
         )
     )

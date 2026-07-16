@@ -15,7 +15,7 @@ from chafan_core.utils.base import HTTPException_
 
 
 def comment_schema(ctx, comment: models.Comment) -> Optional[schemas.Comment]:
-    return comment_responder.comment_schema_from_orm(ctx.materializer, comment)
+    return comment_responder.comment_schema_from_orm(ctx.principal_view, comment)
 
 
 def get_comment_schema(ctx, uuid: str) -> Optional[schemas.Comment]:

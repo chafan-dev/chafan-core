@@ -54,9 +54,9 @@ def preview_of_answer(ctx, answer: models.Answer) -> Optional[schemas.AnswerPrev
 
 
 def answer_schema_from_orm(
-    cached_layer, answer: models.Answer, principal_id
+    ctx, answer: models.Answer, principal_id
 ) -> Optional[schemas.Answer]:
-    db = get_db(cached_layer)
+    db = get_db(ctx)
     if not user_permission.answer_read_allowed(db, answer=answer, user_id=principal_id):
         return None
 
@@ -80,10 +80,10 @@ def answer_schema_from_orm(
         if principal is not None:
             bookmarked = answer in principal.bookmarked_answers
 
-    mat = shaper(cached_layer)
+    mat = shaper(ctx)
     base = AnswerInDBBase.from_orm(answer)
     d = base.dict()
-    d["site"] = cached_layer.site_schema_from_orm(answer.site)
+    d["site"] = ctx.site_schema_from_orm(answer.site)
     d["comments"] = filter_not_none(
         [mat.comment_schema_from_orm(c) for c in answer.comments]
     )
@@ -94,7 +94,7 @@ def answer_schema_from_orm(
     d["bookmark_count"] = answer.bookmarkers.count()
     d["archives_count"] = len(answer.archives)
     d["bookmarked"] = bookmarked
-    d["view_times"] = view_counters.get_viewcount_answer(cached_layer, answer.id)
+    d["view_times"] = view_counters.get_viewcount_answer(ctx, answer.id)
 
     if answer.is_published:
         body = answer.body

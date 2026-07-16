@@ -51,26 +51,26 @@ def get_answer_by_id(db: Session, answer_id: int) -> Optional[models.Answer]:
     return crud.answer.get_by_id(db, uid=answer_id)
 
 
-def answer_schema(cached_layer, answer: models.Answer) -> Optional[schemas.Answer]:
+def answer_schema(ctx, answer: models.Answer) -> Optional[schemas.Answer]:
     answer_data = responders.answer.answer_schema_from_orm(
-        cached_layer, answer, cached_layer.principal_id
+        ctx, answer, ctx.principal_id
     )
     if answer_data:
         answer_data.upvotes = get_answer_upvotes(
-            cached_layer.get_db(),
+            ctx.get_db(),
             uuid=answer.uuid,
-            principal_id=cached_layer.principal_id,
+            principal_id=ctx.principal_id,
         )
     return answer_data
 
 
-def get_answer_schema(cached_layer, uuid: str) -> Optional[schemas.Answer]:
+def get_answer_schema(ctx, uuid: str) -> Optional[schemas.Answer]:
     """Shape a single answer for the layer principal (permission gated)."""
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         return None
-    return answer_schema(cached_layer, answer)
+    return answer_schema(ctx, answer)
 
 
 def list_suggest_edits(ctx, *, uuid: str):
@@ -91,7 +91,7 @@ def list_suggest_edits(ctx, *, uuid: str):
         user_id=ctx.unwrapped_principal_id(),
         op_type=OperationType.ReadSite,
     )
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none(
         [
             suggestions_responder.answer_suggest_edit_schema_from_orm(mat, s)

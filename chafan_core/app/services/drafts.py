@@ -10,7 +10,7 @@ from chafan_core.utils.base import filter_not_none
 
 def list_draft_answers(ctx) -> List[schemas.AnswerPreview]:
     current_user = ctx.get_current_active_user()
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none(
         [
             mat.preview_of_answer(answer)
@@ -22,7 +22,7 @@ def list_draft_answers(ctx) -> List[schemas.AnswerPreview]:
 
 def list_draft_articles(ctx) -> List[schemas.ArticlePreview]:
     current_user = ctx.get_current_active_user()
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none(
         [
             mat.preview_of_article(article)

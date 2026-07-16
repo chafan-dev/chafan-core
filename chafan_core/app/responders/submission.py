@@ -12,30 +12,30 @@ logger = logging.getLogger(__name__)
 
 
 def submission_schema_from_orm(
-    cached_layer,
+    ctx,
     submission: models.Submission,
 ) -> Optional[schemas.Submission]:
     if submission.is_hidden:
         return None
     if not user_permission.user_in_site(
-        get_db(cached_layer),
+        get_db(ctx),
         site=submission.site,
-        user_id=cached_layer.principal_id,
+        user_id=ctx.principal_id,
         op_type=OperationType.ReadSite,
     ):
         return None
-    mat = shaper(cached_layer)
+    mat = shaper(ctx)
     base = schemas.SubmissionInDB.from_orm(submission)
     d = base.dict()
-    d["site"] = responders.site.site_schema_from_orm(cached_layer, submission.site)
+    d["site"] = responders.site.site_schema_from_orm(ctx, submission.site)
     d["comments"] = filter_not_none(
         [mat.comment_schema_from_orm(c) for c in submission.comments]
     )
-    d["author"] = cached_layer.preview_of_user(submission.author)
+    d["author"] = ctx.preview_of_user(submission.author)
     d["contributors"] = [
-        cached_layer.preview_of_user(u) for u in submission.contributors
+        ctx.preview_of_user(u) for u in submission.contributors
     ]
-    d["view_times"] = view_counters.get_viewcount_submission(cached_layer, submission.id)
+    d["view_times"] = view_counters.get_viewcount_submission(ctx, submission.id)
     if submission.description is not None:
         d["desc"] = RichText(
             source=submission.description,

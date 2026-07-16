@@ -12,7 +12,7 @@ from chafan_core.utils.base import HTTPException_, filter_not_none
 
 def article_column_schema(ctx, article_column) -> schemas.ArticleColumn:
     return misc_responder.article_column_schema_from_orm(
-        ctx.materializer, article_column
+        ctx.principal_view, article_column
     )
 
 
@@ -38,7 +38,7 @@ def list_column_articles(
     articles = article_column.articles
     if not current_user_id:
         articles = articles[: settings.VISITORS_READ_ARTICLE_LIMIT]
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none([mat.preview_of_article(a) for a in articles])
 
 

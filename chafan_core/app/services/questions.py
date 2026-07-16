@@ -52,9 +52,9 @@ def question_schema(ctx, question: models.Question) -> Optional[schemas.Question
 
 
 def get_question_subscription(
-    cached_layer, question: models.Question
+    ctx, question: models.Question
 ) -> Optional[schemas.UserQuestionSubscription]:
-    current_user = cached_layer.try_get_current_user()
+    current_user = ctx.try_get_current_user()
     if not current_user:
         return None
     return schemas.UserQuestionSubscription(
@@ -65,7 +65,7 @@ def get_question_subscription(
 
 
 def list_answer_previews(ctx, question: models.Question) -> list[schemas.AnswerPreview]:
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return sorted(
         filter_not_none(
             [mat.preview_of_answer(answer) for answer in question.answers]
@@ -78,7 +78,7 @@ def list_archives(ctx, *, uuid: str) -> list[schemas.QuestionArchive]:
     from chafan_core.app.responders import archives as archives_responder
 
     question = get_question_model_http(ctx.get_db(), uuid)
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return [
         archives_responder.question_archive_schema_from_orm(mat, a)
         for a in question.archives
@@ -87,4 +87,4 @@ def list_archives(ctx, *, uuid: str) -> list[schemas.QuestionArchive]:
 
 def get_upvotes(ctx, *, uuid: str) -> schemas.QuestionUpvotes:
     question = get_question_model_http(ctx.get_db(), uuid)
-    return ctx.materializer.get_question_upvotes(question)
+    return ctx.principal_view.get_question_upvotes(question)

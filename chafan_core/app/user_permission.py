@@ -63,7 +63,7 @@ def article_read_allowed(
 
 
 def question_read_allowed(
-    cached_layer, question: models.Question, user_id: Optional[int]
+    ctx, question: models.Question, user_id: Optional[int]
 ) -> bool:
     if not question.is_hidden:
         return True

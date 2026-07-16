@@ -47,17 +47,17 @@ def get_question_upvotes(
 
 
 def preview_of_question(
-    cached_layer, question: models.Question
+    ctx, question: models.Question
 ) -> Optional[schemas.QuestionPreview]:
     """One question preview schema for any principal allowed to read the site.
 
-    cached_layer may be RequestContext or PrincipalView (both expose principal_id
+    ctx may be RequestContext or PrincipalView (both expose principal_id
     and preview_of_user; RequestContext has get_db, PrincipalView has broker).
     """
     from chafan_core.app.responders._util import get_db
 
-    db = get_db(cached_layer)
-    principal_id = cached_layer.principal_id
+    db = get_db(ctx)
+    principal_id = ctx.principal_id
     if not user_permission.user_in_site(
         db,
         site=question.site,
@@ -80,13 +80,13 @@ def preview_of_question(
     return schemas.QuestionPreview(
         uuid=question.uuid,
         title=question.title,
-        author=cached_layer.preview_of_user(question.author),
+        author=ctx.preview_of_user(question.author),
         is_placed_at_home=question.is_placed_at_home,
         created_at=question.created_at,
         desc=desc,
         answers_count=len(get_live_answers_of_question(question)),
         upvotes=get_question_upvotes(db, question, principal_id),
-        site=responders.site.site_schema_from_orm(cached_layer, question.site),
+        site=responders.site.site_schema_from_orm(ctx, question.site),
         upvotes_count=question.upvotes_count,
         comments_count=len(question.comments),
     )
@@ -96,7 +96,7 @@ def question_schema_from_orm(
     broker,
     principal_id,
     question: models.Question,
-    cached_layer,  # RequestContext duck type (same as broker when fully migrated)
+    ctx,  # RequestContext duck type (same as broker when fully migrated)
 ) -> Optional[schemas.Question]:
     from chafan_core.app.responders._util import get_db, shaper
 
@@ -119,10 +119,10 @@ def question_schema_from_orm(
             .first()
             is not None
         )
-    mat = shaper(cached_layer)
+    mat = shaper(ctx)
     base = QuestionInDBBase.from_orm(question)
     d = base.dict()
-    d["site"] = responders.site.site_schema_from_orm(cached_layer, question.site)
+    d["site"] = responders.site.site_schema_from_orm(ctx, question.site)
     d["comments"] = filter_not_none(
         [mat.comment_schema_from_orm(c) for c in question.comments]
     )

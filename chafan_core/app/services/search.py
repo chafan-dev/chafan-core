@@ -43,7 +43,7 @@ def search_articles(ctx, q: str) -> List[schemas.ArticlePreview]:
     if q == "":
         return []
     articles = crud.article.search(ctx.get_db(), q=q)
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none([mat.preview_of_article(a) for a in articles])
 
 
@@ -60,7 +60,7 @@ def search_answers(ctx, q: str) -> List[schemas.AnswerPreview]:
     if q == "":
         return []
     answers = crud.answer.search(ctx.get_db(), q=q)
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none([mat.preview_of_answer(a) for a in answers])
 
 

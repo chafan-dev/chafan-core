@@ -57,7 +57,7 @@ def invite_new_user(
     if not existing_profile:
         sites_service.create_site_profile(
             db,
-            ctx.materializer,
+            ctx.principal_view,
             owner=invited_user,
             site_uuid=site.uuid,
         )
