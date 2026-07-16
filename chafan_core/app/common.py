@@ -64,13 +64,6 @@ def enable_rate_limit() -> bool:
     return not settings.DISABLE_RATE_LIMIT
 
 
-def run_dramatiq_task(task: Any, *arg: Any, **kwargs: Any) -> None:
-    # TODO This function should be moved out of common.py, to task.py
-    print("run_dramatiq_task")
-    print(arg)
-    #task(*arg, **kwargs)
-    task.send(*arg, **kwargs)
-
 
 def from_now(utc: datetime.datetime, locale: str) -> str:
     return arrow.get(utc).humanize(locale=locale)

@@ -28,7 +28,6 @@
           ps.passlib
           ps.boto3 # S3 client
           ps.bcrypt
-          ps.dramatiq
           ps.sentry-sdk
 
           ps.pydantic

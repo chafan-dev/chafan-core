@@ -2,14 +2,14 @@ import datetime
 from typing import Any
 
 import sentry_sdk
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.submissions import _update_submission
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, run_dramatiq_task
+from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.submission import SubmissionUpdate
@@ -28,6 +28,7 @@ def post_submission_suggestions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     create_in: SubmissionSuggestionCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     current_user = cached_layer.get_current_active_user()
     submission = crud.submission.get_by_uuid(
@@ -57,7 +58,7 @@ def post_submission_suggestions(
     )
     from chafan_core.app.task import postprocess_new_submission_suggestion
 
-    run_dramatiq_task(postprocess_new_submission_suggestion, s.id)
+    background_tasks.add_task(postprocess_new_submission_suggestion, s.id)
     return unwrap(cached_layer.materializer.submission_suggestion_schema_from_orm(s))
 
 
@@ -82,7 +83,9 @@ def _check_suggestion_author(
 
 
 def _accept_submission_suggestion(
-    cached_layer: CachedLayer, submission_suggestion: models.SubmissionSuggestion
+    cached_layer: CachedLayer,
+    submission_suggestion: models.SubmissionSuggestion,
+    background_tasks: BackgroundTasks,
 ) -> None:
     # Update the submission
     desc = None
@@ -100,11 +103,12 @@ def _accept_submission_suggestion(
             desc=desc,
             topic_uuids=submission_suggestion.topic_uuids,
         ),
+        background_tasks=background_tasks,
     )
     # Rebate the suggestion author
     from chafan_core.app.task import postprocess_accept_submission_suggestion
 
-    run_dramatiq_task(
+    background_tasks.add_task(
         postprocess_accept_submission_suggestion, submission_suggestion.id
     )
 
@@ -115,6 +119,7 @@ def update_submission_suggestions(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     update_in: SubmissionSuggestionUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     db = cached_layer.get_db()
     current_user_id = cached_layer.unwrapped_principal_id()
@@ -162,7 +167,7 @@ def update_submission_suggestions(
                     submission_suggestion.author
                 )
             db.commit()
-            _accept_submission_suggestion(cached_layer, submission_suggestion)
+            _accept_submission_suggestion(cached_layer, submission_suggestion, background_tasks=background_tasks)
         elif new_status == "rejected":
             _check_author(submission_suggestion, current_user_id)
             update_dict["rejected_at"] = utc_now

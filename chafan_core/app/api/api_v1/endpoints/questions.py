@@ -1,13 +1,13 @@
 import datetime
 from typing import Any, List, Optional, Union
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, client_ip, run_dramatiq_task
+from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
 from chafan_core.app.materialize import check_user_in_site, user_in_site
@@ -153,6 +153,7 @@ def create_question(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     question_in: schemas.QuestionCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new question authored by the current user in one of the belonging sites.
@@ -186,7 +187,7 @@ def create_question(
     current_user = crud.user.subscribe_question(
         db, db_obj=current_user, question=new_question
     )
-    run_dramatiq_task(postprocess_new_question, new_question.id)
+    background_tasks.add_task(postprocess_new_question, new_question.id)
     return cached_layer.question_schema_from_orm(new_question)
 
 
@@ -198,6 +199,7 @@ def update_question(
     uuid: str,
     question_in: schemas.QuestionUpdate,
     current_user_id: int = Depends(deps.get_current_user_id),
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Update question in one of current_user's belonging sites as member.
@@ -269,7 +271,7 @@ def update_question(
         question_in_dict["description"] = None
         question_in_dict["description_text"] = None
     new_question = crud.question.update(db, db_obj=question, obj_in=question_in_dict)
-    run_dramatiq_task(postprocess_updated_question, new_question.id)
+    background_tasks.add_task(postprocess_updated_question, new_question.id)
     return cached_layer.question_schema_from_orm(new_question)
 
 

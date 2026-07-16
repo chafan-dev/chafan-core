@@ -1,7 +1,7 @@
 import datetime
 from typing import Any, List, Optional
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, BackgroundTasks
 from fastapi.datastructures import UploadFile
 from fastapi.param_functions import File, Form
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import run_dramatiq_task, valid_content_length
+from chafan_core.app.common import valid_content_length
 from chafan_core.app.limiter import limiter
 from chafan_core.app.models.feedback import Feedback
 from chafan_core.utils.base import HTTPException_
@@ -71,6 +71,7 @@ def post_feedback(
     email: Optional[CaseInsensitiveEmailStr] = Form(None),
     file_size: int = Depends(valid_content_length),
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
+    background_tasks: BackgroundTasks,
 ) -> Any:
     screenshot_blob = None
     if file:
@@ -94,5 +95,5 @@ def post_feedback(
     db.commit()
     from chafan_core.app.task import postprocess_new_feedback
 
-    run_dramatiq_task(postprocess_new_feedback, feedback.id)
+    background_tasks.add_task(postprocess_new_feedback, feedback.id)
     return schemas.GenericResponse()
