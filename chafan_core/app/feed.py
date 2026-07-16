@@ -237,23 +237,31 @@ def materialize_activity(
 # This is not good OOP practice, but doing it here can avoid making event.py too complex. 2025-Aug-13
 def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudModel]:
     assert isinstance(event, EventInternal)
+    from chafan_core.app.services import answers as answers_service
+    from chafan_core.app.services import articles as articles_service
+    from chafan_core.app.services import questions as questions_service
+
+    db = cached_layer.get_db()
     c = event.content
     if isinstance(c, CreateQuestionInternal):
-        question = cached_layer.get_question_by_id(c.question_id)
+        question = questions_service.get_question_by_id(db, c.question_id)
+        if question is None:
+            return None
         if question.is_hidden:
             logger.warning("Skip a hidden question: " + str(question))
             return None
         return question
     if isinstance(c, AnswerQuestionInternal):
-        answer = cached_layer.get_answer_by_id(c.answer_id)
+        answer = answers_service.get_answer_by_id(db, c.answer_id)
+        if answer is None:
+            return None
         if (answer.is_hidden_by_moderator) or \
             (not answer.is_published):
             logger.warning("Skip a hidden answer: " + str(answer))
             return None
         return answer
     if isinstance(c, CreateArticleInternal):
-        art = cached_layer.get_article_by_id(c.article_id)
-        return art
+        return articles_service.get_article_by_id(db, c.article_id)
 
     logger.error(f"Not supported event type: {event}")
     return None #TODO throw exception

@@ -2,6 +2,7 @@
 
 from chafan_core.app.services import (
     answers,
+    articles,
     audit,
     feed,
     invitations,
@@ -14,6 +15,7 @@ from chafan_core.app.services import (
 
 __all__ = [
     "answers",
+    "articles",
     "audit",
     "feed",
     "invitations",

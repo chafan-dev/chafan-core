@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import valid_content_length
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.limiter import limiter
 from chafan_core.app.models.feedback import Feedback
 from chafan_core.utils.base import HTTPException_
@@ -20,23 +20,25 @@ router = APIRouter()
 
 @router.get("/", response_model=List[schemas.Feedback])
 def get_my_feedbacks(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    current_user = cached_layer.get_current_active_user()
+    layer = deps.cached_layer_from_context(ctx)
+    current_user = layer.get_current_active_user()
     return [
-        cached_layer.materializer.feedback_schema_from_orm(f)
+        layer.materializer.feedback_schema_from_orm(f)
         for f in current_user.feedbacks
     ]
 
 
 @router.get("/{feedback_id}/screenshot", response_class=Response)
 def get_feedback_screenshot(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     feedback_id: int,
 ) -> Any:
-    current_user = cached_layer.get_current_active_user()
-    feedback = crud.feedback.get(cached_layer.get_db(), id=feedback_id)
+    layer = deps.cached_layer_from_context(ctx)
+    current_user = layer.get_current_active_user()
+    feedback = crud.feedback.get(layer.get_db(), id=feedback_id)
     if not feedback:
         raise HTTPException_(
             status_code=400,
