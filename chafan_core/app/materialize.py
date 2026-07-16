@@ -19,7 +19,6 @@ from chafan_core.app.model_utils import (
 from chafan_core.app.schemas import event as event_module
 from chafan_core.app.schemas.answer import AnswerInDBBase
 from chafan_core.app.schemas.answer_archive import AnswerArchiveInDB
-from chafan_core.app.schemas.article import ArticleInDB
 from chafan_core.app.schemas.article_archive import ArticleArchiveInDB
 from chafan_core.app.schemas.event import (
     ClaimAnswerQuestionRewardInternal,
@@ -507,72 +506,6 @@ class Materializer(object):
         )
         return schemas.InvitationLink(**d)
 
-    def article_for_visitor_schema_from_orm(
-        self,
-        article: models.Article,
-    ) -> Optional[schemas.ArticleForVisitor]:
-        logger.error("TODO remove article_for_visitor_schema_from_orm from materialize")
-        if not visitor_can_read_article(article=article):
-            return None
-        base = ArticleInDB.from_orm(article)
-        d = base.dict()
-        d["article_column"] = self.article_column_schema_from_orm(
-            article.article_column
-        )
-        d["comments"] = filter_not_none(
-            [self.comment_for_visitor_schema_from_orm(c) for c in article.comments]
-        )
-        d["author"] = self.preview_of_user(article.author)
-        d["content"] = RichText(
-            source=article.body, editor=article.editor, rendered_text=article.body_text
-        )
-        return schemas.ArticleForVisitor(**d)
-
-    def article_schema_from_orm(
-        self, article: models.Article
-    ) -> Optional[schemas.Article]:
-        logger.error("TODO remove article_schema_from_orm from materialize")
-        if not self.principal_id:
-            return None
-        if not can_read_article(article=article, principal_id=self.principal_id):
-            return None
-        upvoted = (
-            self.broker.get_db()
-            .query(models.ArticleUpvotes)
-            .filter_by(
-                article_id=article.id, voter_id=self.principal_id, cancelled=False
-            )
-            .first()
-            is not None
-        )
-        base = ArticleInDB.from_orm(article)
-        d = base.dict()
-        d["article_column"] = self.article_column_schema_from_orm(
-            article.article_column
-        )
-        d["comments"] = filter_not_none(
-            [self.comment_schema_from_orm(c) for c in article.comments]
-        )
-        d["bookmark_count"] = article.bookmarkers.count()
-        principal = crud.user.get(self.broker.get_db(), id=self.principal_id)
-        assert principal is not None
-        d["bookmarked"] = article in principal.bookmarked_articles
-        d["author"] = self.preview_of_user(article.author)
-        d["upvoted"] = upvoted
-        d["view_times"] = 0#view_counters.get_views(article.uuid, "article")
-        d["archives_count"] = len(article.archives)
-        if article.is_published:
-            body = article.body
-        else:
-            if article.body_draft:
-                body = article.body_draft
-            else:
-                body = article.body
-        d["content"] = RichText(
-            source=body, editor=article.editor, rendered_text=article.body_text
-        )
-        return schemas.Article(**d)
-
     def reward_schema_from_orm(self, reward: models.Reward) -> schemas.Reward:
         base = schemas.RewardInDBBase.from_orm(reward)
         d = base.dict()
@@ -851,51 +784,31 @@ class Materializer(object):
             d["body_rich_text"] = None
         return schemas.AnswerSuggestEdit(**d)
 
-    def comment_for_visitor_schema_from_orm(
-        self,
-        comment: models.Comment,
-    ) -> Optional[schemas.CommentForVisitor]:
-        if comment.site and not comment.site.public_readable:
-            return None
-        base = schemas.CommentInDBBase.from_orm(comment)
-        d = base.dict()
-        d["root_route"] = root_route(comment)
-        d["author"] = self.preview_of_user(comment.author)
-        d["content"] = RichText(
-            source=comment.body,
-            rendered_text=comment.body_text,
-            editor=comment.editor,
-        )
-        d["child_comments"] = filter_not_none(
-            [
-                self.comment_for_visitor_schema_from_orm(c)
-                for c in comment.child_comments
-            ]
-        )
-        return schemas.CommentForVisitor(**d)
-
     # TODO: optimize -- principal can be unchecked if the parent (e.g. answer) is already checked with principal
     def comment_schema_from_orm(
         self, comment: models.Comment
     ) -> Optional[schemas.Comment]:
         db = self.broker.get_db()
-        if comment.site:
-            if self.principal_id and not user_in_site(
-                db,
-                site=comment.site,
-                user_id=self.principal_id,
-                op_type=OperationType.ReadSite,
-            ):
-                return None
+        if comment.site and not user_in_site(
+            db,
+            site=comment.site,
+            user_id=self.principal_id,
+            op_type=OperationType.ReadSite,
+        ):
+            return None
         base = schemas.CommentInDBBase.from_orm(comment)
-        upvoted = (
-            db.query(models.CommentUpvotes)
-            .filter_by(
-                comment_id=comment.id, voter_id=self.principal_id, cancelled=False
+        upvoted = False
+        if self.principal_id is not None:
+            upvoted = (
+                db.query(models.CommentUpvotes)
+                .filter_by(
+                    comment_id=comment.id,
+                    voter_id=self.principal_id,
+                    cancelled=False,
+                )
+                .first()
+                is not None
             )
-            .first()
-            is not None
-        )
         d = base.dict()
         d["author"] = self.preview_of_user(comment.author)
         d["upvoted"] = upvoted

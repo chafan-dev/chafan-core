@@ -33,7 +33,6 @@ from .article import (
     ArticleColumn,
     ArticleCreate,
     ArticleDraft,
-    ArticleForVisitor,
     ArticlePreview,
     ArticleTopicsUpdate,
     ArticleUpdate,
@@ -58,7 +57,6 @@ from .coin_payment import (
 from .comment import (
     Comment,
     CommentCreate,
-    CommentForVisitor,
     CommentInDBBase,
     CommentUpdate,
     CommentUpvotes,
@@ -134,7 +132,6 @@ from .user import (
     UserInDBBase,
     UserInvite,
     UserPublic,
-    UserPublicForVisitor,
     UserQuestionSubscription,
     UserSubmissionSubscription,
     UserTopicSubscription,
