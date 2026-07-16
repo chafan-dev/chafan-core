@@ -30,8 +30,7 @@ def view_profile(
     """
     View profile as one self or another user in the same site.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     site = get_site(db, site_uuid)
     if user_in_site(
         db,
@@ -47,7 +46,7 @@ def view_profile(
             )
         profile = get_active_site_profile(db, site=site, user_id=owner.id)
         if profile:
-            return cached_layer.materializer.profile_schema_from_orm(profile)
+            return ctx.materializer.profile_schema_from_orm(profile)
     return None
 
 
@@ -61,11 +60,10 @@ def get_profiles(
     """
     Get profiles of a site as moderator or site member.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     site = get_site(db, site_uuid)
     if current_user_id != site.moderator_id:
         check_user_in_site(
             db, site=site, user_id=current_user_id, op_type=OperationType.ReadSite
         )
-    return [cached_layer.materializer.profile_schema_from_orm(p) for p in site.profiles]
+    return [ctx.materializer.profile_schema_from_orm(p) for p in site.profiles]

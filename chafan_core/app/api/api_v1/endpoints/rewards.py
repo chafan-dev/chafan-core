@@ -30,12 +30,11 @@ router = APIRouter()
 def get_rewards(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     received = current_user.incoming_rewards
     given = current_user.outgoing_rewards
     rewards = sorted(received + given, key=lambda r: r.created_at, reverse=True)
-    return [cached_layer.materializer.reward_schema_from_orm(r) for r in rewards]
+    return [ctx.materializer.reward_schema_from_orm(r) for r in rewards]
 
 
 @router.post("/", response_model=schemas.Reward)
@@ -44,9 +43,8 @@ def create_reward(
     *,
     reward_in: RewardCreate,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
-    current_user = cached_layer.get_current_active_user()
+    db = ctx.get_db()
+    current_user = ctx.get_current_active_user()
     receiver = crud.user.get_by_uuid(db, uuid=reward_in.receiver_uuid)
     if receiver is None:
         raise HTTPException_(
@@ -85,14 +83,14 @@ def create_reward(
             )
     if reward_event is not None:
         crud.notification.create_with_content(
-            cached_layer.broker,
+            ctx,
             receiver_id=receiver.id,
             event=EventInternal(
                 created_at=reward.created_at,
                 content=reward_event,
             ),
         )
-    return cached_layer.materializer.reward_schema_from_orm(reward)
+    return ctx.materializer.reward_schema_from_orm(reward)
 
 
 @router.post("/{id}/claim", response_model=schemas.Reward)
@@ -101,10 +99,9 @@ def claim_reward(
     *,
     id: int,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     reward = crud.reward.get(db, id=id)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     if reward is None:
         raise HTTPException_(
             status_code=400,
@@ -155,7 +152,7 @@ def claim_reward(
     db.add(reward)
     db.commit()
     db.refresh(reward)
-    reward_data = cached_layer.materializer.reward_schema_from_orm(reward)
+    reward_data = ctx.materializer.reward_schema_from_orm(reward)
     reward_event = None
     if reward_data.condition:
         if isinstance(reward_data.condition.content, AnsweredQuestionCondition):
@@ -165,7 +162,7 @@ def claim_reward(
             )
     if reward_event is not None:
         crud.notification.create_with_content(
-            cached_layer.broker,
+            ctx,
             receiver_id=reward.giver.id,
             event=EventInternal(
                 created_at=utc_now,
@@ -182,8 +179,7 @@ def refund_reward(
     db: Session = Depends(deps.get_db),
     id: int,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     reward = crud.reward.get(db, id=id)
     if reward is None:
         raise HTTPException_(
@@ -211,4 +207,4 @@ def refund_reward(
     db.add(reward)
     db.commit()
     db.refresh(reward)
-    return cached_layer.materializer.reward_schema_from_orm(reward)
+    return ctx.materializer.reward_schema_from_orm(reward)

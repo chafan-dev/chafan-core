@@ -54,8 +54,7 @@ def create_form_response(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     form_response_in: schemas.FormResponseCreate,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     form = crud.form.get_by_uuid(db, uuid=form_response_in.form_uuid)
     if form is None:
         raise HTTPException_(
@@ -63,11 +62,11 @@ def create_form_response(
             detail="The form doesn't exist in the system.",
         )
     validate_form_response(form, form_response_in.response_fields)
-    return cached_layer.materializer.form_response_schema_from_orm(
+    return ctx.materializer.form_response_schema_from_orm(
         crud.form_response.create_with_author(
             db,
             obj_in=form_response_in,
-            response_author_id=cached_layer.unwrapped_principal_id(),
+            response_author_id=ctx.unwrapped_principal_id(),
             form=form,
         )
     )

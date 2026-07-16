@@ -37,8 +37,7 @@ def read_user_me(
     """
     Get current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    return user_schema_from_orm(cached_layer.get_current_active_user())
+    return user_schema_from_orm(ctx.get_current_active_user())
 
 
 # NOTE: don't change route to "/"
@@ -51,9 +50,8 @@ def update_user_me(
     """
     Update own user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     user_in_dict = user_in.dict(exclude_unset=True)
     if user_in.handle is not None:
         if user_in.handle == "":
@@ -61,7 +59,7 @@ def update_user_me(
                 status_code=400,
                 detail="The username can't be empty",
             )
-        user = crud.user.get_by_handle(cached_layer.get_db(), handle=user_in.handle)
+        user = crud.user.get_by_handle(ctx.get_db(), handle=user_in.handle)
         if user is not None and user != current_user:
             raise HTTPException_(
                 status_code=400,
@@ -117,11 +115,10 @@ def update_user_login_email(
     *,
     user_in: UserUpdatePrimaryEmail,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     dict_in: Dict[str, Any] = {"email": user_in.email}
     existing_secondary_emails = []
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     if crud.user.get_by_email(db, email=user_in.email) is not None:
         raise HTTPException_(
             status_code=400,
@@ -173,10 +170,9 @@ def update_user_secondary_emails(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     user_in: UserUpdateSecondaryEmails,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     existing_secondary_emails = []
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     if current_user.secondary_emails:
         existing_secondary_emails = parse_obj_as(
             List[CaseInsensitiveEmailStr], current_user.secondary_emails
@@ -237,11 +233,10 @@ def update_user_phone_number(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     user_in: UserUpdateLoginPhoneNumber,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     dict_in = {}
-    redis_cli = cached_layer.get_redis()
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    redis_cli = ctx.get_redis()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     phone_str = user_in.phone_number.format_e164()
     dict_in["phone_number"] = phone_str
     key = f"chafan:verification-code:{phone_str}"
@@ -293,14 +288,13 @@ def follow_user(
     """
     Follow a user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     if uuid == current_user.uuid:
         raise HTTPException_(
             status_code=400,
             detail="User can't follow self.",
         )
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     followed_user = crud.user.get_by_uuid(db, uuid=uuid)
     if followed_user is None:
         raise HTTPException_(
@@ -312,7 +306,7 @@ def follow_user(
     )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     crud.notification.create_with_content(
-        cached_layer.broker,
+        ctx,
         receiver_id=followed_user.id,
         event=EventInternal(
             created_at=utc_now,
@@ -340,9 +334,8 @@ def cancel_follow_user(
     """
     Cancel follow of user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     followed_user = crud.user.get_by_uuid(db, uuid=uuid)
     if followed_user is None:
         raise HTTPException_(
@@ -380,10 +373,9 @@ def get_user_article_columns(
     """
     Get a user's all article_columns.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        cached_layer.materializer.article_column_schema_from_orm(c)
+        ctx.materializer.article_column_schema_from_orm(c)
         for c in current_user.article_columns
     ]
 
@@ -425,10 +417,9 @@ def get_user_question_subscriptions(
     """
     Get current user's subscribed questions.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        cached_layer.materializer.preview_of_question(q)
+        ctx.materializer.preview_of_question(q)
         for q in current_user.subscribed_questions[skip : skip + limit]
     ]
 
@@ -444,9 +435,8 @@ def subscribe_question(
     """
     Subscribe a question.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
     if question is None:
         raise HTTPException_(
@@ -474,9 +464,8 @@ def unsubscribe_question(
     """
     Unsubscribe a question.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
     if question is None:
         raise HTTPException_(
@@ -508,9 +497,8 @@ def get_user_submission_subscription(
     """
     Get current user's info about a submission's subscription.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -560,9 +548,8 @@ def subscribe_submission(
     """
     Subscribe a submission.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -591,9 +578,8 @@ def unsubscribe_submission(
     """
     Unsubscribe a submission.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -624,10 +610,9 @@ def get_user_answer_bookmarks(
         gt=0,
     ),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        cached_layer.materializer.preview_of_answer(answer)
+        ctx.materializer.preview_of_answer(answer)
         for answer in current_user.bookmarked_answers[skip : skip + limit]
     ]
 
@@ -638,9 +623,8 @@ def bookmark_answer(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         raise HTTPException_(
@@ -661,9 +645,8 @@ def unbookmark_answer(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         raise HTTPException_(
@@ -691,10 +674,9 @@ def get_user_article_bookmarks(
         gt=0,
     ),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        cached_layer.materializer.preview_of_article(article)
+        ctx.materializer.preview_of_article(article)
         for article in current_user.bookmarked_articles[skip : skip + limit]
     ]
 
@@ -705,9 +687,8 @@ def bookmark_article(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
     if article is None:
         raise HTTPException_(
@@ -728,9 +709,8 @@ def unbookmark_article(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
     if article is None:
         raise HTTPException_(
@@ -759,9 +739,8 @@ def get_user_topic_subscription(
     """
     Get current user's info about a topic's subscription.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
     if topic is None:
         raise HTTPException_(
@@ -786,9 +765,8 @@ def subscribe_topic(
     """
     Subscribe a topic.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
     if topic is None:
         raise HTTPException_(
@@ -814,9 +792,8 @@ def unsubscribe_topic(
     """
     Unsubscribe a topic.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     topic = crud.topic.get_by_uuid(db, uuid=uuid)
     if topic is None:
         raise HTTPException_(
@@ -846,9 +823,8 @@ def get_user_article_column_subscription(
     """
     Get current user's info about a article_column's subscription.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
     if article_column is None:
         raise HTTPException_(
@@ -872,10 +848,9 @@ def get_user_article_column_subscriptions(
     """
     Get current user's all subscribed article columns.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        cached_layer.materializer.article_column_schema_from_orm(c)
+        ctx.materializer.article_column_schema_from_orm(c)
         for c in current_user.subscribed_article_columns
     ]
 
@@ -892,9 +867,8 @@ def subscribe_article_column(
     """
     Subscribe a article_column.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
     if article_column is None:
         raise HTTPException_(
@@ -923,15 +897,14 @@ def unsubscribe_article_column(
     """
     Unsubscribe a article_column.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
     if article_column is None:
         raise HTTPException_(
             status_code=400,
             detail="The article_column doesn't exist in the system.",
         )
-    return cached_layer.materializer.get_user_article_column_subscription(
+    return ctx.materializer.get_user_article_column_subscription(
         article_column
     )
 

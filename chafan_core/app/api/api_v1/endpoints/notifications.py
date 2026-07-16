@@ -20,12 +20,11 @@ def get_unread_notifications(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     notifs = [
-        cached_layer.materializer.notification_schema_from_orm(n)
+        ctx.materializer.notification_schema_from_orm(n)
         for n in crud.notification.get_unread(
-            cached_layer.get_db(),
-            receiver_id=cached_layer.unwrapped_principal_id(),
+            ctx.get_db(),
+            receiver_id=ctx.unwrapped_principal_id(),
         )
     ]
     return [n for n in notifs if n is not None]
@@ -36,13 +35,12 @@ def get_read_notifications(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     # TODO: pagination
     notifs = [
-        cached_layer.materializer.notification_schema_from_orm(n)
+        ctx.materializer.notification_schema_from_orm(n)
         for n in crud.notification.get_read(
-            cached_layer.get_db(),
-            receiver_id=cached_layer.unwrapped_principal_id(),
+            ctx.get_db(),
+            receiver_id=ctx.unwrapped_principal_id(),
         )
     ]
     return [n for n in notifs if n is not None]

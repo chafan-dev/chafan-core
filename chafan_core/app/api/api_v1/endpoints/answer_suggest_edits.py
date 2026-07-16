@@ -29,16 +29,15 @@ def post_answer_suggest_edits(
     create_in: AnswerSuggestEditCreate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=create_in.answer_uuid)
+    current_user = ctx.get_current_active_user()
+    answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=create_in.answer_uuid)
     if answer is None:
         raise HTTPException_(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=answer.site,
         user_id=current_user.id,
         op_type=OperationType.WriteSiteAnswer,
@@ -54,7 +53,7 @@ def post_answer_suggest_edits(
             detail="Insufficient coins.",
         )
     s = crud.answer_suggest_edit.create_with_author(
-        cached_layer.get_db(),
+        ctx.get_db(),
         obj_in=create_in,
         author_id=current_user.id,
         answer=answer,
@@ -62,7 +61,7 @@ def post_answer_suggest_edits(
     from chafan_core.app.task import postprocess_new_answer_suggest_edit
 
     background_tasks.add_task(postprocess_new_answer_suggest_edit, s.id)
-    return unwrap(cached_layer.materializer.answer_suggest_edit_schema_from_orm(s))
+    return unwrap(ctx.materializer.answer_suggest_edit_schema_from_orm(s))
 
 
 def _check_author(answer_suggest_edit: models.AnswerSuggestEdit, user_id: int) -> None:

@@ -31,10 +31,9 @@ def post_submission_suggestions(
     create_in: SubmissionSuggestionCreate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     submission = crud.submission.get_by_uuid(
-        cached_layer.get_db(), uuid=create_in.submission_uuid
+        ctx.get_db(), uuid=create_in.submission_uuid
     )
     if submission is None:
         raise HTTPException_(
@@ -42,7 +41,7 @@ def post_submission_suggestions(
             detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=submission.site,
         user_id=current_user.id,
         op_type=OperationType.WriteSiteSubmission,
@@ -53,7 +52,7 @@ def post_submission_suggestions(
             detail="Insufficient coins.",
         )
     s = crud.submission_suggestion.create_with_author(
-        cached_layer.get_db(),
+        ctx.get_db(),
         obj_in=create_in,
         author_id=current_user.id,
         submission=submission,
@@ -61,7 +60,7 @@ def post_submission_suggestions(
     from chafan_core.app.task import postprocess_new_submission_suggestion
 
     background_tasks.add_task(postprocess_new_submission_suggestion, s.id)
-    return unwrap(cached_layer.materializer.submission_suggestion_schema_from_orm(s))
+    return unwrap(ctx.materializer.submission_suggestion_schema_from_orm(s))
 
 
 def _check_author(

@@ -254,8 +254,7 @@ def get_site_questions(
     """
     Get a site's questions.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     site = get_site(db, uuid)
     if not site.public_readable:
         raise HTTPException_(
@@ -268,7 +267,7 @@ def get_site_questions(
         db, db_obj=site, skip=skip, limit=limit
     )
     return filter_not_none(
-        [cached_layer.materializer.preview_of_question(q) for q in questions]
+        [ctx.materializer.preview_of_question(q) for q in questions]
     )
 
 
@@ -345,9 +344,8 @@ def site_apply(
     """
     Apply to site membership.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(db, uuid)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     application = (
         db.query(models.Application)
         .filter_by(applicant_id=current_user.id, applied_site_id=site.id)
@@ -376,14 +374,14 @@ def site_apply(
         if not existing_profile:
             sites_service.create_site_profile(
                 db,
-                cached_layer.materializer,
+                ctx.materializer,
                 owner=current_user,
                 site_uuid=site.uuid,
             )
         return schemas.SiteApplicationResponse(auto_approved=True)
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     crud.notification.create_with_content(
-        cached_layer.broker,
+        ctx,
         receiver_id=site.moderator_id,
         event=EventInternal(
             created_at=utc_now,
@@ -409,18 +407,17 @@ def remove_my_site_membership(
     db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(db, uuid)
     application = (
         db.query(models.Application)
-        .filter_by(applicant_id=cached_layer.principal_id, applied_site_id=site.id)
+        .filter_by(applicant_id=ctx.principal_id, applied_site_id=site.id)
         .first()
     )
     if application is not None:
         application.pending = False
     sites_service.remove_site_profile(
         db,
-        owner_id=cached_layer.unwrapped_principal_id(),
+        owner_id=ctx.unwrapped_principal_id(),
         site_id=site.id,
     )
     db.commit()
@@ -433,15 +430,14 @@ def get_webhooks(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    site = get_site(cached_layer.get_db(), uuid)
-    if site.moderator_id != cached_layer.principal_id:
+    site = get_site(ctx.get_db(), uuid)
+    if site.moderator_id != ctx.principal_id:
         raise HTTPException_(
             status_code=500,
             detail="Unauthorized.",
         )
     return [
-        cached_layer.materializer.webhook_schema_from_orm(webhook)
+        ctx.materializer.webhook_schema_from_orm(webhook)
         for webhook in site.webhooks
     ]
 

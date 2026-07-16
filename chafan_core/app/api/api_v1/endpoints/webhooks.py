@@ -19,19 +19,18 @@ def create_webhook(
     """
     Create new webhook as user.
     """
-    layer = deps.cached_layer_from_context(ctx)
     assert webhook_in.site_uuid is not None
-    site = crud.site.get_by_uuid(layer.get_db(), uuid=webhook_in.site_uuid)
+    site = crud.site.get_by_uuid(ctx.get_db(), uuid=webhook_in.site_uuid)
     assert site is not None
-    if site.moderator_id != layer.principal_id:
+    if site.moderator_id != ctx.principal_id:
         raise HTTPException_(
             status_code=500,
             detail="Unauthorized.",
         )
     webhook = crud.webhook.create_with_site(
-        layer.get_db(), obj_in=webhook_in, site_id=site.id
+        ctx.get_db(), obj_in=webhook_in, site_id=site.id
     )
-    return layer.materializer.webhook_schema_from_orm(webhook)
+    return ctx.materializer.webhook_schema_from_orm(webhook)
 
 
 @router.put("/{id}", response_model=schemas.Webhook)
@@ -41,15 +40,14 @@ def update_webhook(
     id: int,
     webhook_in: schemas.WebhookUpdate,
 ) -> Any:
-    layer = deps.cached_layer_from_context(ctx)
-    db = layer.get_db()
+    db = ctx.get_db()
     webhook = crud.webhook.get(db, id=id)
     assert webhook is not None
-    if webhook.site.moderator_id != layer.principal_id:
+    if webhook.site.moderator_id != ctx.principal_id:
         raise HTTPException_(
             status_code=500,
             detail="Unauthorized.",
         )
-    return layer.materializer.webhook_schema_from_orm(
+    return ctx.materializer.webhook_schema_from_orm(
         crud.webhook.update(db, db_obj=webhook, obj_in=webhook_in)
     )

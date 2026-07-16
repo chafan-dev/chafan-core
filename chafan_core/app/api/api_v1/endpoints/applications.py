@@ -21,17 +21,16 @@ def get_pending_applications(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     if current_user.is_superuser:
-        sites = crud.site.get_all(cached_layer.get_db())
+        sites = crud.site.get_all(ctx.get_db())
     else:
         sites = current_user.moderated_sites
     return [
-        cached_layer.materializer.application_schema_from_orm(application)
+        ctx.materializer.application_schema_from_orm(application)
         for site in sites
         for application in crud.application.get_pending_applications(
-            cached_layer.get_db(), site_id=site.id
+            ctx.get_db(), site_id=site.id
         )
     ]
 
@@ -47,7 +46,6 @@ def update_application(
     id: int,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     application = crud.application.get(db, id=id)
     if application is None:
         raise HTTPException_(
@@ -55,7 +53,7 @@ def update_application(
             detail="The application doesn't exist in the system.",
         )
     if (
-        not cached_layer.get_current_user().is_superuser
+        not ctx.get_current_user().is_superuser
     ) and application.applied_site.moderator_id != current_user_id:
         raise HTTPException_(
             status_code=400,
@@ -72,7 +70,7 @@ def update_application(
     if not existing_profile:
         sites_service.create_site_profile(
             db,
-            cached_layer.materializer,
+            ctx.materializer,
             owner=application.applicant,
             site_uuid=application.applied_site.uuid,
         )
@@ -80,4 +78,4 @@ def update_application(
     db.add(application)
     db.commit()
     db.refresh(application)
-    return cached_layer.materializer.application_schema_from_orm(application)
+    return ctx.materializer.application_schema_from_orm(application)

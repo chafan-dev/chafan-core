@@ -22,11 +22,10 @@ def create_invitation_link(
     *,
     create_in: InvitationLinkCreate,
 ) -> models.User:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     # TODO we didn't check if this user is allowed to invite new users 2025-Jul-06
     invited_to_site_id = None
-    db = cached_layer.get_db()
+    db = ctx.get_db()
 
     if create_in.invited_to_site_uuid is not None:
         invited_to_site = get_site(db, create_in.invited_to_site_uuid)
@@ -43,7 +42,7 @@ def create_invitation_link(
     crud.audit_log.create_with_user(
         db, ipaddr="0.0.0.0", user_id=current_user.id, api=f"Created invitation link {invitation_link.uuid}"
     )
-    return cached_layer.materializer.invitation_link_schema_from_orm(
+    return ctx.materializer.invitation_link_schema_from_orm(
             invitation_link
     )
 
@@ -52,9 +51,8 @@ def create_invitation_link(
 def get_daily_invitation_link(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     return invitations_service.get_daily_invitation_link(
-        cached_layer.get_db(), cached_layer.materializer
+        ctx.get_db(), ctx.materializer
     )
 
 
@@ -62,14 +60,13 @@ def get_daily_invitation_link(
 def get_invitation_link(
     ctx: RequestContext = Depends(deps.get_request_context), *, uuid: str
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    invitation_link = crud.invitation_link.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    invitation_link = crud.invitation_link.get_by_uuid(ctx.get_db(), uuid=uuid)
     if invitation_link is None:
         raise HTTPException_(
             status_code=404,
             detail="Invalid invitation link",
         )
-    return cached_layer.materializer.invitation_link_schema_from_orm(invitation_link)
+    return ctx.materializer.invitation_link_schema_from_orm(invitation_link)
 
 
 @router.post("/{uuid}/join", response_model=schemas.GenericResponse)
@@ -78,13 +75,12 @@ def join_site_with_invitation_link(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     invitation_link = crud.invitation_link.get_by_uuid(db, uuid=uuid)
     if (
         invitation_link is None
-        or not cached_layer.materializer.invitation_link_schema_from_orm(
+        or not ctx.materializer.invitation_link_schema_from_orm(
             invitation_link
         ).valid
     ):
@@ -103,7 +99,7 @@ def join_site_with_invitation_link(
     if not existing_profile:
         sites_service.create_site_profile(
             db,
-            cached_layer.materializer,
+            ctx.materializer,
             owner=current_user,
             site_uuid=invitation_link.invited_to_site.uuid,
         )

@@ -27,14 +27,13 @@ def get_comment(
     """
     Get a comment in one of the current user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    comment = crud.comment.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    comment = crud.comment.get_by_uuid(ctx.get_db(), uuid=uuid)
     if comment is None:
         raise HTTPException_(
             status_code=400,
             detail="The comment doesn't exist in the system.",
         )
-    data = cached_layer.materializer.comment_schema_from_orm(comment)
+    data = ctx.materializer.comment_schema_from_orm(comment)
     if data is None:
         raise HTTPException_(
             status_code=400,
@@ -83,7 +82,6 @@ def delete_comment(
     uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     comment = crud.comment.get_by_uuid(db, uuid=uuid)
     if comment is None:
         raise HTTPException_(
@@ -110,8 +108,7 @@ def create_comment(
     """
     Create new comment authored by the current active user in one of the belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user_id = cached_layer.unwrapped_principal_id()
+    current_user_id = ctx.unwrapped_principal_id()
 
     def check_site(site: models.Site) -> None:
         check_user_in_site(
@@ -145,7 +142,7 @@ def create_comment(
         comment_in.shared_to_timeline,
         comment_in.mentioned,
     )
-    comment_data = cached_layer.materializer.comment_schema_from_orm(comment)
+    comment_data = ctx.materializer.comment_schema_from_orm(comment)
     assert comment_data is not None
     return comment_data
 
@@ -161,9 +158,8 @@ def update_comment(
     """
     Update comment authored by the current user in one of the belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user_id = cached_layer.principal_id
-    comment = crud.comment.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    current_user_id = ctx.principal_id
+    comment = crud.comment.get_by_uuid(ctx.get_db(), uuid=uuid)
     if comment is None:
         raise HTTPException_(
             status_code=400,
@@ -176,7 +172,7 @@ def update_comment(
         )
     if comment.site is not None:
         check_user_in_site(
-            cached_layer.get_db(),
+            ctx.get_db(),
             site=comment.site,
             user_id=current_user_id,
             op_type=OperationType.WriteSiteComment,
@@ -186,7 +182,7 @@ def update_comment(
     comment_in_dict["updated_at"] = utc_now
     was_shared_to_timeline = comment.shared_to_timeline
     new_comment = crud.comment.update(
-        cached_layer.get_db(), db_obj=comment, obj_in=comment_in_dict
+        ctx.get_db(), db_obj=comment, obj_in=comment_in_dict
     )
     background_tasks.add_task(
         postprocess_comment_update,
@@ -195,7 +191,7 @@ def update_comment(
         shared_to_timeline=comment_in.shared_to_timeline,
         mentioned=comment_in.mentioned,
     )
-    comment_data = cached_layer.materializer.comment_schema_from_orm(new_comment)
+    comment_data = ctx.materializer.comment_schema_from_orm(new_comment)
     assert comment_data is not None
     return comment_data
 
@@ -209,9 +205,8 @@ def upvote_comment(
     """
     Upvote comment as the current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     comment = crud.comment.get_by_uuid(db, uuid=uuid)
     if comment is None:
         raise HTTPException_(
@@ -261,9 +256,8 @@ def cancel_upvote_comment(
     """
     Cancel upvote for comment as the current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     comment = crud.comment.get_by_uuid(db, uuid=uuid)
     if comment is None:
         raise HTTPException_(

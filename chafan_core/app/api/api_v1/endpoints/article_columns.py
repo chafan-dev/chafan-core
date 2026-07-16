@@ -17,14 +17,13 @@ def get_article_column(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    article_column = crud.article_column.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    article_column = crud.article_column.get_by_uuid(ctx.get_db(), uuid=uuid)
     if article_column is None:
         raise HTTPException_(
             status_code=400,
             detail="The article_column doesn't exist in the system.",
         )
-    return cached_layer.materializer.article_column_schema_from_orm(article_column)
+    return ctx.materializer.article_column_schema_from_orm(article_column)
 
 
 # TODO This API should support limit and page 2025-Mar-23
@@ -35,8 +34,7 @@ def get_article_column_articles(
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    article_column = crud.article_column.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    article_column = crud.article_column.get_by_uuid(ctx.get_db(), uuid=uuid)
     if article_column is None:
         raise HTTPException_(
             status_code=400,
@@ -46,7 +44,7 @@ def get_article_column_articles(
     if not current_user_id:
         articles = articles[:settings.VISITORS_READ_ARTICLE_LIMIT]
     return filter_not_none(
-        [cached_layer.materializer.preview_of_article(a) for a in articles]
+        [ctx.materializer.preview_of_article(a) for a in articles]
     )
 
 
@@ -56,13 +54,12 @@ def create_article_column(
     *,
     article_column_in: schemas.ArticleColumnCreate,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     new_article_column = crud.article_column.create_with_owner(
-        cached_layer.get_db(),
+        ctx.get_db(),
         obj_in=article_column_in,
-        owner_id=cached_layer.unwrapped_principal_id(),
+        owner_id=ctx.unwrapped_principal_id(),
     )
-    return cached_layer.materializer.article_column_schema_from_orm(new_article_column)
+    return ctx.materializer.article_column_schema_from_orm(new_article_column)
 
 
 @router.put("/{uuid}", response_model=schemas.ArticleColumn)
@@ -72,19 +69,18 @@ def update_article_column(
     uuid: str,
     article_column_in: schemas.ArticleColumnUpdate,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
     if article_column is None:
         raise HTTPException_(
             status_code=400,
             detail="The article_column doesn't exist in the system.",
         )
-    if article_column.owner_id != cached_layer.principal_id:
+    if article_column.owner_id != ctx.principal_id:
         raise HTTPException_(
             status_code=400,
             detail="Unauthorized.",
         )
-    return cached_layer.materializer.article_column_schema_from_orm(
+    return ctx.materializer.article_column_schema_from_orm(
         crud.article_column.update(db, db_obj=article_column, obj_in=article_column_in),
     )
