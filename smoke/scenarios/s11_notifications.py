@@ -8,7 +8,7 @@ mentioned list (backend does not parse @ from the body — clients supply
 the list explicitly via CommentCreate.mentioned). B gets a notification
 that references A's comment.
 
-Both sub-flows are polled because the fan-out is via dramatiq.
+Both sub-flows are polled because the fan-out is post-response (BackgroundTasks).
 """
 from __future__ import annotations
 

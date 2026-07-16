@@ -1,7 +1,7 @@
 import datetime
 from typing import Any, List, Optional, Union
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, client_ip, run_dramatiq_task
+from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.materialize import (
     check_user_in_site,
@@ -120,6 +120,7 @@ def _create_submission(
     cached_layer: CachedLayer,
     submission_in: schemas.SubmissionCreate,
     author: models.User,
+    background_tasks: BackgroundTasks,
 ) -> schemas.Submission:
     db = cached_layer.get_db()
     site = get_site(db, submission_in.site_uuid)
@@ -138,7 +139,7 @@ def _create_submission(
     new_submission = crud.submission.create_with_author(
         db, obj_in=submission_in, author_id=author.id
     )
-    run_dramatiq_task(postprocess_new_submission, new_submission.id)
+    background_tasks.add_task(postprocess_new_submission, new_submission.id)
     cached_layer.invalidate_submission_caches(new_submission)
     data = cached_layer.materializer.submission_schema_from_orm(new_submission)
     assert data is not None
@@ -151,6 +152,7 @@ def create_submission(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     submission_in: schemas.SubmissionCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new submission authored by the current user in one of the belonging sites.
@@ -163,7 +165,9 @@ def create_submission(
         api="post submission",
         request_info={"submission_in": jsonable_encoder(submission_in)},
     )
-    return _create_submission(cached_layer, submission_in, current_user)
+    return _create_submission(
+        cached_layer, submission_in, current_user, background_tasks=background_tasks
+    )
 
 
 def _update_submission(
@@ -171,6 +175,7 @@ def _update_submission(
     *,
     submission: models.Submission,
     submission_in: schemas.SubmissionUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Optional[schemas.Submission]:
     db = cached_layer.get_db()
     archive = models.SubmissionArchive(
@@ -209,7 +214,7 @@ def _update_submission(
     new_submission = crud.submission.update(
         db, db_obj=submission, obj_in=submission_in_dict
     )
-    run_dramatiq_task(postprocess_updated_submission, new_submission.id)
+    background_tasks.add_task(postprocess_updated_submission, new_submission.id)
     cached_layer.invalidate_submission_caches(new_submission)
     return cached_layer.materializer.submission_schema_from_orm(new_submission)
 
@@ -221,6 +226,7 @@ def update_submission(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     submission_in: schemas.SubmissionUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Update submission as author.
@@ -248,6 +254,7 @@ def update_submission(
         cached_layer,
         submission=submission,
         submission_in=submission_in,
+        background_tasks=background_tasks,
     )
 
 

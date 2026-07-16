@@ -3,7 +3,6 @@ from typing import List, Optional, Union
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import run_dramatiq_task
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.task import (
@@ -30,7 +29,7 @@ def _get_interesting_question_ids(user: models.User) -> List[int]:
         refresh_interesting_question_ids_for_user(user.id)
     # if a bit old, enqueue refresh task
     elif _is_expired(user.interesting_question_ids_updated_at, days_in_seconds(3)):
-        run_dramatiq_task(refresh_interesting_question_ids_for_user, user.id)
+        refresh_interesting_question_ids_for_user(user.id)
 
     # return latest version
     if user.interesting_question_ids is None:
@@ -62,7 +61,7 @@ def _get_interesting_user_ids(user: models.User) -> List[int]:
         refresh_interesting_user_ids_for_user(user.id)
     # if a bit old, enqueue refresh task
     elif _is_expired(user.interesting_user_ids_updated_at, days_in_seconds(3)):
-        run_dramatiq_task(refresh_interesting_user_ids_for_user, user.id)
+        refresh_interesting_user_ids_for_user(user.id)
 
     # return latest version
     if user.interesting_user_ids is None:

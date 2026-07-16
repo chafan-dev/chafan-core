@@ -43,7 +43,7 @@ from chafan_core.utils.validators import (
 )
 
 API_BASE = os.environ.get("SMOKE_API_BASE", "http://127.0.0.1:8000")
-# Generous for a cold CI runner: s10/s11 poll dramatiq fan-out.
+# Generous for a cold CI runner: s10/s11 poll post-response fan-out.
 POLL_TIMEOUT_SECONDS = int(os.environ.get("SMOKE_POLL_TIMEOUT_SECONDS", "60"))
 
 SITE_SUBDOMAIN = "smoke"

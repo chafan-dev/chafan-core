@@ -1,7 +1,7 @@
 """s10 — feed fan-out (the high-value activity test).
 
 Positive: A follows B, B posts a fresh question, A's feed should eventually
-contain it. Polled because fan-out is via dramatiq.
+contain it. Polled because fan-out is post-response (BackgroundTasks).
 
 Negative: A unfollows B, B posts another question, A's feed should NOT
 contain it. We can't poll for absence, so we sleep at least as long as the
