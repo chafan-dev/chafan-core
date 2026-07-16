@@ -11,10 +11,8 @@ from chafan_core.app.services import answers as answers_service
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.limiter import limiter
-from chafan_core.app.materialize import (
-    answer_archive_schema_from_orm,
-    check_user_in_site,
-)
+from chafan_core.app.materialize import answer_archive_schema_from_orm
+from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.app.schemas.answer import AnswerModUpdate
 from chafan_core.app.schemas.event import EventInternal, UpvoteAnswerInternal
 from chafan_core.app.schemas.richtext import RichText

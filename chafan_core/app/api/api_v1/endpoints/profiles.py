@@ -7,7 +7,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.materialize import (
+from chafan_core.app.user_permission import (
     check_user_in_site,
     get_active_site_profile,
     user_in_site,
