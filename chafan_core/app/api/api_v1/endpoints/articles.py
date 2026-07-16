@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 import chafan_core
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import client_ip
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import check_writing_session
@@ -30,9 +30,10 @@ router = APIRouter()
 def get_article(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import articles as articles_service
     from chafan_core.app.services import audit as audit_service
 
@@ -70,8 +71,9 @@ def get_article(
 def bump_views_counter(
     *,
     uuid: str,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info("add view for article " + uuid)
     article = crud.article.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if article is None:
@@ -181,7 +183,7 @@ def delete_article_draft(
 @router.post("/", response_model=schemas.Article)
 def create_article(
     request: Request,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     article_in: schemas.ArticleCreate,
     background_tasks: BackgroundTasks,
@@ -189,6 +191,7 @@ def create_article(
     """
     Create new article authored by the current user in one of the belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
@@ -235,11 +238,12 @@ def create_article(
 def update_article(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     article_in: schemas.ArticleUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user_id = cached_layer.unwrapped_principal_id()
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
@@ -376,10 +380,11 @@ def get_article_archives(
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.ArticleUpvotes)
 def upvote_article(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
@@ -449,10 +454,11 @@ def upvote_article(
 
 @router.delete("/{uuid}/upvotes/", response_model=schemas.ArticleUpvotes)
 def cancel_upvote_article(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
