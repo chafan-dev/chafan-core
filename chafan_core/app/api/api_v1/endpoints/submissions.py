@@ -65,7 +65,7 @@ def get_submission(
         schemas.Submission
     ] = None
     # TODO didn't check principal id
-    submission_data = cached_layer.submission_schema_from_orm(submission)
+    submission_data = submissions_service.submission_schema(cached_layer, submission)
     if submission_data is None:
         raise HTTPException_(
             status_code=400,
@@ -145,7 +145,7 @@ def _create_submission(
         db, obj_in=submission_in, author_id=author.id
     )
     background_tasks.add_task(postprocess_new_submission, new_submission.id)
-    data = cached_layer.materializer.submission_schema_from_orm(new_submission)
+    data = submissions_service.submission_schema(cached_layer, new_submission)
     assert data is not None
     return data
 
@@ -220,7 +220,7 @@ def _update_submission(
         db, db_obj=submission, obj_in=submission_in_dict
     )
     background_tasks.add_task(postprocess_updated_submission, new_submission.id)
-    return cached_layer.materializer.submission_schema_from_orm(new_submission)
+    return submissions_service.submission_schema(cached_layer, new_submission)
 
 
 @router.put("/{uuid}", response_model=schemas.Submission)
@@ -340,7 +340,7 @@ def hide_submission(
     submission = crud.submission.update(
         db, db_obj=submission, obj_in={"is_hidden": True}
     )
-    return cached_layer.materializer.submission_schema_from_orm(submission)
+    return submissions_service.submission_schema(cached_layer, submission)
 
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.SubmissionUpvotes)

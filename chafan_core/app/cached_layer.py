@@ -8,7 +8,6 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.data_broker import DataBroker
 # TODO 2025-07-20 CachedLayer should not dependent on Materializer
 from chafan_core.app.materialize import Materializer
-import chafan_core.app.responders as responders
 from chafan_core.app.recs import matrices as recs_matrices
 from chafan_core.app import services
 from chafan_core.app.infra import cache as infra_cache
@@ -60,9 +59,6 @@ class CachedLayer(object):
     def bump_view(self, object_type: str, obj_id: int):
         infra_cache.bump_view(object_type, obj_id, self.get_redis())
 
-    def unwrapped_principal_id(self) -> int:
-        return unwrap(self.principal_id)
-
     # Content caching removed (D1 / target architecture Step 3).
     # Redis remains for ephemeral state only (OTP, view-bump queue, daily invitation id).
 
@@ -72,8 +68,7 @@ class CachedLayer(object):
 
     def submission_schema_from_orm(self, submission: models.Submission):
         logger.info("called cached layer for submission to wrap submission " + str(submission.id))
-        return responders.submission.submission_schema_from_orm(
-                self, submission)
+        return services.submissions.submission_schema(self, submission)
 
     def article_schema_from_orm(self, article: models.Article):
         logger.info("called cached layer for article")
@@ -193,6 +188,9 @@ class CachedLayer(object):
         assert u.is_active
         return u
 
+    def unwrapped_principal_id(self) -> int:
+        return unwrap(self.principal_id)
+
     def preview_of_user(self, user: models.User) -> schemas.UserPreview:
         return services.people.preview_of_user(self, user)
 
@@ -272,7 +270,7 @@ class CachedLayer(object):
         return self.materializer.channel_schema_from_orm(channel)
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
-        return responders.site.site_schema_from_orm(self, site)
+        return services.sites.site_schema(self, site)
 
     def compute_user_contributions_map(self, user: models.User) -> UserContributions:
         return recs_matrices.compute_user_contributions(user)

@@ -56,6 +56,16 @@ class RequestContext:
             raise RuntimeError("No principal on RequestContext")
         return user
 
+    def get_current_active_user(self) -> "models.User":
+        u = self.get_current_user()
+        assert u.is_active
+        return u
+
+    def unwrapped_principal_id(self) -> int:
+        if self.principal_id is None:
+            raise RuntimeError("No principal_id on RequestContext")
+        return self.principal_id
+
     def mark_committed(self) -> None:
         """Call after an explicit service-level commit."""
         self._committed = True
