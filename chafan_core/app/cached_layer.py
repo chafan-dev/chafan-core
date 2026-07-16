@@ -207,13 +207,10 @@ class CachedLayer(object):
         return
 
     def get_site_by_subdomain(self, subdomain: str):
-        return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
+        return services.sites.get_site_by_subdomain(self.get_db(), subdomain)
 
     def get_site_info(self, *, subdomain: str) -> Optional[schemas.Site]:
-        site = crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
-        if site is None:
-            return None
-        return self.site_schema_from_orm(site)
+        return services.sites.get_site_info(self, subdomain=subdomain)
 
     def get_site_submissions_for_user(
         self, *, site: models.Site, user_id: Optional[int], skip: int, limit: int
@@ -225,8 +222,9 @@ class CachedLayer(object):
     def update_site(
         self, *, old_site: models.Site, update_dict: Dict[str, Any]
     ) -> models.Site:
-        site = crud.site.update(self.get_db(), db_obj=old_site, obj_in=update_dict)
-        return site
+        return services.sites.update_site(
+            self.get_db(), old_site=old_site, update_dict=update_dict
+        )
 
     def get_site_maps(self) -> schemas.site.SiteMaps:
         read_db = self.get_db()
@@ -340,19 +338,7 @@ class CachedLayer(object):
         return u
 
     def preview_of_user(self, user: models.User) -> schemas.UserPreview:
-        user_preview = self.materializer.preview_of_user(user)
-        # Annotate social anontations
-        principal_id = self.principal_id
-        if principal_id:
-            m = self.get_follow_follow_fanout()
-            if principal_id in m and user_preview.uuid in m[principal_id]:
-                user_preview.social_annotations.follow_follows = m[principal_id][
-                    user_preview.uuid
-                ]
-            else:
-                user_preview.social_annotations.follow_follows = 0
-        user_preview.follows = self.get_user_follows(user)
-        return user_preview
+        return services.people.preview_of_user(self, user)
 
     def create_audit(self, api: str, request: Optional[fastapi.Request] = None,
                      user_id: Optional[int] = None,
@@ -434,17 +420,7 @@ class CachedLayer(object):
         return services.people.get_authored_answers_for_principal(self, author)
 
     def get_user_follows(self, followed: models.User) -> schemas.UserFollows:
-        current_user = self.try_get_current_user()
-        if current_user:
-            followed_by_me = followed in current_user.followed
-        else:
-            followed_by_me = False
-        return schemas.UserFollows(
-            user_uuid=followed.uuid,
-            followers_count=followed.followers.count(),
-            followed_count=followed.followed.count(),  # type: ignore
-            followed_by_me=followed_by_me,
-        )
+        return services.people.get_user_follows(self, followed)
 
     def get_daily_invitation_link(self) -> schemas.InvitationLink:
         return services.invitations.get_daily_invitation_link(

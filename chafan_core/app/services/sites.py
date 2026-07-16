@@ -84,3 +84,20 @@ def get_site_maps(cached_layer) -> schemas.site.SiteMaps:
         site_maps=list(site_maps.values()),
         sites_without_topics=sites_without_topics,
     )
+
+
+def get_site_by_subdomain(db: Session, subdomain: str) -> Optional[models.Site]:
+    return crud.site.get_by_subdomain(db, subdomain=subdomain)
+
+
+def get_site_info(cached_layer, *, subdomain: str) -> Optional[schemas.Site]:
+    site = get_site_by_subdomain(cached_layer.get_db(), subdomain)
+    if site is None:
+        return None
+    return cached_layer.site_schema_from_orm(site)
+
+
+def update_site(
+    db: Session, *, old_site: models.Site, update_dict: dict
+) -> models.Site:
+    return crud.site.update(db, db_obj=old_site, obj_in=update_dict)

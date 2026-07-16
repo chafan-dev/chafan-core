@@ -2,8 +2,6 @@ from fastapi import APIRouter, Depends, Response
 
 from chafan_core.app.config import settings
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.feed import get_site_activities
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.responders.rss import build_rss
@@ -19,14 +17,9 @@ def get_site_activity(
         *, response: Response,
         ctx: RequestContext = Depends(deps.get_request_context), subdomain: str
 ) -> str:
-    """
-    Get a site's activity.
-
-    Pilot: Depends on RequestContext instead of get_cached_layer.
-    """
+    """Get a site's activity. Pilot: RequestContext dependency."""
     logger.info("Generating RSS for site " + subdomain)
-    broker = ctx if isinstance(ctx, DataBroker) else DataBroker(principal_id=ctx.principal_id)
-    cached_layer = CachedLayer(broker, ctx.principal_id)
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = cached_layer.get_site_by_subdomain(subdomain)
     if site is None:
         raise HTTPException_(status_code=404, detail="No such site " + subdomain)
