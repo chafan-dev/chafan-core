@@ -39,7 +39,7 @@ from chafan_core.app.email.utils import (
     send_verification_code_email,
 )
 from chafan_core.app.limiter import limiter
-from chafan_core.app.materialize import user_schema_from_orm
+from chafan_core.app.responders.user import user_schema_from_orm
 from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositReference
 from chafan_core.app.schemas.event import EventInternal, InviteNewUserInternal
 from chafan_core.app.schemas.form import (

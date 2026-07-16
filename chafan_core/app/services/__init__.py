@@ -12,6 +12,7 @@ from chafan_core.app.services import (
     messages,
     people,
     questions,
+    rewards,
     sites,
     submissions,
 )
@@ -28,6 +29,7 @@ __all__ = [
     "messages",
     "people",
     "questions",
+    "rewards",
     "sites",
     "submissions",
 ]
