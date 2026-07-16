@@ -16,7 +16,7 @@ from chafan_core.db.session import SessionLocal
 if TYPE_CHECKING:
     import redis
     from chafan_core.app import models, schemas
-    from chafan_core.app.materialize import Materializer
+    from chafan_core.app.infra.principal_view import PrincipalView
     from chafan_core.app.schemas.answer import AnswerPreview
 
 # User.id -> { User.uuid -> count }
@@ -32,7 +32,7 @@ class RequestContext:
         self._redis: Optional["redis.Redis"] = None
         self._db: Optional[Session] = None
         self._principal: Optional["models.User"] = None
-        self._materializer: Optional["Materializer"] = None
+        self._materializer: Optional["PrincipalView"] = None
         self._follow_follow_fanout: Optional[WeightedMatrixType] = None
         self._user_contributions_map: Dict[int, UserContributions] = {}
         # True once a service has explicitly committed the unit of work.
@@ -54,14 +54,15 @@ class RequestContext:
         return self._db
 
     @property
-    def materializer(self) -> "Materializer":
+    def materializer(self) -> "PrincipalView":
+        """PrincipalView for this request's principal (plain nested previews)."""
         if self._materializer is None:
-            from chafan_core.app.materialize import Materializer
+            from chafan_core.app.infra.principal_view import PrincipalView
 
-            self._materializer = Materializer(self, self.principal_id)  # type: ignore[arg-type]
+            self._materializer = PrincipalView(self, self.principal_id)
         return self._materializer
 
-    def as_principal(self, principal_id: Optional[int]) -> "Materializer":
+    def as_principal(self, principal_id: Optional[int]) -> "PrincipalView":
         """Schema shaper for a different principal (feed, notifications, payments).
 
         Shares this context's db/redis. Reuses .materializer when principal_id
@@ -69,9 +70,9 @@ class RequestContext:
         """
         if principal_id == self.principal_id:
             return self.materializer
-        from chafan_core.app.materialize import Materializer
+        from chafan_core.app.infra.principal_view import PrincipalView
 
-        return Materializer(self, principal_id)  # type: ignore[arg-type]
+        return PrincipalView(self, principal_id)
 
     def try_get_current_user(self) -> Optional["models.User"]:
         if self.principal_id is None:
