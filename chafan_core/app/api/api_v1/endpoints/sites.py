@@ -27,6 +27,7 @@ from chafan_core.app.schemas.event import (
     EventInternal,
 )
 from chafan_core.app.services import sites as sites_service
+from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.user_permission import user_in_site
 
 from chafan_core.utils.base import EntityType, HTTPException_, filter_not_none, unwrap
@@ -298,8 +299,8 @@ def get_site_submissions(
                 status_code=400,
                 detail="Unauthorized.",
             )
-    return cached_layer.get_site_submissions_for_user(
-        site=site, user_id=current_user_id, skip=skip, limit=limit
+    return submissions_service.site_submissions_for_user(
+        cached_layer, site=site, user_id=current_user_id, skip=skip, limit=limit
     )
 
 

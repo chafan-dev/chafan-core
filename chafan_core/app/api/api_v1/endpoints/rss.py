@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Response
 
-
 from chafan_core.app.config import settings
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.feed import get_site_activities
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.responders.rss import build_rss
 from chafan_core.utils.base import HTTPException_
-
 
 import logging
 logger = logging.getLogger(__name__)
@@ -17,12 +17,16 @@ router = APIRouter()
 @router.get("/site/{subdomain}/rss.xml")
 def get_site_activity(
         *, response: Response,
-        cached_layer: CachedLayer = Depends(deps.get_cached_layer), subdomain: str
+        ctx: RequestContext = Depends(deps.get_request_context), subdomain: str
 ) -> str:
     """
     Get a site's activity.
+
+    Pilot: Depends on RequestContext instead of get_cached_layer.
     """
     logger.info("Generating RSS for site " + subdomain)
+    broker = ctx if isinstance(ctx, DataBroker) else DataBroker(principal_id=ctx.principal_id)
+    cached_layer = CachedLayer(broker, ctx.principal_id)
     site = cached_layer.get_site_by_subdomain(subdomain)
     if site is None:
         raise HTTPException_(status_code=404, detail="No such site " + subdomain)
@@ -32,5 +36,3 @@ def get_site_activity(
     logger.info("api get: " + str(activities))
     rss_str = build_rss(activities, site)
     return Response(content=rss_str, media_type="application/rss+xml")
-
-
