@@ -47,17 +47,27 @@ def get_answer_upvotes(
     )
 
 
+def get_answer_by_id(db: Session, answer_id: int) -> Optional[models.Answer]:
+    return crud.answer.get_by_id(db, uid=answer_id)
+
+
+def answer_schema(cached_layer, answer: models.Answer) -> Optional[schemas.Answer]:
+    answer_data = responders.answer.answer_schema_from_orm(
+        cached_layer, answer, cached_layer.principal_id
+    )
+    if answer_data:
+        answer_data.upvotes = get_answer_upvotes(
+            cached_layer.get_db(),
+            uuid=answer.uuid,
+            principal_id=cached_layer.principal_id,
+        )
+    return answer_data
+
+
 def get_answer_schema(cached_layer, uuid: str) -> Optional[schemas.Answer]:
     """Shape a single answer for the layer principal (permission gated)."""
     db = cached_layer.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         return None
-    answer_data = responders.answer.answer_schema_from_orm(
-        cached_layer, answer, cached_layer.principal_id
-    )
-    if answer_data:
-        answer_data.upvotes = get_answer_upvotes(
-            db, uuid=uuid, principal_id=cached_layer.principal_id
-        )
-    return answer_data
+    return answer_schema(cached_layer, answer)

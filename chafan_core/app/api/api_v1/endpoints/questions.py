@@ -553,6 +553,8 @@ def get_question_page(
                 )
             ]
         ),
-        question_subscription=cached_layer.get_question_subscription(question),
+        question_subscription=questions_service.get_question_subscription(
+            cached_layer, question
+        ),
         flags=flags,
     )

@@ -391,8 +391,10 @@ def get_user_question_subscription(
     """
     Get current user's info about a question's subscription.
     """
-    question = cached_layer.get_question_model_http(uuid)
-    return cached_layer.get_question_subscription(question)
+    from chafan_core.app.services import questions as questions_service
+
+    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
+    return questions_service.get_question_subscription(cached_layer, question)
 
 
 @router.get(
