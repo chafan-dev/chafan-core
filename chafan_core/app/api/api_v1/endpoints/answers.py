@@ -288,8 +288,6 @@ def _update_answer(
         # TODO: Implement the update subscription logic
 
         background_tasks.add_task(postprocess_new_answer, answer.id, was_published)
-
-    cached_layer.invalidate_answer_cache(answer.uuid)
     return unwrap(cached_layer.answer_schema_from_orm(answer))
 
 
@@ -377,7 +375,6 @@ def update_answer_by_mod(
         db, db_obj=answer, obj_in=update_in.dict(exclude_none=True)
     )
     answer_data = cached_layer.answer_schema_from_orm(answer)
-    cached_layer.invalidate_answer_cache(uuid=uuid)
     return answer_data
 
 
@@ -491,7 +488,6 @@ def upvote_answer(
         .filter_by(answer_id=answer.id, cancelled=False)
         .count()
     )
-    cached_layer.invalidate_answer_upvotes_cache(answer.uuid)
     return schemas.AnswerUpvotes(
         answer_uuid=answer.uuid, count=valid_upvotes, upvoted=True
     )
@@ -541,7 +537,6 @@ def cancel_upvote_answer(
         .filter_by(answer_id=answer.id, cancelled=False)
         .count()
     )
-    cached_layer.invalidate_answer_upvotes_cache(answer.uuid)
     return schemas.AnswerUpvotes(
         answer_uuid=answer.uuid, count=valid_upvotes, upvoted=False
     )

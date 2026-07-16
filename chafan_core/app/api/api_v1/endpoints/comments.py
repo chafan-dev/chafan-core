@@ -94,7 +94,6 @@ def delete_comment(
             detail="Unauthorized.",
         )
     crud.comment.delete_forever(db, comment=comment)
-    cached_layer.invalidate_comment_caches(comment)
     return schemas.GenericResponse()
 
 
@@ -144,7 +143,6 @@ def create_comment(
         comment_in.mentioned,
     )
     comment_data = cached_layer.materializer.comment_schema_from_orm(comment)
-    cached_layer.invalidate_comment_caches(comment)
     assert comment_data is not None
     return comment_data
 
@@ -193,7 +191,6 @@ def update_comment(
         shared_to_timeline=comment_in.shared_to_timeline,
         mentioned=comment_in.mentioned,
     )
-    cached_layer.invalidate_comment_caches(new_comment)
     comment_data = cached_layer.materializer.comment_schema_from_orm(new_comment)
     assert comment_data is not None
     return comment_data
@@ -245,7 +242,6 @@ def upvote_comment(
         .count()
     )
     # FIXME: maybe returning upvotes from a different endpoint thus using different caching logic.
-    cached_layer.invalidate_comment_caches(comment)
     return schemas.CommentUpvotes(
         comment_uuid=comment.uuid, count=valid_upvotes, upvoted=True
     )
@@ -290,7 +286,6 @@ def cancel_upvote_comment(
         .filter_by(comment_id=comment.id, cancelled=False)
         .count()
     )
-    cached_layer.invalidate_comment_caches(comment)
     return schemas.CommentUpvotes(
         comment_uuid=comment.uuid, count=valid_upvotes, upvoted=False
     )

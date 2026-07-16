@@ -6,8 +6,10 @@ from chafan_core.app.services import (
     feed,
     invitations,
     link_preview,
+    people,
     questions,
     sites,
+    submissions,
 )
 
 __all__ = [
@@ -16,6 +18,8 @@ __all__ = [
     "feed",
     "invitations",
     "link_preview",
+    "people",
     "questions",
     "sites",
+    "submissions",
 ]

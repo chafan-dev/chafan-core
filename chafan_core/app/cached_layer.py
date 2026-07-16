@@ -200,64 +200,11 @@ class CachedLayer(object):
     def get_answer(self, uuid: str) -> Optional[schemas.Answer]:
         return services.answers.get_answer_schema(self, uuid)
 
-    def get_submissions_for_user(
-        self,
-    ) -> List[schemas.Submission]:
-        return self._get_submissions_for_user(self.principal_id)
-        # def f() -> List[schemas.Submission]:
-        #     return self._get_submissions_for_user(self.principal_id)
-        #
-        # return self._get_cached(
-        #     key=SUBMISSIONS_FOR_USER_CACHE_KEY.format(user_id=self.principal_id),
-        #     typeObj=List[schemas.Submission],
-        #     fetch=f,
-        #     hours=24,
-        # )
+    def get_submissions_for_user(self) -> List[schemas.Submission]:
+        return services.submissions.submissions_for_user(self, self.principal_id)
 
     def invalidate_answer_cache(self, uuid: str) -> None:
         return
-
-    def _get_cached_recent_k_submissions_of_site(
-        self, site: models.Site, k: int
-    ) -> List[schemas.Submission]:
-        return filter_not_none(
-            [self.materializer.submission_schema_from_orm(s) for s in site.submissions]
-        )[:k]
-
-    def _get_submissions_for_user(
-        self, current_user_id: Optional[int]
-    ) -> List[schemas.Submission]:
-        if current_user_id:
-            current_user = crud.user.get(self.broker.get_db(), id=current_user_id)
-            assert current_user is not None
-            submissions = []
-            for profile in current_user.profiles:
-                submissions.extend(
-                    self._get_cached_recent_k_submissions_of_site(profile.site, k=20)
-                )
-            if len(submissions) == 0:
-                for site in crud.site.get_all_public_readable(self.broker.get_db()):
-                    submissions.extend(
-                        filter_not_none(
-                            [
-                                self.materializer.submission_schema_from_orm(s)
-                                for s in site.submissions
-                            ]
-                        )[:5]
-                    )
-            return rank_submissions(submissions)
-        else:
-            submissions: List[schemas.Submission] = []
-            for site in crud.site.get_all_public_readable(self.broker.get_db()):
-                submissions.extend(
-                    filter_not_none(
-                        [
-                            self.materializer.submission_schema_from_orm(s)
-                            for s in site.submissions
-                        ]
-                    )[:10]
-                )
-            return rank_submissions(submissions)
 
     def get_site_by_subdomain(self, subdomain: str):
         return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
@@ -271,27 +218,9 @@ class CachedLayer(object):
     def get_site_submissions_for_user(
         self, *, site: models.Site, user_id: Optional[int], skip: int, limit: int
     ) -> List[schemas.Submission]:
-        submissions: List[Any] = []
-        if user_id:
-            submissions = rank_submissions(
-                filter_not_none(
-                    [
-                        self.materializer.submission_schema_from_orm(submission)
-                        for submission in site.submissions
-                    ]
-                )
-            )
-        else:
-            # Public site lists: same schema path for any allowed reader.
-            submissions = rank_submissions(
-                filter_not_none(
-                    [
-                        self.materializer.submission_schema_from_orm(submission)
-                        for submission in site.submissions
-                    ]
-                )
-            )
-        return submissions[skip : skip + limit]
+        return services.submissions.site_submissions_for_user(
+            self, site=site, user_id=user_id, skip=skip, limit=limit
+        )
 
     def update_site(
         self, *, old_site: models.Site, update_dict: Dict[str, Any]
@@ -487,32 +416,12 @@ class CachedLayer(object):
     def get_followers(
         self, user: models.User, skip: int, limit: int
     ) -> List[UserPreview]:
-        def f() -> List[UserPreview]:
-            return [
-                self.preview_of_user(u) for u in user.followers[skip : skip + limit]
-            ]
-
-        return self._get_cached(
-            key=USER_FOLLOWERS_CACHE_KEY.format(
-                user_id=user.id, skip=skip, limit=limit
-            ),
-            typeObj=List[UserPreview],
-            fetch=f,
-            hours=12,
-        )
+        return services.people.get_followers(self, user, skip, limit)
 
     def get_followed(
         self, user: models.User, skip: int, limit: int
     ) -> List[UserPreview]:
-        def f() -> List[UserPreview]:
-            return [self.preview_of_user(u) for u in user.followed[skip : skip + limit]]
-
-        return self._get_cached(
-            key=USER_FOLLOWED_CACHE_KEY.format(user_id=user.id, skip=skip, limit=limit),
-            typeObj=List[UserPreview],
-            fetch=f,
-            hours=12,
-        )
+        return services.people.get_followed(self, user, skip, limit)
 
     def preview_of_answer(
         self, answer: models.Answer
@@ -522,25 +431,7 @@ class CachedLayer(object):
     def get_authored_answers_for_principal(
         self, author: models.User
     ) -> List[schemas.AnswerPreview]:
-        key = AUTHOR_ANSWERS_FOR_USER_CACHE_KEY.format(
-            author_id=author.id, user_id=self.principal_id
-        )
-
-        def f() -> List[schemas.AnswerPreview]:
-            logger.info(f"not found in redis, fetch postgresql author={author.id}")
-            return filter_not_none(
-                [
-                    self.materializer.preview_of_answer(answer)
-                    for answer in author.answers
-                ]
-            )
-
-        return self._get_cached_non_empty(
-            key=key,
-            typeObj=List[schemas.AnswerPreview],
-            fallable_fetch=f,
-            hours=24,
-        )  # type: ignore
+        return services.people.get_authored_answers_for_principal(self, author)
 
     def get_user_follows(self, followed: models.User) -> schemas.UserFollows:
         current_user = self.try_get_current_user()
@@ -595,32 +486,7 @@ class CachedLayer(object):
         return matrix
 
     def get_related_user(self, target_user: models.User) -> List[UserPreview]:
-        db = self.get_db()
-
-        def f() -> List[UserPreview]:
-            related_users: Dict[int, models.User] = {}
-            followed = list(target_user.followed)
-            if len(followed) >= MAX_SAMPLED_RELATED_FOLLOWED:
-                for u in random.sample(followed, k=20):
-                    related_users[u.id] = u
-            else:
-                for u in followed:
-                    related_users[u.id] = u
-
-            for user_id in self.get_similar_entity_ids(
-                id=target_user.id, entity_type=EntityType.users, topK=20
-            ):
-                if user_id not in related_users:
-                    related_users[user_id] = unwrap(crud.user.get(db, user_id))
-
-            return [self.preview_of_user(u) for u in related_users.values()]
-
-        return self._get_cached(
-            key=RELATED_USERS_CACHE_KEY.format(user_id=target_user.id),
-            typeObj=List[UserPreview],
-            fetch=f,
-            hours=24,
-        )
+        return services.people.get_related_users(self, target_user)
 
     def get_similar_entity_ids(
         self, id: int, entity_type: EntityType, topK: int = 10
