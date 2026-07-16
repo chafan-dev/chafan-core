@@ -7,7 +7,6 @@ import sentry_sdk
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, rep_manager
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.email_utils import send_notification_email
 from chafan_core.app.materialize import Materializer
@@ -73,12 +72,16 @@ def refresh_karmas() -> None:
 
 
 def cache_matrices() -> None:
+    """Warm recs matrices (in-process; content redis cache removed)."""
+
     def f(broker: DataBroker) -> None:
-        l = CachedLayer(broker)
-        l.get_follow_follow_fanout()
+        from chafan_core.app.recs import matrices as recs_matrices
+
+        db = broker.get_db()
+        recs_matrices.compute_follow_follow_fanout(db)
         for t in EntityType._member_map_.values():
-            l.get_entity_similarity_matrix(t)  # type: ignore
-        for u in crud.user.get_all_active_users(l.get_db()):
-            l.get_user_contributions(u)
+            recs_matrices.compute_entity_similarity_matrix(db, t)  # type: ignore
+        for u in crud.user.get_all_active_users(db):
+            recs_matrices.compute_user_contributions(u)
 
     execute_with_broker(f, use_read_replica=True)
