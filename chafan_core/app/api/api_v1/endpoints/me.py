@@ -7,6 +7,7 @@ from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
+from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.materialize import user_schema_from_orm
@@ -542,7 +543,7 @@ def get_user_submission_subscriptions(
     cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     return [
-        cached_layer.submission_schema_from_orm(q)
+        submissions_service.submission_schema(cached_layer, q)
         for q in current_user.subscribed_submissions[skip : skip + limit]
     ]
 
@@ -959,4 +960,4 @@ def get_moderated_sites(
         sites = crud.site.get_all(cached_layer.get_db())
     else:
         sites = current_user.moderated_sites
-    return [cached_layer.site_schema_from_orm(s) for s in sites]
+    return [sites_service.site_schema(cached_layer, s) for s in sites]

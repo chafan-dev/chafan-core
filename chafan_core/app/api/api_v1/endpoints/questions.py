@@ -6,6 +6,7 @@ from fastapi.encoders import jsonable_encoder
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
+from chafan_core.app.services import answers as answers_service
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
@@ -47,7 +48,7 @@ def _get_answers(
 def _get_question_data(
     cached_layer: CachedLayer, question: models.Question
 ) -> schemas.Question:
-    question_data = cached_layer.question_schema_from_orm(question)
+    question_data = questions_service.question_schema(cached_layer, question)
     if question_data is None:
         raise HTTPException_(
             status_code=400,
@@ -173,7 +174,7 @@ def create_question(
         db, db_obj=current_user, question=new_question
     )
     background_tasks.add_task(postprocess_new_question, new_question.id)
-    return cached_layer.question_schema_from_orm(new_question)
+    return questions_service.question_schema(cached_layer, new_question)
 
 
 @router.put("/{uuid}", response_model=schemas.Question)
@@ -258,7 +259,7 @@ def update_question(
         question_in_dict["description_text"] = None
     new_question = crud.question.update(db, db_obj=question, obj_in=question_in_dict)
     background_tasks.add_task(postprocess_updated_question, new_question.id)
-    return cached_layer.question_schema_from_orm(new_question)
+    return questions_service.question_schema(cached_layer, new_question)
 
 
 @router.get("/{uuid}/archives/", response_model=List[schemas.QuestionArchive])
@@ -312,7 +313,7 @@ def hide_question(
     question = crud.question.update(
         cached_layer.get_db(), db_obj=question, obj_in={"is_hidden": True}
     )
-    return cached_layer.question_schema_from_orm(question)
+    return questions_service.question_schema(cached_layer, question)
 
 
 @router.post(
@@ -552,7 +553,7 @@ def get_question_page(
         # TODO: rethink the internal caching
         full_answers=filter_not_none(
             [
-                cached_layer.answer_schema_from_orm(answer)
+                answers_service.answer_schema(cached_layer, answer)
                 for answer in rank_answers(
                     question.answers, principal_id=cached_layer.principal_id
                 )

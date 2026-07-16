@@ -141,7 +141,7 @@ def create_site(
         site_uuid=new_site.uuid,
     )
     return schemas.CreateSiteResponse(
-        created_site=cached_layer.site_schema_from_orm(new_site)
+        created_site=sites_service.site_schema(cached_layer, new_site)
     )
 
 
@@ -201,7 +201,7 @@ def config_site(
         new_site.topics = new_topics
         db.add(new_site)
         db.commit()
-    return cached_layer.site_schema_from_orm(new_site)
+    return sites_service.site_schema(cached_layer, new_site)
 
 
 from chafan_core.app.common import OperationType
@@ -234,7 +234,7 @@ def get_site_info(
             status_code=404,
             detail="The site with this id does not exist in the system",
         )
-    site_data = responders.site.site_schema_from_orm(cached_layer, site)
+    site_data = sites_service.site_schema(cached_layer, site)
     return site_data
 
 
@@ -470,6 +470,6 @@ def get_related(
             )
 
     return [
-        cached_layer.site_schema_from_orm(s)
+        sites_service.site_schema(cached_layer, s)
         for s in related_sites.values()
     ]

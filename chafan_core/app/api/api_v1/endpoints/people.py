@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
+from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.services import people as people_service
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
@@ -228,8 +229,8 @@ def get_user_submissions(
         )
     return filter_not_none(
         [
-            #cached_layer.materializer.submission_schema_from_orm(submission)
-            cached_layer.submission_schema_from_orm(submission)
+            #submissions_service.submission_schema(cached_layer, submission)
+            submissions_service.submission_schema(cached_layer, submission)
             for submission in user.submissions
         ]
     )[skip : skip + limit]
