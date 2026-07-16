@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, user_permission
-from chafan_core.utils.base import HTTPException_
+from chafan_core.utils.base import HTTPException_, filter_not_none
 import chafan_core.app.responders as responders
 
 
@@ -62,3 +62,29 @@ def get_question_subscription(
         subscription_count=question.subscribers.count(),
         subscribed_by_me=(question in current_user.subscribed_questions),
     )
+
+
+def list_answer_previews(ctx, question: models.Question) -> list[schemas.AnswerPreview]:
+    mat = ctx.materializer
+    return sorted(
+        filter_not_none(
+            [mat.preview_of_answer(answer) for answer in question.answers]
+        ),
+        key=lambda a: a.upvotes_count,
+    )
+
+
+def list_archives(ctx, *, uuid: str) -> list[schemas.QuestionArchive]:
+    from chafan_core.app.responders import archives as archives_responder
+
+    question = get_question_model_http(ctx.get_db(), uuid)
+    mat = ctx.materializer
+    return [
+        archives_responder.question_archive_schema_from_orm(mat, a)
+        for a in question.archives
+    ]
+
+
+def get_upvotes(ctx, *, uuid: str) -> schemas.QuestionUpvotes:
+    question = get_question_model_http(ctx.get_db(), uuid)
+    return ctx.materializer.get_question_upvotes(question)

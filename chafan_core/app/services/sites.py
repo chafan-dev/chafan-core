@@ -112,3 +112,22 @@ def update_site(
     db: Session, *, old_site: models.Site, update_dict: dict
 ) -> models.Site:
     return crud.site.update(db, db_obj=old_site, obj_in=update_dict)
+
+
+def list_site_question_previews(
+    ctx, *, site: models.Site, skip: int, limit: int
+) -> List[schemas.QuestionPreview]:
+    from chafan_core.utils.base import filter_not_none
+
+    questions = crud.site.get_multi_questions(
+        ctx.get_db(), db_obj=site, skip=skip, limit=limit
+    )
+    mat = ctx.materializer
+    return filter_not_none([mat.preview_of_question(q) for q in questions])
+
+
+def list_site_webhooks(ctx, *, site: models.Site) -> List[schemas.Webhook]:
+    from chafan_core.app.responders import misc as misc_responder
+
+    mat = ctx.materializer
+    return [misc_responder.webhook_schema_from_orm(mat, w) for w in site.webhooks]
