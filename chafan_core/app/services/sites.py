@@ -31,12 +31,14 @@ def create_site(
 
 def create_site_profile(
     db: Session,
-    materializer: Any,
+    mat: Any,
     *,
     owner: models.User,
     site_uuid: str,
 ) -> schemas.Profile:
-    """materializer: Materializer-like with profile_schema_from_orm."""
+    """mat: PrincipalView-like with site/user previews (or profile_schema_from_orm)."""
+    from chafan_core.app.responders import misc as misc_responder
+
     data = crud.profile.create_with_owner(
         db,
         obj_in=schemas.ProfileCreate(
@@ -44,7 +46,9 @@ def create_site_profile(
             site_uuid=site_uuid,
         ),
     )
-    return materializer.profile_schema_from_orm(data)
+    if hasattr(mat, "profile_schema_from_orm"):
+        return mat.profile_schema_from_orm(data)
+    return misc_responder.profile_schema_from_orm(mat, data)
 
 
 def remove_site_profile(db: Session, *, owner_id: int, site_id: int) -> None:
@@ -58,14 +62,16 @@ def related_site_ids(db: Session, site_id: int, top_k: int = 10) -> List[int]:
 
 
 def site_profiles_for_user(
-    db: Session, materializer: Any, user_id: int
+    db: Session, mat: Any, user_id: int
 ) -> List[schemas.Profile]:
+    from chafan_core.app.responders import misc as misc_responder
+
     current_user = crud.user.get(db, id=user_id)
     assert current_user is not None
-    return [
-        materializer.profile_schema_from_orm(p)
-        for p in rank_site_profiles(current_user.profiles)
-    ]
+    profiles = rank_site_profiles(current_user.profiles)
+    if hasattr(mat, "profile_schema_from_orm"):
+        return [mat.profile_schema_from_orm(p) for p in profiles]
+    return [misc_responder.profile_schema_from_orm(mat, p) for p in profiles]
 
 
 def get_site_maps(cached_layer) -> schemas.site.SiteMaps:

@@ -4,8 +4,6 @@ Schema shaping: responders/*
 Permissions: user_permission
 Principal-scoped shaper: infra.principal_view.PrincipalView
   (via RequestContext.materializer / as_principal)
-
-Materializer is an alias of PrincipalView for historical imports.
 """
 
 from __future__ import annotations
@@ -16,11 +14,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import models, schemas
 from chafan_core.app.common import OperationType
-from chafan_core.app.infra.principal_view import PrincipalView
 import chafan_core.app.user_permission as user_permission
-
-# Historical name — prefer PrincipalView / ctx.materializer / ctx.as_principal.
-Materializer = PrincipalView
 
 
 def get_active_site_profile(

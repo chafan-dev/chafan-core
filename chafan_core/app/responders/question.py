@@ -51,8 +51,8 @@ def preview_of_question(
 ) -> Optional[schemas.QuestionPreview]:
     """One question preview schema for any principal allowed to read the site.
 
-    cached_layer may be RequestContext or Materializer (both expose principal_id
-    and preview_of_user; RequestContext has get_db, Materializer has broker).
+    cached_layer may be RequestContext or PrincipalView (both expose principal_id
+    and preview_of_user; RequestContext has get_db, PrincipalView has broker).
     """
     from chafan_core.app.responders._util import get_db
 
