@@ -230,7 +230,7 @@ def create_answer(
     if answer.is_published:
         logger.info(f"create_answer add postprocess task id={answer.id}")
         background_tasks.add_task(postprocess_new_answer, answer.id, False)
-    return cached_layer.materializer.answer_schema_from_orm(answer)
+    return cached_layer.answer_schema_from_orm(answer)
 
 
 def _update_answer(
@@ -282,7 +282,7 @@ def _update_answer(
         background_tasks.add_task(postprocess_new_answer, answer.id, was_published)
 
     cached_layer.invalidate_answer_cache(answer.uuid)
-    return unwrap(cached_layer.materializer.answer_schema_from_orm(answer))
+    return unwrap(cached_layer.answer_schema_from_orm(answer))
 
 
 @router.put("/{uuid}", response_model=schemas.Answer)
@@ -350,7 +350,7 @@ def update_answer_by_mod(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
-    answer_data = cached_layer.materializer.answer_schema_from_orm(answer)
+    answer_data = cached_layer.answer_schema_from_orm(answer)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
@@ -368,7 +368,7 @@ def update_answer_by_mod(
     answer = crud.answer.update_checked(
         db, db_obj=answer, obj_in=update_in.dict(exclude_none=True)
     )
-    answer_data = cached_layer.materializer.answer_schema_from_orm(answer)
+    answer_data = cached_layer.answer_schema_from_orm(answer)
     cached_layer.invalidate_answer_cache(uuid=uuid)
     return answer_data
 
