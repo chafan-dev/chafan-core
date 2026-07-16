@@ -108,6 +108,15 @@ def get_cached_layer_logged_in(
         broker.close()
 
 
+def cached_layer_from_context(ctx: RequestContext) -> CachedLayer:
+    """Build a transitional CachedLayer on a RequestContext/DataBroker."""
+    broker = ctx if isinstance(ctx, DataBroker) else DataBroker(principal_id=ctx.principal_id)
+    if not isinstance(ctx, DataBroker):
+        broker._db = ctx._db
+        broker._redis = ctx._redis
+    return CachedLayer(broker, ctx.principal_id)
+
+
 def get_db(
     broker: DataBroker = Depends(get_data_broker_with_params()),
 ) -> Generator:
