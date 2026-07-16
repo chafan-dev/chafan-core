@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.materialize import Materializer
 
 router = APIRouter()
 
@@ -17,7 +16,7 @@ def _payment_schema_from_orm(
     receiver_id: int,
 ) -> schemas.CoinPayment:
     event = None
-    m = Materializer(broker, receiver_id)
+    m = broker.as_principal(receiver_id)
     if payment.event_json:
         event = m.materialize_event(payment.event_json)
     base = schemas.CoinPaymentInDBBase.from_orm(payment)

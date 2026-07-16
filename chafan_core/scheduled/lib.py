@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, rep_manager
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.email_utils import send_notification_email
-from chafan_core.app.materialize import Materializer
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import EntityType, filter_not_none
@@ -34,7 +33,7 @@ def deliver_notifications(data_broker: DataBroker) -> None:
             user.unsubscribe_token = secrets.token_urlsafe(10)
             db.commit()
         try:
-            m = Materializer(data_broker, user.id)
+            m = data_broker.as_principal(user.id)
             ns = filter_not_none([m.notification_schema_from_orm(n) for n in notifs])
             if ns:
                 send_notification_email(

@@ -54,9 +54,9 @@ def get_request_context(
 ) -> Generator:
     """Preferred per-request context (principal + lazy db/redis).
 
-    Yields a DataBroker (RequestContext subclass) so Materializer/RequestContext
-    can share the same instance when needed. close_legacy_commit keeps
-    historical request-end commit until services own transactions.
+    Yields a DataBroker (RequestContext subclass). Use ctx.materializer for the
+    request principal, or ctx.as_principal(id) for another viewer. close_legacy_commit
+    keeps historical request-end commit until services own transactions.
     """
     ctx: RequestContext = DataBroker(principal_id=current_user_id)
     try:
