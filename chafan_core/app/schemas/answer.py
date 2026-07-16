@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from chafan_core.app.schemas.comment import Comment, CommentForVisitor
 from chafan_core.app.schemas.preview import UserPreview
-from chafan_core.app.schemas.question import QuestionPreview, QuestionPreviewForVisitor
+from chafan_core.app.schemas.question import QuestionPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.site import Site
 from chafan_core.utils.base import ContentVisibility
@@ -80,7 +80,7 @@ class AnswerForVisitor(AnswerInDBBase):
     site: Site
     view_times: int
     comments: List[CommentForVisitor] = []
-    question: QuestionPreviewForVisitor
+    question: QuestionPreview
     upvotes: Optional[AnswerUpvotes] = None
     suggest_editable: bool = False
 
@@ -106,5 +106,5 @@ class AnswerPreview(AnswerPreviewBase):
 
 
 class AnswerPreviewForVisitor(AnswerPreviewBase):
-    question: QuestionPreviewForVisitor
+    question: QuestionPreview
     full_answer: Optional[AnswerForVisitor]

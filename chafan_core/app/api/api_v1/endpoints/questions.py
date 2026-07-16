@@ -58,15 +58,8 @@ def _get_answers_for_visitor(
 
 def _get_question_data(
     cached_layer: CachedLayer, question: models.Question
-) -> Union[schemas.Question, schemas.QuestionForVisitor]:
-    # TODO removed the check for principle id 2025-07-23
+) -> schemas.Question:
     question_data = cached_layer.question_schema_from_orm(question)
-#    if cached_layer.principal_id is None:
-#        question_data = cached_layer.materializer.question_for_visitor_schema_from_orm(
-#            question
-#        )
-#    else:
-#        question_data = cached_layer.materializer.question_schema_from_orm(question)
     if question_data is None:
         raise HTTPException_(
             status_code=400,
@@ -76,7 +69,7 @@ def _get_question_data(
 
 
 @router.get(
-    "/{uuid}", response_model=Union[schemas.Question, schemas.QuestionForVisitor]
+    "/{uuid}", response_model=schemas.Question
 )
 @limiter.limit("60/minute")
 def get_question(
@@ -328,7 +321,7 @@ def hide_question(
     question = crud.question.update(
         cached_layer.get_db(), db_obj=question, obj_in={"is_hidden": True}
     )
-    return cached_layer.materializer.question_schema_from_orm(question)
+    return cached_layer.question_schema_from_orm(question)
 
 
 @router.post(
