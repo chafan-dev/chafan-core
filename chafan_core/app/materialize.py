@@ -1,41 +1,25 @@
-from typing import Any, Dict, Mapping, Optional, Tuple
-import logging
-logger = logging.getLogger(__name__)
+"""Thin Materializer façade + back-compat re-exports.
+
+Schema shaping lives in responders/*; permission helpers live in
+user_permission. This module remains for historical imports and as the
+Materializer class used by RequestContext.materializer, feed, and mq.
+"""
+
+from __future__ import annotations
+
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import OperationType
 from chafan_core.app.data_broker import DataBroker
-from chafan_core.app.model_utils import is_live_answer
-from chafan_core.app.schemas.answer_archive import AnswerArchiveInDB
-from chafan_core.app.schemas.article_archive import ArticleArchiveInDB
 from chafan_core.app.schemas.event import Event
 from chafan_core.app.schemas.notification import Notification
-from chafan_core.app.schemas.question import QuestionPreviewForSearch
-from chafan_core.app.schemas.richtext import RichText
-from chafan_core.utils.base import (
-    ContentVisibility,
-    HTTPException_,
-    map_,
-)
-from chafan_core.utils.constants import (
-    unknown_user_full_name,
-    unknown_user_handle,
-    unknown_user_uuid,
-)
-from chafan_core.utils.validators import StrippedNonEmptyBasicStr
-
-_ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
-    uuid=unknown_user_uuid,
-    handle=StrippedNonEmptyBasicStr(unknown_user_handle),
-    full_name=unknown_user_full_name,
-)
-
-
 import chafan_core.app.user_permission as user_permission
-# Back-compat wrappers — prefer chafan_core.app.user_permission.
-# Call through functions (not aliases) to avoid circular-import init issues.
+
+
+# --- Back-compat free functions (prefer user_permission / responders) ---
 
 
 def get_active_site_profile(
@@ -66,85 +50,14 @@ def check_user_in_channel(current_user: models.User, channel: models.Channel) ->
     user_permission.check_user_in_channel(current_user, channel)
 
 
-def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
-    return questions.filter_by(**conditions)
-
-
-def is_eligible_item(question: models.Question, conditions: Mapping[str, Any]) -> bool:
-    return all(getattr(question, k) == v for k, v in conditions.items())
-
-
-def submission_archive_schema_from_orm(
-    submission: models.SubmissionArchive,
-) -> schemas.SubmissionArchive:
-    d: Dict[str, Any] = {}
-    d["id"] = submission.id
-    d["created_at"] = submission.created_at
-    d["title"] = submission.title
-    d["topic_uuids"] = submission.topic_uuids
-    d["url"] = submission.submission.url if submission.submission else None
-    if submission.description is not None:
-        d["desc"] = RichText(
-            source=submission.description,
-            rendered_text=submission.description_text,
-            editor=submission.description_editor,
-        )
-    else:
-        d["desc"] = None
-    return schemas.SubmissionArchive(**d)
-
-
-def article_archive_schema_from_orm(
-    article_archive: models.ArticleArchive,
-) -> schemas.ArticleArchive:
-    base = ArticleArchiveInDB.from_orm(article_archive)
-    d = base.dict()
-    d["content"] = RichText(
-        source=article_archive.body,
-        editor=article_archive.editor,
+def can_read_answer(db: Session, *, answer: models.Answer, principal_id: int) -> bool:
+    return user_permission.can_read_answer(
+        db, answer=answer, principal_id=principal_id
     )
-    return schemas.ArticleArchive(**d)
-
-
-def answer_archive_schema_from_orm(
-    answer_archive: models.Archive,
-) -> schemas.AnswerArchive:
-    base = AnswerArchiveInDB.from_orm(answer_archive)
-    d = base.dict()
-    d["content"] = RichText(
-        source=answer_archive.body,
-        editor=answer_archive.editor,
-    )
-    return schemas.AnswerArchive(**d)
-
-
-def root_route(comment: models.Comment) -> Optional[str]:
-    from chafan_core.app.responders.comment import root_route as _root_route
-
-    return _root_route(comment)
-
-
-_MAX_ANSWER_BODY_CHARS = 100
 
 
 def visitor_can_read_answer(*, answer: models.Answer) -> bool:
-    if not is_live_answer(answer):
-        return False
-    if answer.visibility != ContentVisibility.ANYONE:
-        return False
-    return answer.site.public_readable
-
-
-def can_read_answer(db: Session, *, answer: models.Answer, principal_id: int) -> bool:
-    if answer.is_deleted:
-        return False
-    if principal_id == answer.author_id:
-        return True
-    if not is_live_answer(answer):
-        return False
-    return user_in_site(
-        db, site=answer.site, user_id=principal_id, op_type=OperationType.ReadSite
-    )
+    return user_permission.visitor_can_read_answer(answer=answer)
 
 
 def can_read_article(*, article: models.Article, principal_id: int) -> bool:
@@ -161,7 +74,7 @@ def visitor_can_read_article(*, article: models.Article) -> bool:
     return article_responder.visitor_can_read_article(article=article)
 
 
-def get_answer_text_preview(answer: models.Answer) -> Tuple[str, bool]:
+def get_answer_text_preview(answer: models.Answer):
     from chafan_core.app.responders import answer as answer_responder
 
     return answer_responder.get_answer_text_preview(answer)
@@ -173,19 +86,42 @@ def user_schema_from_orm(user: models.User) -> schemas.User:
     return user_responder.user_schema_from_orm(user)
 
 
-# Should I put it into a class?
 def preview_of_question_as_search_hit(question: models.Question):
-    if not question.site.public_readable:
-        return None
-    r = QuestionPreviewForSearch(
-        uuid = question.uuid,
-        title = question.title
-    )
-    return r
+    from chafan_core.app.responders import question as question_responder
 
+    return question_responder.preview_of_question_as_search_hit(question)
+
+
+def submission_archive_schema_from_orm(submission: models.SubmissionArchive):
+    from chafan_core.app.responders import archives as archives_responder
+
+    return archives_responder.submission_archive_schema_from_orm(submission)
+
+
+def article_archive_schema_from_orm(article_archive: models.ArticleArchive):
+    from chafan_core.app.responders import archives as archives_responder
+
+    return archives_responder.article_archive_schema_from_orm(article_archive)
+
+
+def answer_archive_schema_from_orm(answer_archive: models.Archive):
+    from chafan_core.app.responders import archives as archives_responder
+
+    return archives_responder.answer_archive_schema_from_orm(answer_archive)
+
+
+def root_route(comment: models.Comment):
+    from chafan_core.app.responders.comment import root_route as _root_route
+
+    return _root_route(comment)
 
 
 class Materializer(object):
+    """Request-scoped schema shaper: principal + db + plain user previews.
+
+    All heavy logic is in responders/*; methods here only dispatch.
+    """
+
     def __init__(self, broker: DataBroker, principal_id: Optional[int]):
         self.broker = broker
         self.principal_id = principal_id
@@ -195,20 +131,12 @@ class Materializer(object):
             self.principal = None
 
     def get_db(self) -> Session:
-        """Duck-type with RequestContext so responders can take either."""
         return self.broker.get_db()
 
     def preview_of_user(self, user: models.User) -> schemas.UserPreview:
-        if not user.is_active:
-            return _ANONYMOUS_USER_PREVIEW
-        return schemas.UserPreview(
-            uuid=user.uuid,
-            karma=user.karma,
-            full_name=user.full_name,
-            handle=user.handle,
-            avatar_url=user.avatar_url,
-            personal_introduction=user.personal_introduction,
-        )
+        from chafan_core.app.responders import user as user_responder
+
+        return user_responder.plain_preview_of_user(user)
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
         import chafan_core.app.responders as responders
@@ -218,19 +146,14 @@ class Materializer(object):
     def get_user_article_column_subscription(
         self, article_column: models.ArticleColumn
     ) -> schemas.UserArticleColumnSubscription:
-        if self.principal:
-            subscribed = article_column in self.principal.subscribed_article_columns
-        else:
-            subscribed = False
-        return schemas.UserArticleColumnSubscription(
-            article_column_uuid=article_column.uuid,
-            subscription_count=article_column.subscribers.count(),
-            subscribed_by_me=subscribed,
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.get_user_article_column_subscription(
+            self, article_column
         )
 
     def article_column_schema_from_orm(
-        self,
-        article_column: models.ArticleColumn,
+        self, article_column: models.ArticleColumn
     ) -> schemas.ArticleColumn:
         from chafan_core.app.responders import misc as misc_responder
 
@@ -243,10 +166,8 @@ class Materializer(object):
 
         return responders.question.preview_of_question(self, question)
 
-    # Back-compat alias during Step 1 migration of call sites.
     def preview_of_question_for_visitor(
-        self,
-        question: models.Question,
+        self, question: models.Question
     ) -> Optional[schemas.QuestionPreview]:
         return self.preview_of_question(question)
 
@@ -264,10 +185,8 @@ class Materializer(object):
 
         return answer_responder.preview_of_answer(self, answer)
 
-    # Back-compat alias during Step 1 migration of call sites.
     def preview_of_answer_for_visitor(
-        self,
-        answer: models.Answer,
+        self, answer: models.Answer
     ) -> Optional[schemas.AnswerPreview]:
         return self.preview_of_answer(answer)
 
@@ -294,8 +213,7 @@ class Materializer(object):
         return misc_responder.webhook_schema_from_orm(self, webhook)
 
     def form_response_schema_from_orm(
-        self,
-        form_response: models.FormResponse,
+        self, form_response: models.FormResponse
     ) -> schemas.FormResponse:
         from chafan_core.app.responders import misc as misc_responder
 
@@ -309,20 +227,12 @@ class Materializer(object):
     def question_archive_schema_from_orm(
         self, archive: models.QuestionArchive
     ) -> schemas.QuestionArchive:
-        base = schemas.QuestionArchiveInDB.from_orm(archive)
-        d = base.dict()
-        d["editor"] = map_(archive.editor, self.preview_of_user)
-        if archive.description is not None:
-            d["desc"] = RichText(
-                source=archive.description,
-                editor=archive.description_editor,
-                rendered_text=archive.description_text,
-            )
-        return schemas.QuestionArchive(**d)
+        from chafan_core.app.responders import archives as archives_responder
+
+        return archives_responder.question_archive_schema_from_orm(self, archive)
 
     def invitation_link_schema_from_orm(
-        self,
-        invitation_link: models.InvitationLink,
+        self, invitation_link: models.InvitationLink
     ) -> schemas.InvitationLink:
         from chafan_core.app.responders import misc as misc_responder
 
@@ -346,10 +256,9 @@ class Materializer(object):
         return misc_responder.audit_log_schema_from_orm(self, audit_log)
 
     def task_schema_from_orm(self, task: models.Task) -> schemas.Task:
-        base = schemas.TaskInDB.from_orm(task)
-        d = base.dict()
-        d["initiator"] = self.preview_of_user(task.initiator)
-        return schemas.Task(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.task_schema_from_orm(self, task)
 
     def materialize_event(self, event_internal_json: str) -> Optional[Event]:
         from chafan_core.app.responders import event as event_responder
@@ -363,10 +272,8 @@ class Materializer(object):
 
         return responders.submission.submission_schema_from_orm(self, submission)
 
-    # Back-compat alias during Step 1 migration of call sites.
     def submission_for_visitor_schema_from_orm(
-        self,
-        submission: models.Submission,
+        self, submission: models.Submission
     ) -> Optional[schemas.Submission]:
         return self.submission_schema_from_orm(submission)
 
@@ -378,8 +285,7 @@ class Materializer(object):
         return event_responder.notification_schema_from_orm(self, notification)
 
     def submission_suggestion_schema_from_orm(
-        self,
-        submission_suggestion: models.SubmissionSuggestion,
+        self, submission_suggestion: models.SubmissionSuggestion
     ) -> Optional[schemas.SubmissionSuggestion]:
         from chafan_core.app.responders import suggestions as suggestions_responder
 
@@ -388,8 +294,7 @@ class Materializer(object):
         )
 
     def answer_suggest_edit_schema_from_orm(
-        self,
-        answer_suggest_edit: models.AnswerSuggestEdit,
+        self, answer_suggest_edit: models.AnswerSuggestEdit
     ) -> Optional[schemas.AnswerSuggestEdit]:
         from chafan_core.app.responders import suggestions as suggestions_responder
 
