@@ -5,7 +5,7 @@ from chafan_core.app.config import settings
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.utils.base import HTTPException_, filter_not_none
 
 router = APIRouter()
@@ -14,9 +14,10 @@ router = APIRouter()
 @router.get("/{uuid}", response_model=schemas.ArticleColumn)
 def get_article_column(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     article_column = crud.article_column.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if article_column is None:
         raise HTTPException_(
@@ -30,10 +31,11 @@ def get_article_column(
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
 def get_article_column_articles(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     article_column = crud.article_column.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if article_column is None:
         raise HTTPException_(
@@ -50,10 +52,11 @@ def get_article_column_articles(
 
 @router.post("/", response_model=schemas.ArticleColumn)
 def create_article_column(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     article_column_in: schemas.ArticleColumnCreate,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     new_article_column = crud.article_column.create_with_owner(
         cached_layer.get_db(),
         obj_in=article_column_in,
@@ -65,10 +68,11 @@ def create_article_column(
 @router.put("/{uuid}", response_model=schemas.ArticleColumn)
 def update_article_column(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     article_column_in: schemas.ArticleColumnUpdate,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
     if article_column is None:

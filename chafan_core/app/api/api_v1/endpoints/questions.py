@@ -7,6 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
@@ -63,12 +64,13 @@ def get_question(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
     """
     Get question in one of current_user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     question = questions_service.get_readable_question(
         cached_layer.get_db(),
         uuid=uuid,
@@ -92,9 +94,10 @@ def get_question(
 def bump_views_counter(
     *,
     uuid: str,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     _current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     view_counters.add_view_async(cached_layer, "question", question.id)
     return schemas.GenericResponse()
@@ -106,13 +109,14 @@ def bump_views_counter(
 )
 def get_question_answers(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
     """
     Get question's answers' previews.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     if not user_in_site(
         cached_layer.get_db(),
@@ -130,7 +134,7 @@ def get_question_answers(
 @router.post("/", response_model=schemas.Question)
 def create_question(
     request: Request,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     question_in: schemas.QuestionCreate,
     background_tasks: BackgroundTasks,
@@ -138,6 +142,7 @@ def create_question(
     """
     Create new question authored by the current user in one of the belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     crud.audit_log.create_with_user(
@@ -175,7 +180,7 @@ def create_question(
 def update_question(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     question_in: schemas.QuestionUpdate,
     current_user_id: int = Depends(deps.get_current_user_id),
@@ -184,6 +189,7 @@ def update_question(
     """
     Update question in one of current_user's belonging sites as member.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     crud.audit_log.create_with_user(
         db,
@@ -258,9 +264,10 @@ def update_question(
 @router.get("/{uuid}/archives/", response_model=List[schemas.QuestionArchive])
 def get_question_archives(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
     if question is None:
@@ -276,10 +283,11 @@ def get_question_archives(
 
 @router.get("/{uuid}/upvotes/", response_model=schemas.QuestionUpvotes)
 def get_question_upvotes(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     return cached_layer.materializer.get_question_upvotes(
         questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     )
@@ -287,10 +295,11 @@ def get_question_upvotes(
 
 @router.put("/{uuid}/hide", response_model=schemas.Question)
 def hide_question(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     if (
         question.site.moderator_id != cached_layer.principal_id
@@ -311,10 +320,11 @@ def hide_question(
 )
 def invite_answer(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     user_uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
     check_user_in_site(
         cached_layer.get_db(),
@@ -357,13 +367,14 @@ def invite_answer(
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.QuestionUpvotes)
 def upvote_question(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Upvote question as the current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
@@ -430,13 +441,14 @@ def upvote_question(
 
 @router.delete("/{uuid}/upvotes/", response_model=schemas.QuestionUpvotes)
 def cancel_upvote_question(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Cancel upvote for question as the current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     question = crud.question.get_by_uuid(db, uuid=uuid)
@@ -477,9 +489,10 @@ def get_question_page(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user_id = cached_layer.principal_id
     question = questions_service.get_readable_question(
         cached_layer.get_db(),

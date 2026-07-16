@@ -7,6 +7,7 @@ from fastapi.param_functions import Query
 from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import report_msg
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.answer import AnswerPreview
@@ -39,7 +40,7 @@ def _update_feed_seq(
 def get_feed(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     before_activity_id: Optional[int] = None,
     limit: int = 20,
     random: bool = Query(default=False),
@@ -49,6 +50,7 @@ def get_feed(
     """
     Get activity feed.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user_id: int = unwrap(cached_layer.principal_id)
     logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
 
@@ -69,17 +71,19 @@ def get_feed(
 
 @router.get("/settings", response_model=schemas.UserFeedSettings)
 def get_settings(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     return cached_layer.get_current_active_user().feed_settings
 
 
 @router.put("/settings/blocked-origins/", response_model=schemas.GenericResponse)
 def update_blocked_origins(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     update_in: schemas.UpdateOrigins,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     if current_user.feed_settings:
         settings = UserFeedSettings.parse_obj(current_user.feed_settings)

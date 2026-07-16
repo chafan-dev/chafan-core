@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, rep_manager, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import can_read_answer, user_in_site
 from chafan_core.app.schemas.event import (
@@ -28,8 +28,9 @@ router = APIRouter()
 # FIXME: paging
 @router.get("/", response_model=List[schemas.Reward])
 def get_rewards(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     received = current_user.incoming_rewards
     given = current_user.outgoing_rewards
@@ -39,10 +40,11 @@ def get_rewards(
 
 @router.post("/", response_model=schemas.Reward)
 def create_reward(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     reward_in: RewardCreate,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     current_user = cached_layer.get_current_active_user()
     receiver = crud.user.get_by_uuid(db, uuid=reward_in.receiver_uuid)
@@ -95,10 +97,11 @@ def create_reward(
 
 @router.post("/{id}/claim", response_model=schemas.Reward)
 def claim_reward(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     id: int,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     reward = crud.reward.get(db, id=id)
     current_user = cached_layer.get_current_active_user()
@@ -174,11 +177,12 @@ def claim_reward(
 
 @router.post("/{id}/refund", response_model=schemas.Reward)
 def refund_reward(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     db: Session = Depends(deps.get_db),
     id: int,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     reward = crud.reward.get(db, id=id)
     if reward is None:

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, security
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import (
     check_email,
     client_ip,
@@ -259,13 +259,14 @@ def send_verification_code(
 @router.post("/open-account", response_model=schemas.User)
 def create_user_open(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     email: CaseInsensitiveEmailStr = Body(...),
     handle: StrippedNonEmptyBasicStr = Body(...),
     password: SecretStr = Body(...),
     code: str = Body(...),
     invitation_link_uuid: str = Body(...),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if (not settings.USERS_OPEN_REGISTRATION):
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -445,10 +446,11 @@ def compute_score_of_form_response(
     response_model=schemas.msg.ClaimWelcomeTestScoreMsg,
 )
 def claim_welcome_test_rewards(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     id: int,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     if current_user.claimed_welcome_test_rewards_with_form_response_id is not None:
@@ -518,8 +520,9 @@ _HOSTNAMES_FOR_LINK_PREVIEW = set(
 
 @router.get("/link-preview/", response_model=Mapping[str, str])
 def get_link_preview(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer), *, url: str
+    ctx: RequestContext = Depends(deps.get_request_context), *, url: str
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     parsed = urlparse(url)
     if parsed.hostname not in _HOSTNAMES_FOR_LINK_PREVIEW:
         raise HTTPException_(

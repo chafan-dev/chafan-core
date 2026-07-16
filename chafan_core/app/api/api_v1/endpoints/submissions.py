@@ -13,6 +13,7 @@ from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.materialize import (
@@ -35,8 +36,9 @@ router = APIRouter()
     response_model=List[schemas.Submission],
 )
 def get_submissions_for_user(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     return submissions_service.submissions_for_user(cached_layer, cached_layer.principal_id)
 
 
@@ -45,12 +47,13 @@ def get_submissions_for_user(
 )
 def get_submission(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
     """
     Get submission in one of current_user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info("get submission " + uuid)
     submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if submission is None:
@@ -105,8 +108,9 @@ def get_submission_upvotes(
 def bump_views_counter(
     *,
     uuid: str,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -149,7 +153,7 @@ def _create_submission(
 @router.post("/", response_model=schemas.Submission)
 def create_submission(
     request: Request,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     submission_in: schemas.SubmissionCreate,
     background_tasks: BackgroundTasks,
@@ -157,6 +161,7 @@ def create_submission(
     """
     Create new submission authored by the current user in one of the belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
@@ -222,7 +227,7 @@ def _update_submission(
 def update_submission(
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     submission_in: schemas.SubmissionUpdate,
     background_tasks: BackgroundTasks,
@@ -230,6 +235,7 @@ def update_submission(
     """
     Update submission as author.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     crud.audit_log.create_with_user(
         cached_layer.get_db(),
         ipaddr=client_ip(request),
@@ -285,9 +291,10 @@ def get_submission_archives(
 @router.get("/{uuid}/suggestions/", response_model=List[schemas.SubmissionSuggestion])
 def get_submission_suggestions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -310,11 +317,12 @@ def get_submission_suggestions(
 
 @router.put("/{uuid}/hide", response_model=Optional[schemas.Submission])
 def hide_submission(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -337,13 +345,14 @@ def hide_submission(
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.SubmissionUpvotes)
 def upvote_submission(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Upvote submission as the current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
@@ -420,13 +429,14 @@ def upvote_submission(
 
 @router.delete("/{uuid}/upvotes/", response_model=schemas.SubmissionUpvotes)
 def cancel_upvote_submission(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Cancel upvote for submission as the current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)

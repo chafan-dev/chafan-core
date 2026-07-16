@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
 from chafan_core.utils.base import filter_not_none
@@ -24,9 +24,10 @@ def search_users(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     users = crud.user.search_by_handle_or_full_name(cached_layer.get_db(), fragment=q)
@@ -39,9 +40,10 @@ def search_sites(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     sites = crud.site.search(cached_layer.get_db(), fragment=q)
@@ -54,9 +56,10 @@ def search_topics(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     return crud.topic.get_ilike(
@@ -70,10 +73,11 @@ def search_questions(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     # This API is very time consuming! Must check user logged in
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     questions = crud.question.search(cached_layer.get_db(), q=q)
@@ -89,9 +93,10 @@ def search_articles(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     articles = crud.article.search(cached_layer.get_db(), q=q)
@@ -106,9 +111,10 @@ def search_submissions(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     submissions = crud.submission.search(cached_layer.get_db(), q=q)
@@ -123,9 +129,10 @@ def search_answers(
     response: Response,
     request: Request,
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     q: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     if q == "":
         return []
     answers = crud.answer.search(cached_layer.get_db(), q=q)

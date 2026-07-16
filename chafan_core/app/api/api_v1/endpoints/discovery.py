@@ -10,6 +10,7 @@ from sqlalchemy.orm.session import Session
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import get_redis_cli, is_dev
 from chafan_core.app.model_utils import get_live_answers_of_question
 from chafan_core.app.recs import indexed_layer
@@ -28,8 +29,9 @@ router = APIRouter()
     "/pinned-questions/", response_model=List[schemas.QuestionPreview]
 )
 def pinned_questions(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     redis = cached_layer.get_redis()
     key = f"chafan:api:/discovery/pinned-questions"
     value = redis.get(key)
@@ -93,8 +95,9 @@ def _get_pending_questions(
     response_model=List[schemas.QuestionPreview],
 )
 def get_pending_questions(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     redis = get_redis_cli()
     key = f"chafan:pending-questions-for-user:{cached_layer.principal_id}"
     value = redis.get(key)
@@ -113,15 +116,17 @@ def get_pending_questions(
     response_model=List[schemas.QuestionPreview],
 )
 def get_interesting_questions(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     return indexed_layer.get_interesting_questions(cached_layer)
 
 
 @router.get("/interesting-users/", response_model=List[schemas.UserPreview])
 def get_interesting_users(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     return indexed_layer.get_interesting_users(cached_layer)
 
 
@@ -130,7 +135,7 @@ def get_interesting_users(
     response_model=List[schemas.AnswerPreview],
 )
 def get_featured_answers(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
         default=MAX_FEATURED_ANSWERS_LIMIT,
@@ -138,6 +143,7 @@ def get_featured_answers(
         gt=0,
     ),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     stream = (
         db.query(models.Answer)

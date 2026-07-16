@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import get_site
@@ -38,13 +38,14 @@ router = APIRouter()
 
 @router.post("/", response_model=schemas.CreateSiteResponse)
 def create_site(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     site_in: schemas.SiteCreate,
 ) -> Any:
     """
     Create new site as user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     needs_approval = settings.CREATE_SITE_FORCE_NEED_APPROVAL
@@ -146,7 +147,7 @@ def create_site(
 
 @router.put("/{uuid}/config", response_model=schemas.Site, include_in_schema=False)
 def config_site(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
     site_in: schemas.SiteUpdate,
@@ -154,6 +155,7 @@ def config_site(
     """
     Configure a site as moderator.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     site = crud.site.get_by_uuid(db, uuid=uuid)
     if not site:
@@ -207,13 +209,14 @@ from chafan_core.app.common import OperationType
 @router.get("/{subdomain}", response_model=schemas.Site)
 def get_site_info(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
     subdomain: str
 ) -> Any:
     """
     Get a site's basic info.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info(f"user {current_user_id} requesting site {subdomain}")
     #site_data = cached_layer.get_site_info(subdomain=subdomain)
     db = cached_layer.get_db()
@@ -238,7 +241,7 @@ def get_site_info(
 @router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
 def get_site_questions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -251,6 +254,7 @@ def get_site_questions(
     """
     Get a site's questions.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     site = get_site(db, uuid)
     if not site.public_readable:
@@ -274,7 +278,7 @@ def get_site_questions(
 )
 def get_site_submissions(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     db: Session = Depends(deps.get_db),
     uuid: str,
     skip: int = Query(default=0, ge=0),
@@ -288,6 +292,7 @@ def get_site_submissions(
     """
     Get a site's submissions.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(db, uuid)
     if current_user_id:
         check_user_in_site(
@@ -333,13 +338,14 @@ def get_site_apply(
 @router.post("/{uuid}/apply", response_model=schemas.SiteApplicationResponse)
 def site_apply(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
     """
     Apply to site membership.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(db, uuid)
     current_user = cached_layer.get_current_active_user()
     application = (
@@ -399,10 +405,11 @@ def site_apply(
 @router.delete("/{uuid}/membership", response_model=schemas.GenericResponse)
 def remove_my_site_membership(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(db, uuid)
     application = (
         db.query(models.Application)
@@ -423,9 +430,10 @@ def remove_my_site_membership(
 @router.get("/{uuid}/webhooks/", response_model=List[schemas.Webhook])
 def get_webhooks(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(cached_layer.get_db(), uuid)
     if site.moderator_id != cached_layer.principal_id:
         raise HTTPException_(
@@ -441,9 +449,10 @@ def get_webhooks(
 @router.get("/{uuid}/related/", response_model=List[schemas.Site])
 def get_related(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     site = get_site(cached_layer.get_db(), uuid)
     related_sites: Dict[int, models.Site] = {}
     if site.category_topic is not None:

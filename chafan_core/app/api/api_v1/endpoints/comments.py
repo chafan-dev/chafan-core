@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.task import postprocess_comment_update, postprocess_new_comment
@@ -21,12 +21,13 @@ router = APIRouter()
 @router.get("/{uuid}", response_model=schemas.Comment)
 def get_comment(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer),
+    ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
     """
     Get a comment in one of the current user's belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     comment = crud.comment.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if comment is None:
         raise HTTPException_(
@@ -77,11 +78,12 @@ def get_comment_upvotes(
 @router.delete("/{uuid}", response_model=schemas.GenericResponse)
 def delete_comment(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     comment = crud.comment.get_by_uuid(db, uuid=uuid)
     if comment is None:
         raise HTTPException_(
@@ -100,7 +102,7 @@ def delete_comment(
 @router.post("/", response_model=schemas.Comment)
 def create_comment(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     db: Session = Depends(deps.get_db),
     comment_in: schemas.CommentCreate,
     background_tasks: BackgroundTasks,
@@ -108,6 +110,7 @@ def create_comment(
     """
     Create new comment authored by the current active user in one of the belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user_id = cached_layer.unwrapped_principal_id()
 
     def check_site(site: models.Site) -> None:
@@ -150,7 +153,7 @@ def create_comment(
 @router.put("/{uuid}", response_model=schemas.Comment)
 def update_comment(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     comment_in: schemas.CommentUpdate,
     background_tasks: BackgroundTasks,
@@ -158,6 +161,7 @@ def update_comment(
     """
     Update comment authored by the current user in one of the belonging sites.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user_id = cached_layer.principal_id
     comment = crud.comment.get_by_uuid(cached_layer.get_db(), uuid=uuid)
     if comment is None:
@@ -198,13 +202,14 @@ def update_comment(
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.CommentUpvotes)
 def upvote_comment(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Upvote comment as the current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     comment = crud.comment.get_by_uuid(db, uuid=uuid)
@@ -249,13 +254,14 @@ def upvote_comment(
 
 @router.delete("/{uuid}/upvotes/", response_model=schemas.CommentUpvotes)
 def cancel_upvote_comment(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     uuid: str,
 ) -> Any:
     """
     Cancel upvote for comment as the current user.
     """
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     db = cached_layer.get_db()
     comment = crud.comment.get_by_uuid(db, uuid=uuid)

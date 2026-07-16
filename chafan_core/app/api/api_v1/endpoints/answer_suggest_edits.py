@@ -8,6 +8,7 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.answers import _update_answer
 from chafan_core.app.cached_layer import CachedLayer
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.schemas.answer import AnswerUpdate
@@ -23,11 +24,12 @@ router = APIRouter()
 
 @router.post("/", response_model=schemas.AnswerSuggestEdit)
 def post_answer_suggest_edits(
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     create_in: AnswerSuggestEditCreate,
     background_tasks: BackgroundTasks,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     current_user = cached_layer.get_current_active_user()
     answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=create_in.answer_uuid)
     if answer is None:
@@ -114,11 +116,12 @@ def _accept_answer_suggest_edit(
 @router.put("/{uuid}", response_model=schemas.AnswerSuggestEdit)
 def update_answer_suggest_edits(
     *,
-    cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     update_in: AnswerSuggestEditUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
+    cached_layer = deps.cached_layer_from_context(ctx)
     db = cached_layer.get_db()
     current_user_id = cached_layer.unwrapped_principal_id()
     answer_suggest_edit = crud.answer_suggest_edit.get_by_uuid(db, uuid=uuid)
