@@ -33,11 +33,14 @@ def get_article(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
 ) -> Any:
-    current_user_id = cached_layer.principal_id
-    article = cached_layer.get_article_by_uuid(uuid, current_user_id)
-    if article is None:
-        from chafan_core.app.services import audit as audit_service
+    from chafan_core.app.services import articles as articles_service
+    from chafan_core.app.services import audit as audit_service
 
+    current_user_id = cached_layer.principal_id
+    article = articles_service.get_article_by_uuid(
+        cached_layer.get_db(), uuid, current_user_id
+    )
+    if article is None:
         audit_service.create_audit(
             cached_layer.get_db(),
             api=f"get_article {uuid} retrieved None",
@@ -54,7 +57,7 @@ def get_article(
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
-    data = cached_layer.article_schema_from_orm(article)
+    data = articles_service.article_schema(cached_layer, article)
     if data is None:
         raise HTTPException_(
             status_code=400,
@@ -221,7 +224,9 @@ def create_article(
         from chafan_core.app.task import postprocess_new_article
 
         background_tasks.add_task(postprocess_new_article, new_article.id)
-    data = cached_layer.article_schema_from_orm(new_article)
+    from chafan_core.app.services import articles as articles_service
+
+    data = articles_service.article_schema(cached_layer, new_article)
     assert data is not None
     return data
 
@@ -299,7 +304,9 @@ def update_article(
         from chafan_core.app.task import postprocess_updated_article
 
         background_tasks.add_task(postprocess_updated_article, article.id, was_published)
-    data = cached_layer.article_schema_from_orm(article)
+    from chafan_core.app.services import articles as articles_service
+
+    data = articles_service.article_schema(cached_layer, article)
     assert data is not None
     return data
 

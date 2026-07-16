@@ -8,10 +8,15 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, user_permission
 from chafan_core.utils.base import HTTPException_
+import chafan_core.app.responders as responders
 
 
 def get_question_model(db: Session, uuid: str) -> Optional[models.Question]:
     return crud.question.get_by_uuid(db, uuid=uuid)
+
+
+def get_question_by_id(db: Session, question_id: int) -> Optional[models.Question]:
+    return crud.question.get_by_id(db, id=question_id)
 
 
 def get_question_model_http(db: Session, uuid: str) -> models.Question:
@@ -41,4 +46,19 @@ def get_readable_question(
 
 
 def question_schema(cached_layer, question: models.Question) -> Optional[schemas.Question]:
-    return cached_layer.question_schema_from_orm(question)
+    return responders.question.question_schema_from_orm(
+        cached_layer.broker, cached_layer.principal_id, question, cached_layer
+    )
+
+
+def get_question_subscription(
+    cached_layer, question: models.Question
+) -> Optional[schemas.UserQuestionSubscription]:
+    current_user = cached_layer.try_get_current_user()
+    if not current_user:
+        return None
+    return schemas.UserQuestionSubscription(
+        question_uuid=question.uuid,
+        subscription_count=question.subscribers.count(),
+        subscribed_by_me=(question in current_user.subscribed_questions),
+    )
