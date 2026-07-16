@@ -46,9 +46,9 @@ def preview_of_article(ctx, article: models.Article) -> Optional[schemas.Article
 
 
 def article_schema_from_orm(
-    cached_layer, article: models.Article, principal_id
+    ctx, article: models.Article, principal_id
 ) -> Optional[schemas.Article]:
-    db = get_db(cached_layer)
+    db = get_db(ctx)
     if not user_permission.article_read_allowed(db, article, principal_id):
         return None
 
@@ -65,7 +65,7 @@ def article_schema_from_orm(
         if principal is not None:
             bookmarked = article in principal.bookmarked_articles
 
-    mat = shaper(cached_layer)
+    mat = shaper(ctx)
     base = ArticleInDB.from_orm(article)
     d = base.dict()
     d["article_column"] = mat.article_column_schema_from_orm(article.article_column)
@@ -76,7 +76,7 @@ def article_schema_from_orm(
     d["bookmarked"] = bookmarked
     d["author"] = mat.preview_of_user(article.author)
     d["upvoted"] = upvoted
-    d["view_times"] = view_counters.get_viewcount_article(cached_layer, article.id)
+    d["view_times"] = view_counters.get_viewcount_article(ctx, article.id)
     d["archives_count"] = len(article.archives)
 
     if article.is_published:

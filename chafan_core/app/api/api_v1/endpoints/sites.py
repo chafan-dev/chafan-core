@@ -135,7 +135,7 @@ def create_site(
     )
     sites_service.create_site_profile(
         db,
-        ctx.materializer,
+        ctx.principal_view,
         owner=new_site.moderator,
         site_uuid=new_site.uuid,
     )
@@ -367,7 +367,7 @@ def site_apply(
         if not existing_profile:
             sites_service.create_site_profile(
                 db,
-                ctx.materializer,
+                ctx.principal_view,
                 owner=current_user,
                 site_uuid=site.uuid,
             )

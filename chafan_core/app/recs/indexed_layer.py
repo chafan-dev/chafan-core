@@ -38,17 +38,17 @@ def _get_interesting_question_ids(user: models.User) -> List[int]:
 
 
 def get_interesting_questions(
-    cached_layer: RequestContext,
+    ctx: RequestContext,
 ) -> List[schemas.QuestionPreview]:
-    current_user = cached_layer.try_get_current_user()
+    current_user = ctx.try_get_current_user()
     if not current_user:
-        current_user = crud.user.try_get_visitor_user(cached_layer.get_db())
+        current_user = crud.user.try_get_visitor_user(ctx.get_db())
         if not current_user:
             return []
     return filter_not_none(
         [
-            cached_layer.materializer.preview_of_question(
-                unwrap(crud.question.get(cached_layer.get_db(), id=q_id))
+            ctx.principal_view.preview_of_question(
+                unwrap(crud.question.get(ctx.get_db(), id=q_id))
             )
             for q_id in _get_interesting_question_ids(current_user)
         ]
@@ -69,14 +69,14 @@ def _get_interesting_user_ids(user: models.User) -> List[int]:
     return user.interesting_user_ids
 
 
-def get_interesting_users(cached_layer: RequestContext) -> List[UserPreview]:
-    current_user = cached_layer.try_get_current_user()
+def get_interesting_users(ctx: RequestContext) -> List[UserPreview]:
+    current_user = ctx.try_get_current_user()
     if not current_user:
-        current_user = crud.user.try_get_visitor_user(cached_layer.get_db())
+        current_user = crud.user.try_get_visitor_user(ctx.get_db())
     if current_user:
         return [
-            cached_layer.preview_of_user(
-                unwrap(crud.user.get(cached_layer.get_db(), id=u))
+            ctx.preview_of_user(
+                unwrap(crud.user.get(ctx.get_db(), id=u))
             )
             for u in _get_interesting_user_ids(current_user)
         ]

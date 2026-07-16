@@ -10,31 +10,31 @@ from chafan_core.utils.base import filter_not_none
 import chafan_core.app.responders as responders
 
 
-def submission_schema(cached_layer, submission: models.Submission):
-    return responders.submission.submission_schema_from_orm(cached_layer, submission)
+def submission_schema(ctx, submission: models.Submission):
+    return responders.submission.submission_schema_from_orm(ctx, submission)
 
 
-def recent_k_of_site(cached_layer, site: models.Site, k: int) -> List[schemas.Submission]:
+def recent_k_of_site(ctx, site: models.Site, k: int) -> List[schemas.Submission]:
     return filter_not_none(
-        [submission_schema(cached_layer, s) for s in site.submissions]
+        [submission_schema(ctx, s) for s in site.submissions]
     )[:k]
 
 
 def submissions_for_user(
-    cached_layer, current_user_id: Optional[int]
+    ctx, current_user_id: Optional[int]
 ) -> List[schemas.Submission]:
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     if current_user_id:
         current_user = crud.user.get(db, id=current_user_id)
         assert current_user is not None
         submissions: List[schemas.Submission] = []
         for profile in current_user.profiles:
-            submissions.extend(recent_k_of_site(cached_layer, profile.site, k=20))
+            submissions.extend(recent_k_of_site(ctx, profile.site, k=20))
         if len(submissions) == 0:
             for site in crud.site.get_all_public_readable(db):
                 submissions.extend(
                     filter_not_none(
-                        [submission_schema(cached_layer, s) for s in site.submissions]
+                        [submission_schema(ctx, s) for s in site.submissions]
                     )[:5]
                 )
         return rank_submissions(submissions)
@@ -43,14 +43,14 @@ def submissions_for_user(
     for site in crud.site.get_all_public_readable(db):
         submissions.extend(
             filter_not_none(
-                [submission_schema(cached_layer, s) for s in site.submissions]
+                [submission_schema(ctx, s) for s in site.submissions]
             )[:10]
         )
     return rank_submissions(submissions)
 
 
 def site_submissions_for_user(
-    cached_layer,
+    ctx,
     *,
     site: models.Site,
     user_id: Optional[int],
@@ -59,7 +59,7 @@ def site_submissions_for_user(
 ) -> List[schemas.Submission]:
     submissions = rank_submissions(
         filter_not_none(
-            [submission_schema(cached_layer, submission) for submission in site.submissions]
+            [submission_schema(ctx, submission) for submission in site.submissions]
         )
     )
     return submissions[skip : skip + limit]
@@ -83,7 +83,7 @@ def list_suggestions(ctx, *, uuid: str):
         user_id=ctx.unwrapped_principal_id(),
         op_type=OperationType.ReadSite,
     )
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none(
         [
             suggestions_responder.submission_suggestion_schema_from_orm(mat, s)

@@ -24,12 +24,12 @@ from chafan_core.utils.base import HTTPException_
 
 
 def form_schema(ctx, form: models.Form) -> schemas.Form:
-    return misc_responder.form_schema_from_orm(ctx.materializer, form)
+    return misc_responder.form_schema_from_orm(ctx.principal_view, form)
 
 
 def form_response_schema(ctx, form_response: models.FormResponse) -> schemas.FormResponse:
     return misc_responder.form_response_schema_from_orm(
-        ctx.materializer, form_response
+        ctx.principal_view, form_response
     )
 
 

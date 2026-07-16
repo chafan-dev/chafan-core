@@ -16,7 +16,7 @@ from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 def list_my_feedbacks(ctx) -> List[schemas.Feedback]:
     current_user = ctx.get_current_active_user()
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return [
         misc_responder.feedback_schema_from_orm(mat, f)
         for f in current_user.feedbacks

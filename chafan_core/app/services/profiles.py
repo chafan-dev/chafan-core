@@ -17,7 +17,7 @@ from chafan_core.utils.base import HTTPException_
 
 
 def profile_schema(ctx, profile) -> schemas.Profile:
-    return misc_responder.profile_schema_from_orm(ctx.materializer, profile)
+    return misc_responder.profile_schema_from_orm(ctx.principal_view, profile)
 
 
 def view_profile(

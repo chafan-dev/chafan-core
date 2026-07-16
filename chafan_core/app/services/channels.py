@@ -16,7 +16,7 @@ def get_channel(ctx, channel_id: int) -> schemas.Channel:
             detail="The channel doesn't exist in the system.",
         )
     check_user_in_channel(ctx.get_current_active_user(), channel)
-    return misc_responder.channel_schema_from_orm(ctx.materializer, channel)
+    return misc_responder.channel_schema_from_orm(ctx.principal_view, channel)
 
 
 def create_private_channel(
@@ -38,4 +38,4 @@ def create_private_channel(
         with_user=private_with_user,
         obj_in=channel_in,
     )
-    return misc_responder.channel_schema_from_orm(ctx.materializer, channel)
+    return misc_responder.channel_schema_from_orm(ctx.principal_view, channel)

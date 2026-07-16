@@ -14,10 +14,10 @@ _VISIBLE_SUBMISSION_CONDITIONS = {
 def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
     return questions.filter_by(**conditions)
 
-def site_schema_from_orm(cached_layer, site: models.Site) -> schemas.Site:
+def site_schema_from_orm(ctx, site: models.Site) -> schemas.Site:
     base = schemas.SiteInDBBase.from_orm(site)
     site_dict = base.dict()
-    site_dict["moderator"] = cached_layer.preview_of_user(site.moderator)
+    site_dict["moderator"] = ctx.preview_of_user(site.moderator)
     site_dict["questions_count"] = keep_items(
         site.questions, _VISIBLE_QUESTION_CONDITIONS
     ).count()

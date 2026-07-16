@@ -15,7 +15,7 @@ from chafan_core.utils.base import filter_not_none, unwrap
 def list_unread(ctx) -> List[schemas.Notification]:
     return filter_not_none(
         [
-            event_responder.notification_schema_from_orm(ctx.materializer, n)
+            event_responder.notification_schema_from_orm(ctx.principal_view, n)
             for n in crud.notification.get_unread(
                 ctx.get_db(),
                 receiver_id=ctx.unwrapped_principal_id(),
@@ -28,7 +28,7 @@ def list_read(ctx) -> List[schemas.Notification]:
     # TODO: pagination
     return filter_not_none(
         [
-            event_responder.notification_schema_from_orm(ctx.materializer, n)
+            event_responder.notification_schema_from_orm(ctx.principal_view, n)
             for n in crud.notification.get_read(
                 ctx.get_db(),
                 receiver_id=ctx.unwrapped_principal_id(),

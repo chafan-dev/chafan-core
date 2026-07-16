@@ -17,9 +17,9 @@ MAX_SAMPLED_RELATED_FOLLOWED = 20
 
 
 def get_user_follows(
-    cached_layer, followed: models.User
+    ctx, followed: models.User
 ) -> schemas.UserFollows:
-    current_user = cached_layer.try_get_current_user()
+    current_user = ctx.try_get_current_user()
     if current_user:
         followed_by_me = followed in current_user.followed
     else:
@@ -32,44 +32,44 @@ def get_user_follows(
     )
 
 
-def preview_of_user(cached_layer, user: models.User) -> schemas.UserPreview:
+def preview_of_user(ctx, user: models.User) -> schemas.UserPreview:
     """User preview with social annotations for the current principal."""
     from chafan_core.app.responders import user as user_responder
 
     user_preview = user_responder.plain_preview_of_user(user)
-    principal_id = cached_layer.principal_id
+    principal_id = ctx.principal_id
     if principal_id:
-        m = cached_layer.get_follow_follow_fanout()
+        m = ctx.get_follow_follow_fanout()
         if principal_id in m and user_preview.uuid in m[principal_id]:
             user_preview.social_annotations.follow_follows = m[principal_id][
                 user_preview.uuid
             ]
         else:
             user_preview.social_annotations.follow_follows = 0
-    user_preview.follows = get_user_follows(cached_layer, user)
+    user_preview.follows = get_user_follows(ctx, user)
     return user_preview
 
 
 def get_followers(
-    cached_layer, user: models.User, skip: int, limit: int
+    ctx, user: models.User, skip: int, limit: int
 ) -> List[UserPreview]:
     return [
-        preview_of_user(cached_layer, u) for u in user.followers[skip : skip + limit]
+        preview_of_user(ctx, u) for u in user.followers[skip : skip + limit]
     ]
 
 
 def get_followed(
-    cached_layer, user: models.User, skip: int, limit: int
+    ctx, user: models.User, skip: int, limit: int
 ) -> List[UserPreview]:
     return [
-        preview_of_user(cached_layer, u) for u in user.followed[skip : skip + limit]
+        preview_of_user(ctx, u) for u in user.followed[skip : skip + limit]
     ]
 
 
 def get_authored_answers_for_principal(
-    cached_layer, author: models.User
+    ctx, author: models.User
 ) -> List[schemas.AnswerPreview]:
-    mat = cached_layer.materializer
+    mat = ctx.principal_view
     return filter_not_none(
         [mat.preview_of_answer(answer) for answer in author.answers]
     )
@@ -96,7 +96,7 @@ def list_user_site_profiles(
         )
     if not current_user_id:
         return []
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return [
         misc_responder.profile_schema_from_orm(mat, profile)
         for profile in user.profiles
@@ -113,7 +113,7 @@ def list_user_questions(
     ctx, *, uuid: str, skip: int, limit: int
 ) -> List[schemas.QuestionPreview]:
     user = _require_user(ctx, uuid)
-    mat = ctx.materializer
+    mat = ctx.principal_view
     # FIXME: think about more efficient paging mechanism
     return filter_not_none(
         [
@@ -128,15 +128,15 @@ def list_user_articles(
     ctx, *, uuid: str, skip: int, limit: int
 ) -> List[schemas.ArticlePreview]:
     user = _require_user(ctx, uuid)
-    mat = ctx.materializer
+    mat = ctx.principal_view
     # TODO we have limit, but we still generate all articles. Need generator 2025-Mar-23
     return filter_not_none(
         [mat.preview_of_article(article) for article in user.articles]
     )[skip : skip + limit]
 
 
-def get_related_users(cached_layer, target_user: models.User) -> List[UserPreview]:
-    db = cached_layer.get_db()
+def get_related_users(ctx, target_user: models.User) -> List[UserPreview]:
+    db = ctx.get_db()
     related_users: Dict[int, models.User] = {}
     followed = list(target_user.followed)
     if len(followed) >= MAX_SAMPLED_RELATED_FOLLOWED:
@@ -155,4 +155,4 @@ def get_related_users(cached_layer, target_user: models.User) -> List[UserPrevie
         if user_id not in related_users:
             related_users[user_id] = unwrap(crud.user.get(db, user_id))
 
-    return [preview_of_user(cached_layer, u) for u in related_users.values()]
+    return [preview_of_user(ctx, u) for u in related_users.values()]

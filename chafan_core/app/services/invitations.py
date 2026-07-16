@@ -36,7 +36,7 @@ def try_consume_invitation_link_by_uuid(db: Session, invitation_uuid: str) -> bo
 
 def invitation_link_schema(ctx, invitation_link: models.InvitationLink) -> schemas.InvitationLink:
     return misc_responder.invitation_link_schema_from_orm(
-        ctx.materializer, invitation_link
+        ctx.principal_view, invitation_link
     )
 
 
@@ -116,7 +116,7 @@ def join_site_with_invitation_link(ctx, *, uuid: str) -> None:
     if not existing_profile:
         sites_service.create_site_profile(
             db,
-            ctx.materializer,
+            ctx.principal_view,
             owner=current_user,
             site_uuid=invitation_link.invited_to_site.uuid,
         )

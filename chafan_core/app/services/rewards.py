@@ -29,7 +29,7 @@ def list_rewards(ctx) -> List[schemas.Reward]:
     received = current_user.incoming_rewards
     given = current_user.outgoing_rewards
     rewards = sorted(received + given, key=lambda r: r.created_at, reverse=True)
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return [misc_responder.reward_schema_from_orm(mat, r) for r in rewards]
 
 
@@ -80,7 +80,7 @@ def create_reward(ctx, *, reward_in: RewardCreate) -> schemas.Reward:
                 content=reward_event,
             ),
         )
-    return misc_responder.reward_schema_from_orm(ctx.materializer, reward)
+    return misc_responder.reward_schema_from_orm(ctx.principal_view, reward)
 
 
 def claim_reward(ctx, *, reward_id: int) -> schemas.Reward:
@@ -137,7 +137,7 @@ def claim_reward(ctx, *, reward_id: int) -> schemas.Reward:
     db.add(reward)
     db.commit()
     db.refresh(reward)
-    reward_data = misc_responder.reward_schema_from_orm(ctx.materializer, reward)
+    reward_data = misc_responder.reward_schema_from_orm(ctx.principal_view, reward)
     reward_event = None
     if reward_data.condition:
         if isinstance(reward_data.condition.content, AnsweredQuestionCondition):
@@ -187,4 +187,4 @@ def refund_reward(ctx, *, reward_id: int) -> schemas.Reward:
     db.add(reward)
     db.commit()
     db.refresh(reward)
-    return misc_responder.reward_schema_from_orm(ctx.materializer, reward)
+    return misc_responder.reward_schema_from_orm(ctx.principal_view, reward)

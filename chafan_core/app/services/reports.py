@@ -39,4 +39,4 @@ def create_report(ctx, *, report_in: schemas.ReportCreate) -> schemas.Report:
     report = crud.report.create_with_author(
         db, obj_in=report_in, author_id=current_user_id, check_site=check_site
     )
-    return misc_responder.report_schema_from_orm(ctx.materializer, report)
+    return misc_responder.report_schema_from_orm(ctx.principal_view, report)

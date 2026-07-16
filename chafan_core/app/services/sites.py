@@ -74,16 +74,16 @@ def site_profiles_for_user(
     return [misc_responder.profile_schema_from_orm(mat, p) for p in profiles]
 
 
-def get_site_maps(cached_layer) -> schemas.site.SiteMaps:
+def get_site_maps(ctx) -> schemas.site.SiteMaps:
     """Build public site map (no redis content cache)."""
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     sites = crud.site.get_all(db)
     site_maps: dict = {}
     sites_without_topics: List[schemas.Site] = []
     for s in sites:
         if not s.public_readable:
             continue
-        site_data = site_schema(cached_layer, s)
+        site_data = site_schema(ctx, s)
         if s.category_topic is not None:
             pass  # category_topic deprecated
         sites_without_topics.append(site_data)
@@ -97,15 +97,15 @@ def get_site_by_subdomain(db: Session, subdomain: str) -> Optional[models.Site]:
     return crud.site.get_by_subdomain(db, subdomain=subdomain)
 
 
-def site_schema(cached_layer, site: models.Site) -> schemas.Site:
-    return responders.site.site_schema_from_orm(cached_layer, site)
+def site_schema(ctx, site: models.Site) -> schemas.Site:
+    return responders.site.site_schema_from_orm(ctx, site)
 
 
-def get_site_info(cached_layer, *, subdomain: str) -> Optional[schemas.Site]:
-    site = get_site_by_subdomain(cached_layer.get_db(), subdomain)
+def get_site_info(ctx, *, subdomain: str) -> Optional[schemas.Site]:
+    site = get_site_by_subdomain(ctx.get_db(), subdomain)
     if site is None:
         return None
-    return site_schema(cached_layer, site)
+    return site_schema(ctx, site)
 
 
 def update_site(
@@ -122,12 +122,12 @@ def list_site_question_previews(
     questions = crud.site.get_multi_questions(
         ctx.get_db(), db_obj=site, skip=skip, limit=limit
     )
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none([mat.preview_of_question(q) for q in questions])
 
 
 def list_site_webhooks(ctx, *, site: models.Site) -> List[schemas.Webhook]:
     from chafan_core.app.responders import misc as misc_responder
 
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return [misc_responder.webhook_schema_from_orm(mat, w) for w in site.webhooks]

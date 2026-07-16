@@ -29,7 +29,7 @@ def get_article_by_id(
     return article
 
 
-def article_schema(cached_layer, article: models.Article):
+def article_schema(ctx, article: models.Article):
     return responders.article.article_schema_from_orm(
-        cached_layer, article, cached_layer.principal_id
+        ctx, article, ctx.principal_id
     )

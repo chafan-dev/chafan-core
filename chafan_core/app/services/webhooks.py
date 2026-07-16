@@ -8,7 +8,7 @@ from chafan_core.utils.base import HTTPException_
 
 
 def webhook_schema(ctx, webhook) -> schemas.Webhook:
-    return misc_responder.webhook_schema_from_orm(ctx.materializer, webhook)
+    return misc_responder.webhook_schema_from_orm(ctx.principal_view, webhook)
 
 
 def create_webhook(ctx, *, webhook_in: schemas.WebhookCreate) -> schemas.Webhook:

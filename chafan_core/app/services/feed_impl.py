@@ -231,13 +231,13 @@ def materialize_activity(
     return None
 
 # This is not good OOP practice, but doing it here can avoid making event.py too complex. 2025-Aug-13
-def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudModel]:
+def retrieve_content(event: EventInternal, ctx) -> Optional[BaseCrudModel]:
     assert isinstance(event, EventInternal)
     from chafan_core.app.services import answers as answers_service
     from chafan_core.app.services import articles as articles_service
     from chafan_core.app.services import questions as questions_service
 
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     c = event.content
     if isinstance(c, CreateQuestionInternal):
         question = questions_service.get_question_by_id(db, c.question_id)
@@ -263,18 +263,18 @@ def retrieve_content(event: EventInternal, cached_layer) -> Optional[BaseCrudMod
     return None #TODO throw exception
 
 def get_content_from_eventjson(
-        cached_layer: "RequestContext",
+        ctx: "RequestContext",
         event_json: str) -> Optional[BaseCrudModel]:
     event = EventInternal.parse_raw(event_json)
-    content = retrieve_content(event, cached_layer)
+    content = retrieve_content(event, ctx)
     return content
 
 def get_site_activities(
-    cached_layer: "RequestContext",
+    ctx: "RequestContext",
     site,
     limit: int,
     all_sites = False) -> List[BaseCrudModel]:
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     if (site is None) and (not all_sites):
         raise ValueError("site not found ")
     if (not all_sites) and (not site.public_readable):
@@ -285,7 +285,7 @@ def get_site_activities(
     feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
     activities = []
     for feed in feeds:
-        obj = get_content_from_eventjson(cached_layer, feed.event_json)
+        obj = get_content_from_eventjson(ctx, feed.event_json)
         if obj is not None:
             assert isinstance(obj, BaseCrudModel)
             activities.append(obj)
@@ -293,13 +293,13 @@ def get_site_activities(
 
 def get_activities_v2(
     *,
-    cached_layer: "RequestContext",
+    ctx: "RequestContext",
     before_activity_id: Optional[int],
     limit: int,
     receiver_user_id: int,
     subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
     # TODO feed_settings not supported yet
@@ -318,7 +318,7 @@ def get_activities_v2(
         if feed.activity_id in activity_ids:
             continue
         activity = materialize_activity(
-            cached_layer.broker, feed.activity, receiver_user_id, feed_settings
+            ctx.broker, feed.activity, receiver_user_id, feed_settings
         )
         if activity:
             activity_ids.add(feed.activity_id)
