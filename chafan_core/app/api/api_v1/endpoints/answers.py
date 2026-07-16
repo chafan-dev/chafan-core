@@ -51,7 +51,13 @@ def delete_answer(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
 ) -> Any:
-    error_msg = cached_layer.delete_answer(uuid)
+    from chafan_core.app.services import answers as answers_service
+
+    error_msg = answers_service.delete_answer(
+        cached_layer.get_db(),
+        uuid=uuid,
+        principal_id=cached_layer.principal_id,
+    )
     if error_msg:
         raise HTTPException_(
             status_code=400,
