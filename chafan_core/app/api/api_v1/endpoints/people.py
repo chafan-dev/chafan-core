@@ -150,24 +150,9 @@ def get_user_site_profiles(
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if user is None or not user.is_active:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    if current_user_id:
-        return [
-            ctx.materializer.profile_schema_from_orm(profile)
-            for profile in user.profiles
-            if user_in_site(
-                ctx.get_db(),
-                site=profile.site,
-                user_id=current_user_id,
-                op_type=OperationType.ReadSite,
-            )
-        ]
-    return []
+    return people_service.list_user_site_profiles(
+        ctx, uuid=uuid, current_user_id=current_user_id
+    )
 
 
 @router.get("/{uuid}/questions/", response_model=List[schemas.QuestionPreview])
@@ -185,20 +170,9 @@ def get_user_questions(
     """
     Get a user's asked questions.
     """
-    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    # FIXME: think about more efficient paging mechanism
-    return filter_not_none(
-        [
-            ctx.materializer.preview_of_question(question)
-            for question in user.questions
-            if not question.is_hidden
-        ]
-    )[skip : skip + limit]
+    return people_service.list_user_questions(
+        ctx, uuid=uuid, skip=skip, limit=limit
+    )
 
 
 @router.get("/{uuid}/submissions/", response_model=List[schemas.Submission])
@@ -235,7 +209,6 @@ def get_user_submissions(
 def get_user_articles(
     *,
     ctx: RequestContext = Depends(deps.get_request_context),
-    #ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(
@@ -244,21 +217,9 @@ def get_user_articles(
         gt=0,
     ),
 ) -> Any:
-    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    print("get user article " + uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    # TODO "owner" is repeated in this response 2025-Mar-23
-    return filter_not_none(
-        [
-    # TODO we have limit, but we still generate all articles. Need to rewrite with python generator 2025-Mar-23
-            ctx.materializer.preview_of_article(article)
-            for article in user.articles
-        ]
-    )[skip : skip + limit]
+    return people_service.list_user_articles(
+        ctx, uuid=uuid, skip=skip, limit=limit
+    )
 
 
 @router.get(
