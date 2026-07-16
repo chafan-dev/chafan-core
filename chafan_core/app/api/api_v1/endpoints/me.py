@@ -371,11 +371,9 @@ def get_user_article_columns(
     """
     Get a user's all article_columns.
     """
-    current_user = ctx.get_current_active_user()
-    return [
-        ctx.materializer.article_column_schema_from_orm(c)
-        for c in current_user.article_columns
-    ]
+    from chafan_core.app.services import me as me_service
+
+    return me_service.list_my_article_columns(ctx)
 
 
 ######################### User Subscribes Question #########################
@@ -414,11 +412,9 @@ def get_user_question_subscriptions(
     """
     Get current user's subscribed questions.
     """
-    current_user = ctx.get_current_active_user()
-    return [
-        ctx.materializer.preview_of_question(q)
-        for q in current_user.subscribed_questions[skip : skip + limit]
-    ]
+    from chafan_core.app.services import me as me_service
+
+    return me_service.list_subscribed_questions(ctx, skip=skip, limit=limit)
 
 
 @router.post(
@@ -606,11 +602,9 @@ def get_user_answer_bookmarks(
         gt=0,
     ),
 ) -> Any:
-    current_user = ctx.get_current_active_user()
-    return [
-        ctx.materializer.preview_of_answer(answer)
-        for answer in current_user.bookmarked_answers[skip : skip + limit]
-    ]
+    from chafan_core.app.services import me as me_service
+
+    return me_service.list_bookmarked_answers(ctx, skip=skip, limit=limit)
 
 
 @router.post("/answer-bookmarks/{uuid}", response_model=schemas.UserAnswerBookmark)
@@ -670,11 +664,9 @@ def get_user_article_bookmarks(
         gt=0,
     ),
 ) -> Any:
-    current_user = ctx.get_current_active_user()
-    return [
-        ctx.materializer.preview_of_article(article)
-        for article in current_user.bookmarked_articles[skip : skip + limit]
-    ]
+    from chafan_core.app.services import me as me_service
+
+    return me_service.list_bookmarked_articles(ctx, skip=skip, limit=limit)
 
 
 @router.post("/article-bookmarks/{uuid}", response_model=schemas.UserArticleBookmark)
@@ -844,11 +836,9 @@ def get_user_article_column_subscriptions(
     """
     Get current user's all subscribed article columns.
     """
-    current_user = ctx.get_current_active_user()
-    return [
-        ctx.materializer.article_column_schema_from_orm(c)
-        for c in current_user.subscribed_article_columns
-    ]
+    from chafan_core.app.services import me as me_service
+
+    return me_service.list_subscribed_article_columns(ctx)
 
 
 @router.post(
@@ -893,15 +883,10 @@ def unsubscribe_article_column(
     """
     Unsubscribe a article_column.
     """
-    db = ctx.get_db()
-    article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
-    if article_column is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The article_column doesn't exist in the system.",
-        )
-    return ctx.materializer.get_user_article_column_subscription(
-        article_column
+    from chafan_core.app.services import me as me_service
+
+    return me_service.get_article_column_subscription_after_unsubscribe(
+        ctx, uuid=uuid
     )
 
 
@@ -909,11 +894,9 @@ def unsubscribe_article_column(
 def get_site_profiles(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    return sites_service.site_profiles_for_user(
-        ctx.get_db(),
-        ctx.materializer,
-        ctx.unwrapped_principal_id(),
-    )
+    from chafan_core.app.services import me as me_service
+
+    return me_service.list_site_profiles(ctx)
 
 
 @router.get(

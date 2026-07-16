@@ -286,24 +286,7 @@ def get_submission_suggestions(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if submission is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The submission doesn't exist in the system.",
-        )
-    check_user_in_site(
-        ctx.get_db(),
-        site=submission.site,
-        user_id=ctx.unwrapped_principal_id(),
-        op_type=OperationType.ReadSite,
-    )
-    return filter_not_none(
-        [
-            ctx.materializer.submission_suggestion_schema_from_orm(s)
-            for s in submission.submission_suggestions
-        ]
-    )
+    return submissions_service.list_suggestions(ctx, uuid=uuid)
 
 
 @router.put("/{uuid}/hide", response_model=Optional[schemas.Submission])

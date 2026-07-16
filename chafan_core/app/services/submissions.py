@@ -63,3 +63,30 @@ def site_submissions_for_user(
         )
     )
     return submissions[skip : skip + limit]
+
+
+def list_suggestions(ctx, *, uuid: str):
+    from chafan_core.app.common import OperationType
+    from chafan_core.app.responders import suggestions as suggestions_responder
+    from chafan_core.app.user_permission import check_user_in_site
+    from chafan_core.utils.base import HTTPException_
+
+    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
+    if submission is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The submission doesn't exist in the system.",
+        )
+    check_user_in_site(
+        ctx.get_db(),
+        site=submission.site,
+        user_id=ctx.unwrapped_principal_id(),
+        op_type=OperationType.ReadSite,
+    )
+    mat = ctx.materializer
+    return filter_not_none(
+        [
+            suggestions_responder.submission_suggestion_schema_from_orm(mat, s)
+            for s in submission.submission_suggestions
+        ]
+    )

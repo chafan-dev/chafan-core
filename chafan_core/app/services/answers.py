@@ -71,3 +71,30 @@ def get_answer_schema(cached_layer, uuid: str) -> Optional[schemas.Answer]:
     if answer is None:
         return None
     return answer_schema(cached_layer, answer)
+
+
+def list_suggest_edits(ctx, *, uuid: str):
+    from chafan_core.app.common import OperationType
+    from chafan_core.app.responders import suggestions as suggestions_responder
+    from chafan_core.app.user_permission import check_user_in_site
+    from chafan_core.utils.base import HTTPException_, filter_not_none
+
+    answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=uuid)
+    if answer is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The answer doesn't exist in the system.",
+        )
+    check_user_in_site(
+        ctx.get_db(),
+        site=answer.site,
+        user_id=ctx.unwrapped_principal_id(),
+        op_type=OperationType.ReadSite,
+    )
+    mat = ctx.materializer
+    return filter_not_none(
+        [
+            suggestions_responder.answer_suggest_edit_schema_from_orm(mat, s)
+            for s in answer.suggest_edits
+        ]
+    )

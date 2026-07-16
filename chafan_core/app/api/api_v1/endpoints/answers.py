@@ -547,21 +547,6 @@ def get_suggestions(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if answer is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The answer doesn't exist in the system.",
-        )
-    check_user_in_site(
-        ctx.get_db(),
-        site=answer.site,
-        user_id=ctx.unwrapped_principal_id(),
-        op_type=OperationType.ReadSite,
-    )
-    return filter_not_none(
-        [
-            ctx.materializer.answer_suggest_edit_schema_from_orm(s)
-            for s in answer.suggest_edits
-        ]
-    )
+    from chafan_core.app.services import answers as answers_service
+
+    return answers_service.list_suggest_edits(ctx, uuid=uuid)
