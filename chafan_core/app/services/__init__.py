@@ -1,6 +1,7 @@
 """Domain services (business logic). Endpoints should call these, not crud."""
 
 from chafan_core.app.services import (
+    answer_suggest_edits,
     answers,
     applications,
     article_columns,
@@ -28,6 +29,7 @@ from chafan_core.app.services import (
     rewards,
     search,
     sites,
+    submission_suggestions,
     submissions,
     topics,
     viewcounts,
@@ -36,6 +38,7 @@ from chafan_core.app.services import (
 )
 
 __all__ = [
+    "answer_suggest_edits",
     "answers",
     "applications",
     "article_columns",
@@ -63,6 +66,7 @@ __all__ = [
     "rewards",
     "search",
     "sites",
+    "submission_suggestions",
     "submissions",
     "topics",
     "viewcounts",

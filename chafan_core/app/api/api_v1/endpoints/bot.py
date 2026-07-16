@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends
 
 from chafan_core.app import crud, schemas, security
 from chafan_core.app.api import deps
-from chafan_core.app.api.api_v1.endpoints.submissions import _create_submission
-from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.config import settings
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.schemas.security import VerifiedTelegramID, VerifyTelegramID
+from chafan_core.app.services import submissions as submissions_service
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
@@ -64,4 +64,7 @@ def create_submission(
             status_code=400,
             detail="User doesn't exist.",
         )
-    return _create_submission(ctx, submission_in, user)
+    _submission, data = submissions_service.create_submission(
+        ctx, submission_in=submission_in, author=user
+    )
+    return data
