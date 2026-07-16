@@ -55,10 +55,11 @@ def get_request_context(
 ) -> Generator:
     """Preferred per-request context (principal + lazy db/redis).
 
-    close_legacy_commit keeps historical request-end commit behavior until
-    services own transaction boundaries.
+    Yields a DataBroker (RequestContext subclass) so Materializer/CachedLayer
+    can share the same instance when needed. close_legacy_commit keeps
+    historical request-end commit until services own transactions.
     """
-    ctx = RequestContext(principal_id=current_user_id)
+    ctx: RequestContext = DataBroker(principal_id=current_user_id)
     try:
         yield ctx
     finally:
@@ -68,7 +69,7 @@ def get_request_context(
 def get_request_context_logged_in(
     current_user_id: int = Depends(get_current_user_id),
 ) -> Generator:
-    ctx = RequestContext(principal_id=current_user_id)
+    ctx: RequestContext = DataBroker(principal_id=current_user_id)
     try:
         yield ctx
     finally:
