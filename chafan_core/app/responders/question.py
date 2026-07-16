@@ -1,66 +1,49 @@
-from typing import Any, Dict, Mapping, Optional, Tuple, Union
+from typing import Optional
 import logging
-logger = logging.getLogger(__name__)
 
-from sqlalchemy.orm import Session
+logger = logging.getLogger(__name__)
 
 import chafan_core.app.responders as responders
 from chafan_core.app import models, schemas
-from chafan_core.app.common import OperationType, is_dev
+from chafan_core.app.common import OperationType
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.model_utils import (
     get_live_answers_of_question,
 )
-from chafan_core.app.schemas.question import (
-        QuestionInDBBase,
-        QuestionPreviewForSearch
-)
+from chafan_core.app.schemas.question import QuestionInDBBase
 from chafan_core.app.schemas.richtext import RichText
+from chafan_core.app import user_permission, view_counters
 from chafan_core.utils.base import (
     filter_not_none,
     map_,
-    unwrap,
 )
-
-from chafan_core.app import view_counters
-
-def user_in_site(
-    db: Session,
-    *,
-    site: models.Site,
-    user_id: int,
-    op_type: OperationType,
-) -> bool:
-    logger.error("user_in_site is stub TODO")
-    return True
 
 
 def question_schema_from_orm(
-        broker: DataBroker,
-        principal_id,
-        question: models.Question,
-        cached_layer # TODO we should remove this dependency in future 2025-07-23
+    broker: DataBroker,
+    principal_id,
+    question: models.Question,
+    cached_layer,  # TODO we should remove this dependency in future 2025-07-23
 ) -> Optional[schemas.Question]:
-    if not principal_id:
-        logger.error("TODO skipped principle_id check")
-        #return None
-    if not user_in_site(
-        broker.get_db(),
+    db = broker.get_db()
+    if not user_permission.user_in_site(
+        db,
         site=question.site,
         user_id=principal_id,
         op_type=OperationType.ReadSite,
     ):
-        logger.error("TODO skipped principle_id check")
+        return None
 
-    upvoted = (
-        broker.get_db()
-        .query(models.QuestionUpvotes)
-        .filter_by(
-            question_id=question.id, voter_id=principal_id, cancelled=False
+    upvoted = False
+    if principal_id is not None:
+        upvoted = (
+            db.query(models.QuestionUpvotes)
+            .filter_by(
+                question_id=question.id, voter_id=principal_id, cancelled=False
+            )
+            .first()
+            is not None
         )
-        .first()
-        is not None
-    )
     base = QuestionInDBBase.from_orm(question)
     d = base.dict()
     d["site"] = responders.site.site_schema_from_orm(cached_layer, question.site)

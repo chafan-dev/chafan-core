@@ -4,11 +4,11 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
 from chafan_core.app.common import OperationType
-from chafan_core.app.config import settings
+from chafan_core.app.model_utils import is_live_answer
 from chafan_core.utils.base import ContentVisibility
 
-
 import logging
+
 logger = logging.getLogger(__name__)
 
 # TODO everything about user permission, including if they can create a site (KARMA), invite a user, write an answer, etc, should be moved into this file. 2025-07-08
@@ -19,12 +19,18 @@ def get_active_site_profile(
 ) -> Optional[models.Profile]:
     return crud.profile.get_by_user_and_site(db, owner_id=user_id, site_id=site.id)
 
+
 def user_in_site(
     db: Session,
     site: models.Site,
-    user_id: int,
+    user_id: Optional[int],
     op_type: OperationType,
 ) -> bool:
+    """Site membership / public-flag check for a principal.
+
+    Anonymous principals (user_id is None) only succeed when the site's public
+    flag for the given op_type allows the operation without membership.
+    """
     if op_type == OperationType.ReadSite and site.public_readable:
         return True
     if op_type == OperationType.WriteSiteAnswer and site.public_writable_answer:
@@ -35,14 +41,18 @@ def user_in_site(
         return True
     if op_type == OperationType.WriteSiteComment and site.public_writable_comment:
         return True
+    if user_id is None:
+        return False
     if get_active_site_profile(db, site=site, user_id=user_id) is None:
         return False
     if op_type == OperationType.AddSiteMember and not site.addable_member:
         return False
     return True
 
+
 def article_read_allowed(
-    db: Session, article: models.Article, user_id: Optional[int]) -> bool:
+    db: Session, article: models.Article, user_id: Optional[int]
+) -> bool:
     if article.is_published and article.visibility == ContentVisibility.ANYONE:
         return True
     if article.author_id == user_id and user_id is not None:
@@ -51,8 +61,10 @@ def article_read_allowed(
     logger.info(f"User {user_id} is not allowed to read article {article.id}")
     return False
 
+
 def question_read_allowed(
-    cached_layer, question: models.Question, user_id: Optional[int]) -> bool:
+    cached_layer, question: models.Question, user_id: Optional[int]
+) -> bool:
     if not question.is_hidden:
         return True
     if user_id is not None and user_id == question.author_id:
@@ -63,3 +75,24 @@ def question_read_allowed(
     return False
 
 
+def answer_read_allowed(
+    db: Session, answer: models.Answer, user_id: Optional[int]
+) -> bool:
+    """Binary read gate for answers: allowed → full schema; denied → no payload.
+
+    Matches the prior materialize split: authors always; live answers for site
+    members / public-read; anonymous additionally requires ANYONE visibility.
+    """
+    if answer.is_deleted:
+        return False
+    if user_id is not None and user_id == answer.author_id:
+        return True
+    if not is_live_answer(answer):
+        return False
+    if user_id is None:
+        if answer.visibility != ContentVisibility.ANYONE:
+            return False
+        return bool(answer.site.public_readable)
+    return user_in_site(
+        db, site=answer.site, user_id=user_id, op_type=OperationType.ReadSite
+    )
