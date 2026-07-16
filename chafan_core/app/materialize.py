@@ -747,36 +747,10 @@ class Materializer(object):
             )
             return None
 
-    def submission_for_visitor_schema_from_orm(
-        self,
-        submission: models.Submission,
-    ) -> Optional[schemas.SubmissionForVisitor]:
-        if not submission.site.public_readable:
-            return None
-        if submission.is_hidden:
-            return None
-        base = schemas.SubmissionInDB.from_orm(submission)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(submission.site)
-        d["comments"] = filter_not_none(
-            [self.comment_for_visitor_schema_from_orm(c) for c in submission.comments]
-        )
-        d["author"] = self.preview_of_user(submission.author)
-        d["contributors"] = [self.preview_of_user(u) for u in submission.contributors]
-        if submission.description:
-            d["desc"] = RichText(
-                source=submission.description,
-                rendered_text=submission.description_text,
-                editor=submission.description_editor,
-            )
-        return schemas.SubmissionForVisitor(**d)
-
     def submission_schema_from_orm(
         self, submission: models.Submission
     ) -> Optional[schemas.Submission]:
-        #logger.error("TODO submission_schema_from_orm in materialize.py is deprecated")
-        # 2025-Sep-14 This log it too noisy
-        if self.principal_id and not user_in_site(
+        if not user_in_site(
             self.broker.get_db(),
             site=submission.site,
             user_id=self.principal_id,
@@ -793,7 +767,7 @@ class Materializer(object):
         )
         d["author"] = self.preview_of_user(submission.author)
         d["contributors"] = [self.preview_of_user(u) for u in submission.contributors]
-        d["view_times"] = 0 #view_counters.get_views(submission.uuid, "submission")
+        d["view_times"] = 0  # view_counters.get_views(submission.uuid, "submission")
         if submission.description is not None:
             d["desc"] = RichText(
                 source=submission.description,
@@ -801,6 +775,13 @@ class Materializer(object):
                 editor=submission.description_editor,
             )
         return schemas.Submission(**d)
+
+    # Back-compat alias during Step 1 migration of call sites.
+    def submission_for_visitor_schema_from_orm(
+        self,
+        submission: models.Submission,
+    ) -> Optional[schemas.Submission]:
+        return self.submission_schema_from_orm(submission)
 
     def notification_schema_from_orm(
         self, notification: models.Notification

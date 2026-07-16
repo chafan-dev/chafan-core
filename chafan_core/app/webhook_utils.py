@@ -10,7 +10,7 @@ from chafan_core.app import models
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import is_dev
 from chafan_core.app.schemas import AnswerPreview, QuestionPreview
-from chafan_core.app.schemas.submission import SubmissionForVisitor
+from chafan_core.app.schemas.submission import Submission
 from chafan_core.app.schemas.webhook import WebhookEventSpec, WebhookSiteEvent
 
 
@@ -38,7 +38,7 @@ class NewQuestionEventDetails(BaseModel):
 
 class NewSubmissionEventDetails(BaseModel):
     sub_type: Literal["new_submission"] = "new_submission"
-    submission: SubmissionForVisitor
+    submission: Submission
 
 
 class WebhookEvent(BaseModel):

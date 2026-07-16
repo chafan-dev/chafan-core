@@ -33,12 +33,12 @@ def freshness(
 
 
 def rank_submissions(
-    submissions: Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]
-) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    submissions: List[schemas.Submission]
+) -> List[schemas.Submission]:
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
 
     def hotness(
-        submission: Union[schemas.Submission, schemas.SubmissionForVisitor]
+        submission: schemas.Submission
     ) -> float:
         return float(submission.upvotes_count + 1) * freshness(
             utc_now, submission.updated_at, recency_boost=1
