@@ -21,16 +21,15 @@ def get_channel(
     id: int,
 ) -> Any:
     """Get channel that user belongs to."""
-    layer = deps.cached_layer_from_context(ctx)
-    channel = crud.channel.get(layer.get_db(), id=id)
+    channel = crud.channel.get(ctx.get_db(), id=id)
     if channel is None:
         raise HTTPException_(
             status_code=400,
             detail="The channel doesn't exist in the system.",
         )
-    current_user = layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     check_user_in_channel(current_user, channel)
-    return layer.channel_schema_from_orm(channel)
+    return ctx.channel_schema_from_orm(channel)
 
 
 @router.get("/{id}/messages/", response_model=List[schemas.Message])
@@ -61,19 +60,18 @@ def create_channel(
 ) -> Any:
     """Create new private channel by the current user."""
     logger.info("create_channel")
-    layer = deps.cached_layer_from_context(ctx)
     private_with_user = crud.user.get_by_uuid(
-        layer.get_db(), uuid=channel_in.private_with_user_uuid
+        ctx.get_db(), uuid=channel_in.private_with_user_uuid
     )
     if private_with_user is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    current_user = layer.get_current_active_user()
-    return layer.channel_schema_from_orm(
+    current_user = ctx.get_current_active_user()
+    return ctx.channel_schema_from_orm(
         crud.channel.get_or_create_private_channel_with(
-            layer.get_db(),
+            ctx.get_db(),
             host_user=current_user,
             with_user=private_with_user,
             obj_in=channel_in,

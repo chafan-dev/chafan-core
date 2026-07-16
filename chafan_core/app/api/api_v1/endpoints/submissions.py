@@ -12,7 +12,6 @@ logger = logging.getLogger(__name__)
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.services import submissions as submissions_service
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
@@ -38,8 +37,7 @@ router = APIRouter()
 def get_submissions_for_user(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    return submissions_service.submissions_for_user(cached_layer, cached_layer.principal_id)
+    return submissions_service.submissions_for_user(ctx, ctx.principal_id)
 
 
 @router.get(
@@ -53,9 +51,8 @@ def get_submission(
     """
     Get submission in one of current_user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     logger.info("get submission " + uuid)
-    submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
             status_code=400,
@@ -65,7 +62,7 @@ def get_submission(
         schemas.Submission
     ] = None
     # TODO didn't check principal id
-    submission_data = submissions_service.submission_schema(cached_layer, submission)
+    submission_data = submissions_service.submission_schema(ctx, submission)
     if submission_data is None:
         raise HTTPException_(
             status_code=400,
@@ -110,24 +107,23 @@ def bump_views_counter(
     uuid: str,
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
             status_code=400,
             detail="The submission doesn't exist in the system.",
         )
-    view_counters.add_view_async(cached_layer, "submission", submission.id)
+    view_counters.add_view_async(ctx, "submission", submission.id)
     return schemas.GenericResponse()
 
 
 def _create_submission(
-    cached_layer: CachedLayer,
+    ctx: RequestContext,
     submission_in: schemas.SubmissionCreate,
     author: models.User,
     background_tasks: BackgroundTasks,
 ) -> schemas.Submission:
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     site = get_site(db, submission_in.site_uuid)
     check_user_in_site(
         db,
@@ -145,7 +141,7 @@ def _create_submission(
         db, obj_in=submission_in, author_id=author.id
     )
     background_tasks.add_task(postprocess_new_submission, new_submission.id)
-    data = submissions_service.submission_schema(cached_layer, new_submission)
+    data = submissions_service.submission_schema(ctx, new_submission)
     assert data is not None
     return data
 
@@ -161,28 +157,27 @@ def create_submission(
     """
     Create new submission authored by the current user in one of the belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     crud.audit_log.create_with_user(
-        cached_layer.get_db(),
+        ctx.get_db(),
         ipaddr=client_ip(request),
         user_id=current_user.id,
         api="post submission",
         request_info={"submission_in": jsonable_encoder(submission_in)},
     )
     return _create_submission(
-        cached_layer, submission_in, current_user, background_tasks=background_tasks
+        ctx, submission_in, current_user, background_tasks=background_tasks
     )
 
 
 def _update_submission(
-    cached_layer: CachedLayer,
+    ctx: RequestContext,
     *,
     submission: models.Submission,
     submission_in: schemas.SubmissionUpdate,
     background_tasks: BackgroundTasks,
 ) -> Optional[schemas.Submission]:
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     archive = models.SubmissionArchive(
         submission_id=submission.id,
         title=submission.title,
@@ -220,7 +215,7 @@ def _update_submission(
         db, db_obj=submission, obj_in=submission_in_dict
     )
     background_tasks.add_task(postprocess_updated_submission, new_submission.id)
-    return submissions_service.submission_schema(cached_layer, new_submission)
+    return submissions_service.submission_schema(ctx, new_submission)
 
 
 @router.put("/{uuid}", response_model=schemas.Submission)
@@ -235,28 +230,27 @@ def update_submission(
     """
     Update submission as author.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     crud.audit_log.create_with_user(
-        cached_layer.get_db(),
+        ctx.get_db(),
         ipaddr=client_ip(request),
-        user_id=cached_layer.unwrapped_principal_id(),
+        user_id=ctx.unwrapped_principal_id(),
         api="post submission",
         request_info={"submission_in": jsonable_encoder(submission_in), "uuid": uuid},
     )
 
-    submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
             status_code=400,
             detail="The submission doesn't exist in the system.",
         )
-    if cached_layer.unwrapped_principal_id() != submission.author_id:
+    if ctx.unwrapped_principal_id() != submission.author_id:
         raise HTTPException_(
             status_code=400,
             detail="Unauthorized.",
         )
     return _update_submission(
-        cached_layer,
+        ctx,
         submission=submission,
         submission_in=submission_in,
         background_tasks=background_tasks,
@@ -321,7 +315,6 @@ def hide_submission(
     db: Session = Depends(deps.get_db),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -329,8 +322,8 @@ def hide_submission(
             detail="The submission doesn't exist in the system.",
         )
     if (
-        submission.site.moderator_id != cached_layer.principal_id
-        and submission.author_id != cached_layer.principal_id
+        submission.site.moderator_id != ctx.principal_id
+        and submission.author_id != ctx.principal_id
     ):
         raise HTTPException_(
             status_code=400,
@@ -339,7 +332,7 @@ def hide_submission(
     submission = crud.submission.update(
         db, db_obj=submission, obj_in={"is_hidden": True}
     )
-    return submissions_service.submission_schema(cached_layer, submission)
+    return submissions_service.submission_schema(ctx, submission)
 
 
 @router.post("/{uuid}/upvotes/", response_model=schemas.SubmissionUpvotes)

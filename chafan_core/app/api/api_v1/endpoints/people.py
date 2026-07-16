@@ -9,7 +9,6 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.services import people as people_service
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, get_logger
 from chafan_core.app.materialize import user_in_site
@@ -77,17 +76,17 @@ def _get_edu_exps(
 
 
 def _get_user_public(
-    cached_layer: CachedLayer, user: models.User, view_times: int
+    ctx: RequestContext, user: models.User, view_times: int
 ) -> schemas.UserPublic:
     """One public profile schema for any principal allowed to view the user."""
-    preview = cached_layer.preview_of_user(user)
-    db = cached_layer.get_db()
+    preview = ctx.preview_of_user(user)
+    db = ctx.get_db()
     about_content = None
     if user.about is not None:
         about_content = RichText(source=user.about, editor="wysiwyg")
     contributions = [
         YearContributions(year=year, data=data)
-        for year, data in cached_layer.get_user_contributions(user)
+        for year, data in ctx.get_user_contributions(user)
     ]
     return schemas.UserPublic(
         **preview.dict(),
@@ -129,9 +128,8 @@ def get_user_public(
     handle: StrippedNonEmptyBasicStr,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     logger.debug("Call get_user_public")
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     user = crud.user.get_by_handle(db, handle=handle)
     if user is None or not user.is_active:
         raise HTTPException_(
@@ -142,7 +140,7 @@ def get_user_public(
     view_times = 5  # view_counters.get_views(user.uuid, "profile")
     if current_user_id is not None:
         db.commit()
-    return _get_user_public(cached_layer, user, view_times)
+    return _get_user_public(ctx, user, view_times)
 
 
 @router.get("/{uuid}/site-profiles/", response_model=List[schemas.Profile])
@@ -218,8 +216,7 @@ def get_user_submissions(
     """
     Get a user's submissions.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
             status_code=400,
@@ -227,8 +224,8 @@ def get_user_submissions(
         )
     return filter_not_none(
         [
-            #submissions_service.submission_schema(cached_layer, submission)
-            submissions_service.submission_schema(cached_layer, submission)
+            #submissions_service.submission_schema(ctx, submission)
+            submissions_service.submission_schema(ctx, submission)
             for submission in user.submissions
         ]
     )[skip : skip + limit]
@@ -282,14 +279,13 @@ def get_user_answers(
     """
     Get a user's authored answers.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    author = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    author = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if author is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return people_service.get_authored_answers_for_principal(cached_layer, author)[skip : skip + limit]
+    return people_service.get_authored_answers_for_principal(ctx, author)[skip : skip + limit]
 
 
 @router.get("/{uuid}/work-exps/", response_model=List[schemas.UserWorkExperience])
@@ -336,14 +332,13 @@ def get_user_followers(
         gt=0,
     ),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return people_service.get_followers(cached_layer, user, skip=skip, limit=limit)
+    return people_service.get_followers(ctx, user, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/followed/", response_model=List[schemas.UserPreview])
@@ -358,14 +353,13 @@ def get_user_followed(
         gt=0,
     ),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return people_service.get_followed(cached_layer, user, skip=skip, limit=limit)
+    return people_service.get_followed(ctx, user, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/related/", response_model=List[schemas.UserPreview])
@@ -374,6 +368,5 @@ def get_related(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    target_user = unwrap(crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid))
-    return people_service.get_related_users(cached_layer, target_user)
+    target_user = unwrap(crud.user.get_by_uuid(ctx.get_db(), uuid=uuid))
+    return people_service.get_related_users(ctx, target_user)

@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.services import answers as answers_service
 from chafan_core.app.common import OperationType, client_ip
@@ -38,10 +37,9 @@ def get_one(
     """
     Get answer in one of current_user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import answers as answers_service
 
-    answer_data = answers_service.get_answer_schema(cached_layer, uuid)
+    answer_data = answers_service.get_answer_schema(ctx, uuid)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
@@ -56,13 +54,12 @@ def delete_answer(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import answers as answers_service
 
     error_msg = answers_service.delete_answer(
-        cached_layer.get_db(),
+        ctx.get_db(),
         uuid=uuid,
-        principal_id=cached_layer.principal_id,
+        principal_id=ctx.principal_id,
     )
     if error_msg:
         raise HTTPException_(
@@ -179,14 +176,13 @@ def bump_views_counter(
     uuid: str,
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=uuid)
     if answer is None:
         raise HTTPException_(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
-    view_counters.add_view_async(cached_layer, "answer", answer.id)
+    view_counters.add_view_async(ctx, "answer", answer.id)
     return schemas.GenericResponse()
 
 
@@ -201,10 +197,9 @@ def create_answer(
     """
     Create new answer authored by the current user in one of the belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user_id = cached_layer.unwrapped_principal_id()
+    current_user_id = ctx.unwrapped_principal_id()
     crud.audit_log.create_with_user(
-        cached_layer.get_db(),
+        ctx.get_db(),
         ipaddr=client_ip(request),
         user_id=current_user_id,
         api="post answer",
@@ -212,7 +207,7 @@ def create_answer(
     )
 
     question = crud.question.get_by_uuid(
-        cached_layer.get_db(), uuid=answer_in.question_uuid
+        ctx.get_db(), uuid=answer_in.question_uuid
     )
     if not question:
         raise HTTPException_(
@@ -221,7 +216,7 @@ def create_answer(
         )
     check_writing_session(answer_in.writing_session_uuid)
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=question.site,
         user_id=current_user_id,
         op_type=OperationType.WriteSiteAnswer,
@@ -236,7 +231,7 @@ def create_answer(
             detail="You have saved an answer before.",
         )
     answer = crud.answer.create_with_author(
-        cached_layer.get_db(),
+        ctx.get_db(),
         obj_in=answer_in,
         author_id=current_user_id,
         site_id=question.site_id,
@@ -244,17 +239,17 @@ def create_answer(
     if answer.is_published:
         logger.info(f"create_answer add postprocess task id={answer.id}")
         background_tasks.add_task(postprocess_new_answer, answer.id, False)
-    return answers_service.answer_schema(cached_layer, answer)
+    return answers_service.answer_schema(ctx, answer)
 
 
 def _update_answer(
-    cached_layer: CachedLayer,
+    ctx: RequestContext,
     *,
     answer: models.Answer,
     answer_in: schemas.AnswerUpdate,
     background_tasks: BackgroundTasks,
 ) -> schemas.Answer:
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     answer_in_dict = answer_in.dict(exclude_none=True)
     if answer_in.is_draft and answer_in.updated_content:
         del answer_in_dict["updated_content"]
@@ -294,7 +289,7 @@ def _update_answer(
         # TODO: Implement the update subscription logic
 
         background_tasks.add_task(postprocess_new_answer, answer.id, was_published)
-    return unwrap(answers_service.answer_schema(cached_layer, answer))
+    return unwrap(answers_service.answer_schema(ctx, answer))
 
 
 @router.put("/{uuid}", response_model=schemas.Answer)
@@ -309,9 +304,8 @@ def update_answer(
     """
     Update answer authored by current user in one of current user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
-    current_user_id = cached_layer.unwrapped_principal_id()
+    db = ctx.get_db()
+    current_user_id = ctx.unwrapped_principal_id()
     crud.audit_log.create_with_user(
         db,
         ipaddr=client_ip(request),
@@ -342,7 +336,7 @@ def update_answer(
         user_id=current_user_id,
         op_type=OperationType.WriteSiteAnswer,
     )
-    return _update_answer(cached_layer, answer=answer, answer_in=answer_in, background_tasks=background_tasks)
+    return _update_answer(ctx, answer=answer, answer_in=answer_in, background_tasks=background_tasks)
 
 
 @router.put("/{uuid}/mod", response_model=schemas.Answer, include_in_schema=False)
@@ -355,16 +349,15 @@ def update_answer_by_mod(
     """
     Update answer as moderator of the site.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
-    current_user_id = cached_layer.principal_id
+    db = ctx.get_db()
+    current_user_id = ctx.principal_id
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         raise HTTPException_(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
-    answer_data = answers_service.answer_schema(cached_layer, answer)
+    answer_data = answers_service.answer_schema(ctx, answer)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
@@ -382,7 +375,7 @@ def update_answer_by_mod(
     answer = crud.answer.update_checked(
         db, db_obj=answer, obj_in=update_in.dict(exclude_none=True)
     )
-    answer_data = answers_service.answer_schema(cached_layer, answer)
+    answer_data = answers_service.answer_schema(ctx, answer)
     return answer_data
 
 
@@ -392,13 +385,12 @@ def get_answer_upvotes(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import answers as answers_service
 
     data = answers_service.get_answer_upvotes(
-        cached_layer.get_db(),
+        ctx.get_db(),
         uuid=uuid,
-        principal_id=cached_layer.principal_id,
+        principal_id=ctx.principal_id,
     )
     if data is None:
         raise HTTPException_(

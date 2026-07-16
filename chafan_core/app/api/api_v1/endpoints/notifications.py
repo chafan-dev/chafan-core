@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.limiter import limiter
@@ -50,9 +49,9 @@ def _update_notification(
     *, id: int, current_user_id: int, notif_in: NotificationUpdate
 ) -> None:
     def runnable(broker: DataBroker) -> None:
-        cached_layer = CachedLayer(broker, current_user_id)
-        cached_layer.update_notification(
-            unwrap(crud.notification.get(cached_layer.get_db(), id)), notif_in
+        broker.principal_id = current_user_id
+        broker.update_notification(
+            unwrap(crud.notification.get(broker.get_db(), id)), notif_in
         )
 
     execute_with_broker(runnable)

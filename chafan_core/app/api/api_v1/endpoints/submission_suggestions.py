@@ -8,7 +8,6 @@ from fastapi.encoders import jsonable_encoder
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.submissions import _update_submission
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
@@ -84,7 +83,7 @@ def _check_suggestion_author(
 
 
 def _accept_submission_suggestion(
-    cached_layer: CachedLayer,
+    ctx: RequestContext,
     submission_suggestion: models.SubmissionSuggestion,
     background_tasks: BackgroundTasks,
 ) -> None:
@@ -97,7 +96,7 @@ def _accept_submission_suggestion(
             editor=submission_suggestion.description_editor,
         )
     _update_submission(
-        cached_layer,
+        ctx,
         submission=submission_suggestion.submission,
         submission_in=SubmissionUpdate(
             title=submission_suggestion.title,
@@ -122,9 +121,8 @@ def update_submission_suggestions(
     update_in: SubmissionSuggestionUpdate,
     background_tasks: BackgroundTasks,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
-    current_user_id = cached_layer.unwrapped_principal_id()
+    db = ctx.get_db()
+    current_user_id = ctx.unwrapped_principal_id()
     submission_suggestion = crud.submission_suggestion.get_by_uuid(db, uuid=uuid)
     if submission_suggestion is None:
         raise HTTPException_(
@@ -169,7 +167,7 @@ def update_submission_suggestions(
                     submission_suggestion.author
                 )
             db.commit()
-            _accept_submission_suggestion(cached_layer, submission_suggestion, background_tasks=background_tasks)
+            _accept_submission_suggestion(ctx, submission_suggestion, background_tasks=background_tasks)
         elif new_status == "rejected":
             _check_author(submission_suggestion, current_user_id)
             update_dict["rejected_at"] = utc_now
@@ -198,4 +196,4 @@ def update_submission_suggestions(
     s = crud.submission_suggestion.update(
         db, db_obj=submission_suggestion, obj_in=update_dict
     )
-    return unwrap(cached_layer.materializer.submission_suggestion_schema_from_orm(s))
+    return unwrap(ctx.materializer.submission_suggestion_schema_from_orm(s))

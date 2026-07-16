@@ -1,8 +1,8 @@
+from chafan_core.app.infra.request_context import RequestContext
 import datetime
 from typing import List, Optional, Union
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.task import (
@@ -38,7 +38,7 @@ def _get_interesting_question_ids(user: models.User) -> List[int]:
 
 
 def get_interesting_questions(
-    cached_layer: CachedLayer,
+    cached_layer: RequestContext,
 ) -> List[schemas.QuestionPreview]:
     current_user = cached_layer.try_get_current_user()
     if not current_user:
@@ -69,7 +69,7 @@ def _get_interesting_user_ids(user: models.User) -> List[int]:
     return user.interesting_user_ids
 
 
-def get_interesting_users(cached_layer: CachedLayer) -> List[UserPreview]:
+def get_interesting_users(cached_layer: RequestContext) -> List[UserPreview]:
     current_user = cached_layer.try_get_current_user()
     if not current_user:
         current_user = crud.user.try_get_visitor_user(cached_layer.get_db())

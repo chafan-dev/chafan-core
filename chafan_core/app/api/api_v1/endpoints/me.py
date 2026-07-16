@@ -269,14 +269,13 @@ def get_user_follows(
     """
     Get a user's follows info.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    followed = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    followed = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if followed is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    return cached_layer.get_user_follows(followed)
+    return ctx.get_user_follows(followed)
 
 
 @router.post("/follows/{uuid}", response_model=schemas.UserFollows)
@@ -361,9 +360,8 @@ def get_user_channels(
     """
     Get a user's all channels.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    return [cached_layer.channel_schema_from_orm(ch) for ch in current_user.channels]
+    current_user = ctx.get_current_active_user()
+    return [ctx.channel_schema_from_orm(ch) for ch in current_user.channels]
 
 
 @router.get("/article-columns/", response_model=List[schemas.ArticleColumn])
@@ -394,11 +392,10 @@ def get_user_question_subscription(
     """
     Get current user's info about a question's subscription.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     from chafan_core.app.services import questions as questions_service
 
-    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
-    return questions_service.get_question_subscription(cached_layer, question)
+    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
+    return questions_service.get_question_subscription(ctx, question)
 
 
 @router.get(
@@ -528,10 +525,9 @@ def get_user_submission_subscriptions(
     """
     Get current user's subscribed submissions.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        submissions_service.submission_schema(cached_layer, q)
+        submissions_service.submission_schema(ctx, q)
         for q in current_user.subscribed_submissions[skip : skip + limit]
     ]
 
@@ -913,11 +909,10 @@ def unsubscribe_article_column(
 def get_site_profiles(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     return sites_service.site_profiles_for_user(
-        cached_layer.get_db(),
-        cached_layer.materializer,
-        cached_layer.unwrapped_principal_id(),
+        ctx.get_db(),
+        ctx.materializer,
+        ctx.unwrapped_principal_id(),
     )
 
 
@@ -927,10 +922,9 @@ def get_site_profiles(
 def get_moderated_sites(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     if current_user.is_superuser:
-        sites = crud.site.get_all(cached_layer.get_db())
+        sites = crud.site.get_all(ctx.get_db())
     else:
         sites = current_user.moderated_sites
-    return [sites_service.site_schema(cached_layer, s) for s in sites]
+    return [sites_service.site_schema(ctx, s) for s in sites]

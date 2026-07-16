@@ -7,7 +7,6 @@ from fastapi.encoders import jsonable_encoder
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.services import answers as answers_service
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
@@ -32,12 +31,12 @@ AnswersData = List[schemas.AnswerPreview]
 
 
 def _get_answers(
-    cached_layer: CachedLayer, question: models.Question
+    ctx: RequestContext, question: models.Question
 ) -> List[schemas.AnswerPreview]:
     return sorted(
         filter_not_none(
             [
-                cached_layer.materializer.preview_of_answer(answer)
+                ctx.materializer.preview_of_answer(answer)
                 for answer in question.answers
             ]
         ),
@@ -46,9 +45,9 @@ def _get_answers(
 
 
 def _get_question_data(
-    cached_layer: CachedLayer, question: models.Question
+    ctx: RequestContext, question: models.Question
 ) -> schemas.Question:
-    question_data = questions_service.question_schema(cached_layer, question)
+    question_data = questions_service.question_schema(ctx, question)
     if question_data is None:
         raise HTTPException_(
             status_code=400,
@@ -71,12 +70,11 @@ def get_question(
     """
     Get question in one of current_user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     question = questions_service.get_readable_question(
-        cached_layer.get_db(),
+        ctx.get_db(),
         uuid=uuid,
-        principal_id=cached_layer.principal_id,
-        cached_layer=cached_layer,
+        principal_id=ctx.principal_id,
+        ctx=ctx,
     )
     if question is None:
         raise HTTPException_(
@@ -88,7 +86,7 @@ def get_question(
                 status_code=403,
                 detail="Not allowed to access this quesion",
         )
-    return _get_question_data(cached_layer, question)
+    return _get_question_data(ctx, question)
 
 
 @router.post("/{uuid}/views/", response_model=schemas.GenericResponse)
@@ -98,9 +96,8 @@ def bump_views_counter(
     ctx: RequestContext = Depends(deps.get_request_context),
     _current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
-    view_counters.add_view_async(cached_layer, "question", question.id)
+    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
+    view_counters.add_view_async(ctx, "question", question.id)
     return schemas.GenericResponse()
 
 
@@ -117,10 +114,9 @@ def get_question_answers(
     """
     Get question's answers' previews.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
+    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
     if not user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=question.site,
         user_id=current_user_id,
         op_type=OperationType.ReadSite,
@@ -129,7 +125,7 @@ def get_question_answers(
             status_code=400,
             detail="Unauthorized.",
         )
-    return _get_answers(cached_layer, question)
+    return _get_answers(ctx, question)
 
 
 @router.post("/", response_model=schemas.Question)
@@ -143,9 +139,8 @@ def create_question(
     """
     Create new question authored by the current user in one of the belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     crud.audit_log.create_with_user(
         db,
         ipaddr=client_ip(request),
@@ -174,7 +169,7 @@ def create_question(
         db, db_obj=current_user, question=new_question
     )
     background_tasks.add_task(postprocess_new_question, new_question.id)
-    return questions_service.question_schema(cached_layer, new_question)
+    return questions_service.question_schema(ctx, new_question)
 
 
 @router.put("/{uuid}", response_model=schemas.Question)
@@ -190,8 +185,7 @@ def update_question(
     """
     Update question in one of current_user's belonging sites as member.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     crud.audit_log.create_with_user(
         db,
         ipaddr=client_ip(request),
@@ -259,7 +253,7 @@ def update_question(
         question_in_dict["description_text"] = None
     new_question = crud.question.update(db, db_obj=question, obj_in=question_in_dict)
     background_tasks.add_task(postprocess_updated_question, new_question.id)
-    return questions_service.question_schema(cached_layer, new_question)
+    return questions_service.question_schema(ctx, new_question)
 
 
 @router.get("/{uuid}/archives/", response_model=List[schemas.QuestionArchive])
@@ -287,9 +281,8 @@ def get_question_upvotes(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    return cached_layer.materializer.get_question_upvotes(
-        questions_service.get_question_model_http(cached_layer.get_db(), uuid)
+    return ctx.materializer.get_question_upvotes(
+        questions_service.get_question_model_http(ctx.get_db(), uuid)
     )
 
 
@@ -299,20 +292,19 @@ def hide_question(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
+    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
     if (
-        question.site.moderator_id != cached_layer.principal_id
-        and question.author_id != cached_layer.principal_id
+        question.site.moderator_id != ctx.principal_id
+        and question.author_id != ctx.principal_id
     ):
         raise HTTPException_(
             status_code=400,
             detail="Unauthorized.",
         )
     question = crud.question.update(
-        cached_layer.get_db(), db_obj=question, obj_in={"is_hidden": True}
+        ctx.get_db(), db_obj=question, obj_in={"is_hidden": True}
     )
-    return questions_service.question_schema(cached_layer, question)
+    return questions_service.question_schema(ctx, question)
 
 
 @router.post(
@@ -324,39 +316,38 @@ def invite_answer(
     uuid: str,
     user_uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
+    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=question.site,
-        user_id=cached_layer.unwrapped_principal_id(),
+        user_id=ctx.unwrapped_principal_id(),
         op_type=OperationType.ReadSite,
     )
-    invited_user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=user_uuid)
+    invited_user = crud.user.get_by_uuid(ctx.get_db(), uuid=user_uuid)
     if invited_user is None:
         raise HTTPException_(
             status_code=400,
             detail="The user doesn't exist in the system.",
         )
-    if invited_user.id == cached_layer.unwrapped_principal_id():
+    if invited_user.id == ctx.unwrapped_principal_id():
         raise HTTPException_(
             status_code=400,
             detail="You can't invite yourself.",
         )
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=question.site,
         user_id=invited_user.id,
         op_type=OperationType.WriteSiteQuestion,
     )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     crud.notification.create_with_content(
-        cached_layer.broker,
+        ctx.broker,
         receiver_id=invited_user.id,
         event=EventInternal(
             created_at=utc_now,
             content=InviteAnswerInternal(
-                subject_id=cached_layer.unwrapped_principal_id(),
+                subject_id=ctx.unwrapped_principal_id(),
                 question_id=question.id,
                 user_id=invited_user.id,
             ),
@@ -374,10 +365,9 @@ def upvote_question(
     """
     Upvote question as the current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
-    question = questions_service.get_question_model_http(cached_layer.get_db(), uuid)
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
+    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
     check_user_in_site(
         db,
         site=question.site,
@@ -491,19 +481,18 @@ def get_question_page(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user_id = cached_layer.principal_id
+    current_user_id = ctx.principal_id
     question = questions_service.get_readable_question(
-        cached_layer.get_db(),
+        ctx.get_db(),
         uuid=uuid,
         principal_id=current_user_id,
-        cached_layer=cached_layer,
+        ctx=ctx,
     )
     if question is None:
         from chafan_core.app.services import audit as audit_service
 
         audit_service.create_audit(
-            cached_layer.get_db(),
+            ctx.get_db(),
             api=f"get_question_page {uuid} retrieved None",
             request=request,
             user_id=current_user_id,
@@ -512,34 +501,34 @@ def get_question_page(
                 status_code=404,
                 detail="No such question"
             )
-    question_data = _get_question_data(cached_layer, question)
+    question_data = _get_question_data(ctx, question)
     flags = schemas.QuestionPageFlags()
-    if cached_layer.principal_id:
-        if question.author_id == cached_layer.principal_id:
+    if ctx.principal_id:
+        if question.author_id == ctx.principal_id:
             flags.editable = True
             flags.hideable = True
         if user_in_site(
-            cached_layer.get_db(),
+            ctx.get_db(),
             site=question.site,
-            user_id=cached_layer.principal_id,
+            user_id=ctx.principal_id,
             op_type=OperationType.WriteSiteQuestion,
         ):
             flags.editable = True
         if user_in_site(
-            cached_layer.get_db(),
+            ctx.get_db(),
             site=question.site,
-            user_id=cached_layer.principal_id,
+            user_id=ctx.principal_id,
             op_type=OperationType.WriteSiteAnswer,
         ):
             flags.answer_writable = True
         if user_in_site(
-            cached_layer.get_db(),
+            ctx.get_db(),
             site=question.site,
-            user_id=cached_layer.principal_id,
+            user_id=ctx.principal_id,
             op_type=OperationType.WriteSiteComment,
         ):
             flags.comment_writable = True
-        if question.site.moderator_id == cached_layer.principal_id:
+        if question.site.moderator_id == ctx.principal_id:
             flags.is_mod = True
             flags.hideable = True
     # TODO 2025-07-08 This is hacky. The whole logic of question flags needs to be reviewed and simplified.
@@ -551,22 +540,22 @@ def get_question_page(
         # TODO: rethink the internal caching
         full_answers=filter_not_none(
             [
-                answers_service.answer_schema(cached_layer, answer)
+                answers_service.answer_schema(ctx, answer)
                 for answer in rank_answers(
-                    question.answers, principal_id=cached_layer.principal_id
+                    question.answers, principal_id=ctx.principal_id
                 )
             ]
         ),
         answer_previews=filter_not_none(
             [
-                cached_layer.preview_of_answer(answer)
+                ctx.preview_of_answer(answer)
                 for answer in rank_answers(
-                    question.answers, principal_id=cached_layer.principal_id
+                    question.answers, principal_id=ctx.principal_id
                 )
             ]
         ),
         question_subscription=questions_service.get_question_subscription(
-            cached_layer, question
+            ctx, question
         ),
         flags=flags,
     )

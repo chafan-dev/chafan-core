@@ -9,7 +9,6 @@ from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import get_redis_cli, is_dev
 from chafan_core.app.model_utils import get_live_answers_of_question
@@ -55,11 +54,11 @@ def pinned_questions(
 
 
 def _get_pending_questions(
-    cached_layer: CachedLayer,
+    ctx: RequestContext,
 ) -> List[schemas.QuestionPreview]:
-    if cached_layer.principal_id:
+    if ctx.principal_id:
         current_user = crud.user.get(
-            cached_layer.get_db(), id=cached_layer.principal_id
+            ctx.get_db(), id=ctx.principal_id
         )
         assert current_user is not None
         questions: List[schemas.QuestionPreview] = []
@@ -67,7 +66,7 @@ def _get_pending_questions(
             questions.extend(
                 filter_not_none(
                     [
-                        cached_layer.materializer.preview_of_question(q)
+                        ctx.materializer.preview_of_question(q)
                         for q in profile.site.questions
                         if len(get_live_answers_of_question(q)) == 0 and not q.is_hidden
                     ]
@@ -76,11 +75,11 @@ def _get_pending_questions(
         return questions
     else:
         questions: List[schemas.QuestionPreview] = []
-        for site in crud.site.get_all_public_readable(cached_layer.get_db()):
+        for site in crud.site.get_all_public_readable(ctx.get_db()):
             questions.extend(
                 filter_not_none(
                     [
-                        cached_layer.materializer.preview_of_question(q)
+                        ctx.materializer.preview_of_question(q)
                         for q in site.questions
                         if len(get_live_answers_of_question(q)) == 0 and not q.is_hidden
                     ]
@@ -96,13 +95,12 @@ def _get_pending_questions(
 def get_pending_questions(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     redis = get_redis_cli()
-    key = f"chafan:pending-questions-for-user:{cached_layer.principal_id}"
+    key = f"chafan:pending-questions-for-user:{ctx.principal_id}"
     value = redis.get(key)
     if value is not None:
         return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
-    data = _get_pending_questions(cached_layer)
+    data = _get_pending_questions(ctx)
     if not is_dev():
         redis.set(
             key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(hours=24)
@@ -117,16 +115,14 @@ def get_pending_questions(
 def get_interesting_questions(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    return indexed_layer.get_interesting_questions(cached_layer)
+    return indexed_layer.get_interesting_questions(ctx)
 
 
 @router.get("/interesting-users/", response_model=List[schemas.UserPreview])
 def get_interesting_users(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    return indexed_layer.get_interesting_users(cached_layer)
+    return indexed_layer.get_interesting_users(ctx)
 
 
 @router.get(
@@ -142,12 +138,11 @@ def get_featured_answers(
         gt=0,
     ),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    db = cached_layer.get_db()
+    db = ctx.get_db()
     stream = (
         db.query(models.Answer)
         .filter(models.Answer.featured_at != None)
         .order_by(models.Answer.featured_at.desc())
     )
     stream = stream[skip : skip + limit]
-    return filter_not_none([cached_layer.preview_of_answer(a) for a in stream])
+    return filter_not_none([ctx.preview_of_answer(a) for a in stream])

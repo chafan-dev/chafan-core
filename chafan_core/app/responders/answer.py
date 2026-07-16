@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def answer_schema_from_orm(
     cached_layer, answer: models.Answer, principal_id
 ) -> Optional[schemas.Answer]:
-    db = cached_layer.broker.get_db()
+    db = cached_layer.get_db()
     if not user_permission.answer_read_allowed(db, answer=answer, user_id=principal_id):
         return None
 
@@ -50,7 +50,7 @@ def answer_schema_from_orm(
     d["bookmark_count"] = answer.bookmarkers.count()
     d["archives_count"] = len(answer.archives)
     d["bookmarked"] = bookmarked
-    d["view_times"] = view_counters.get_viewcount_answer(cached_layer.broker, answer.id)
+    d["view_times"] = view_counters.get_viewcount_answer(cached_layer, answer.id)
 
     if answer.is_published:
         body = answer.body

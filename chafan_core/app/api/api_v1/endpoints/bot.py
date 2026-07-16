@@ -49,7 +49,6 @@ def create_submission(
     submission_in: schemas.SubmissionCreate,
     verified_id: VerifiedTelegramID,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if (
         not settings.OFFICIAL_BOT_SECRET
     ) or verified_id.verifier_secret != settings.OFFICIAL_BOT_SECRET:
@@ -58,11 +57,11 @@ def create_submission(
             detail="Unauthenticated.",
         )
     user = crud.user.get_by_telegram_id(
-        cached_layer.get_db(), telegram_id=verified_id.telegram_id
+        ctx.get_db(), telegram_id=verified_id.telegram_id
     )
     if not user:
         raise HTTPException_(
             status_code=400,
             detail="User doesn't exist.",
         )
-    return _create_submission(cached_layer, submission_in, user)
+    return _create_submission(ctx, submission_in, user)

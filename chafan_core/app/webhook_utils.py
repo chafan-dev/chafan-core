@@ -7,7 +7,6 @@ from pydantic.main import BaseModel
 from pydantic.tools import parse_obj_as
 
 from chafan_core.app import models
-from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import is_dev
 from chafan_core.app.schemas import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.submission import Submission
@@ -65,7 +64,7 @@ def _post_webhook(webhook: models.Webhook, webhook_event: WebhookEvent) -> None:
 
 
 def call_webhook(
-    cached_layer: CachedLayer,
+    ctx,  # RequestContext / DataBroker with materializer
     webhook: models.Webhook,
     event: Union[SiteNewAnswerEvent, SiteNewQuestionEvent, SiteNewSubmissionEvent],
 ) -> None:
@@ -77,9 +76,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_answer
         ):
-            answer_preview = cached_layer.materializer.preview_of_answer(
-                event.answer
-            )
+            answer_preview = ctx.materializer.preview_of_answer(event.answer)
             if answer_preview:
                 _post_webhook(
                     webhook,
@@ -93,9 +90,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_question
         ):
-            question_preview = (
-                cached_layer.materializer.preview_of_question(event.question)
-            )
+            question_preview = ctx.materializer.preview_of_question(event.question)
             if question_preview:
                 _post_webhook(
                     webhook,
@@ -111,10 +106,8 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_submission
         ):
-            submission = (
-                cached_layer.materializer.submission_for_visitor_schema_from_orm(
-                    event.submission
-                )
+            submission = ctx.materializer.submission_for_visitor_schema_from_orm(
+                event.submission
             )
             if submission:
                 _post_webhook(
