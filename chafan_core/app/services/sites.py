@@ -77,7 +77,7 @@ def get_site_maps(cached_layer) -> schemas.site.SiteMaps:
     for s in sites:
         if not s.public_readable:
             continue
-        site_data = cached_layer.site_schema_from_orm(s)
+        site_data = site_schema(cached_layer, s)
         if s.category_topic is not None:
             pass  # category_topic deprecated
         sites_without_topics.append(site_data)

@@ -384,9 +384,8 @@ def upvote_article(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
     if article is None:
         raise HTTPException_(
@@ -458,9 +457,8 @@ def cancel_upvote_article(
     *,
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     article = crud.article.get_by_uuid(db, uuid=uuid)
     if article is None:
         raise HTTPException_(

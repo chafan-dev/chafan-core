@@ -22,10 +22,9 @@ router = APIRouter()
 def get_my_feedbacks(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    layer = deps.cached_layer_from_context(ctx)
-    current_user = layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return [
-        layer.materializer.feedback_schema_from_orm(f)
+        ctx.materializer.feedback_schema_from_orm(f)
         for f in current_user.feedbacks
     ]
 
@@ -36,9 +35,8 @@ def get_feedback_screenshot(
     *,
     feedback_id: int,
 ) -> Any:
-    layer = deps.cached_layer_from_context(ctx)
-    current_user = layer.get_current_active_user()
-    feedback = crud.feedback.get(layer.get_db(), id=feedback_id)
+    current_user = ctx.get_current_active_user()
+    feedback = crud.feedback.get(ctx.get_db(), id=feedback_id)
     if not feedback:
         raise HTTPException_(
             status_code=400,

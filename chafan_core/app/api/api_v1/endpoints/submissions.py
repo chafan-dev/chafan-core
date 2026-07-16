@@ -294,22 +294,21 @@ def get_submission_suggestions(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    submission = crud.submission.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
     if submission is None:
         raise HTTPException_(
             status_code=400,
             detail="The submission doesn't exist in the system.",
         )
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=submission.site,
-        user_id=cached_layer.unwrapped_principal_id(),
+        user_id=ctx.unwrapped_principal_id(),
         op_type=OperationType.ReadSite,
     )
     return filter_not_none(
         [
-            cached_layer.materializer.submission_suggestion_schema_from_orm(s)
+            ctx.materializer.submission_suggestion_schema_from_orm(s)
             for s in submission.submission_suggestions
         ]
     )
@@ -352,9 +351,8 @@ def upvote_submission(
     """
     Upvote submission as the current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(
@@ -436,9 +434,8 @@ def cancel_upvote_submission(
     """
     Cancel upvote for submission as the current user.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     submission = crud.submission.get_by_uuid(db, uuid=uuid)
     if submission is None:
         raise HTTPException_(

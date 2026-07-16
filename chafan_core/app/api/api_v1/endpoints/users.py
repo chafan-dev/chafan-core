@@ -31,14 +31,13 @@ def invite_new_user(
     """
     Invite internal user by id to a site.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
     site = None
     # if the site is specified, first check whether the current user is allowed to add new member to site
     site = get_site(db, user_invite_in.site_uuid)
     check_user_in_site(
         db,
         site=site,
-        user_id=cached_layer.unwrapped_principal_id(),
+        user_id=ctx.unwrapped_principal_id(),
         op_type=OperationType.AddSiteMember,
     )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -58,7 +57,7 @@ def invite_new_user(
     if not existing_profile:
         sites_service.create_site_profile(
             db,
-            cached_layer.materializer,
+            ctx.materializer,
             owner=invited_user,
             site_uuid=site.uuid,
         )
@@ -72,12 +71,12 @@ def invite_new_user(
                 obj_in=schemas.ApplicationUpdate(pending=False),
             )
         crud.notification.create_with_content(
-            cached_layer.broker,
+            ctx,
             receiver_id=invited_user.id,
             event=EventInternal(
                 created_at=utc_now,
                 content=InviteJoinSiteInternal(
-                    subject_id=cached_layer.unwrapped_principal_id(),
+                    subject_id=ctx.unwrapped_principal_id(),
                     site_id=site.id,
                     user_id=invited_user.id,
                 ),

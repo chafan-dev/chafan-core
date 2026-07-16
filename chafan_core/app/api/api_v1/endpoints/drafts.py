@@ -14,11 +14,10 @@ router = APIRouter()
 def get_draft_answers(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    layer = deps.cached_layer_from_context(ctx)
-    current_user = layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return filter_not_none(
         [
-            layer.materializer.preview_of_answer(answer)
+            ctx.materializer.preview_of_answer(answer)
             for answer in current_user.answers
             if not answer.is_published and answer.body_draft
         ]
@@ -29,11 +28,10 @@ def get_draft_answers(
 def get_draft_articles(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    layer = deps.cached_layer_from_context(ctx)
-    current_user = layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     return filter_not_none(
         [
-            layer.materializer.preview_of_article(article)
+            ctx.materializer.preview_of_article(article)
             for article in current_user.articles
             if not article.is_published or article.body_draft
         ]

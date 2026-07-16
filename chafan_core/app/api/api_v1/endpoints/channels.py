@@ -40,17 +40,16 @@ def get_channel_messages(
     id: int,
 ) -> Any:
     """Get channel's all messages that user belongs to."""
-    layer = deps.cached_layer_from_context(ctx)
-    channel = crud.channel.get(layer.get_db(), id=id)
+    channel = crud.channel.get(ctx.get_db(), id=id)
     if channel is None:
         raise HTTPException_(
             status_code=400,
             detail="The channel doesn't exist in the system.",
         )
-    current_user = layer.get_current_active_user()
+    current_user = ctx.get_current_active_user()
     check_user_in_channel(current_user, channel)
     return [
-        layer.materializer.message_schema_from_orm(m) for m in channel.messages
+        ctx.materializer.message_schema_from_orm(m) for m in channel.messages
     ]
 
 

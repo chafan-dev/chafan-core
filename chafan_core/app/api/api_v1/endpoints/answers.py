@@ -417,9 +417,8 @@ def upvote_answer(
     """
     Upvote answer as the current user in one of current user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         raise HTTPException_(
@@ -481,7 +480,7 @@ def upvote_answer(
                 payee=answer.author,
             )
             crud.notification.create_with_content(
-                cached_layer.broker,
+                ctx,
                 receiver_id=answer.author.id,
                 event=EventInternal(
                     created_at=get_utc_now(),
@@ -512,9 +511,8 @@ def cancel_upvote_answer(
     """
     Cancel upvote for answer as the current user in one of current user's belonging sites.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    current_user = cached_layer.get_current_active_user()
-    db = cached_layer.get_db()
+    current_user = ctx.get_current_active_user()
+    db = ctx.get_db()
     answer = crud.answer.get_by_uuid(db, uuid=uuid)
     if answer is None:
         raise HTTPException_(
@@ -559,22 +557,21 @@ def get_suggestions(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=uuid)
     if answer is None:
         raise HTTPException_(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
     check_user_in_site(
-        cached_layer.get_db(),
+        ctx.get_db(),
         site=answer.site,
-        user_id=cached_layer.unwrapped_principal_id(),
+        user_id=ctx.unwrapped_principal_id(),
         op_type=OperationType.ReadSite,
     )
     return filter_not_none(
         [
-            cached_layer.materializer.answer_suggest_edit_schema_from_orm(s)
+            ctx.materializer.answer_suggest_edit_schema_from_orm(s)
             for s in answer.suggest_edits
         ]
     )

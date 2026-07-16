@@ -152,8 +152,7 @@ def get_user_site_profiles(
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if user is None or not user.is_active:
         raise HTTPException_(
             status_code=400,
@@ -161,10 +160,10 @@ def get_user_site_profiles(
         )
     if current_user_id:
         return [
-            cached_layer.materializer.profile_schema_from_orm(profile)
+            ctx.materializer.profile_schema_from_orm(profile)
             for profile in user.profiles
             if user_in_site(
-                cached_layer.get_db(),
+                ctx.get_db(),
                 site=profile.site,
                 user_id=current_user_id,
                 op_type=OperationType.ReadSite,
@@ -188,8 +187,7 @@ def get_user_questions(
     """
     Get a user's asked questions.
     """
-    cached_layer = deps.cached_layer_from_context(ctx)
-    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     if user is None:
         raise HTTPException_(
             status_code=400,
@@ -198,7 +196,7 @@ def get_user_questions(
     # FIXME: think about more efficient paging mechanism
     return filter_not_none(
         [
-            cached_layer.materializer.preview_of_question(question)
+            ctx.materializer.preview_of_question(question)
             for question in user.questions
             if not question.is_hidden
         ]
@@ -249,8 +247,7 @@ def get_user_articles(
         gt=0,
     ),
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
-    user = crud.user.get_by_uuid(cached_layer.get_db(), uuid=uuid)
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
     print("get user article " + uuid)
     if user is None:
         raise HTTPException_(
@@ -261,7 +258,7 @@ def get_user_articles(
     return filter_not_none(
         [
     # TODO we have limit, but we still generate all articles. Need to rewrite with python generator 2025-Mar-23
-            cached_layer.materializer.preview_of_article(article)
+            ctx.materializer.preview_of_article(article)
             for article in user.articles
         ]
     )[skip : skip + limit]

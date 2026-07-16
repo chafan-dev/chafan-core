@@ -19,7 +19,6 @@ def verify_telegram_id(
     ctx: RequestContext = Depends(deps.get_request_context),
     data: VerifyTelegramID,
 ) -> Any:
-    cached_layer = deps.cached_layer_from_context(ctx)
     if (
         (not settings.OFFICIAL_BOT_SECRET)
         or data.verifier_secret != settings.OFFICIAL_BOT_SECRET
@@ -29,14 +28,14 @@ def verify_telegram_id(
             status_code=400,
             detail="Unauthenticated.",
         )
-    user = crud.user.get_by_email(cached_layer.get_db(), email=data.email)
+    user = crud.user.get_by_email(ctx.get_db(), email=data.email)
     if user is None:
         raise HTTPException_(
             status_code=400,
             detail="Invalid email.",
         )
     crud.user.update(
-        cached_layer.get_db(),
+        ctx.get_db(),
         db_obj=user,
         obj_in={"verified_telegram_user_id": data.telegram_id},
     )
