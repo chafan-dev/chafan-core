@@ -15,7 +15,7 @@ from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.materialize import submission_archive_schema_from_orm
+from chafan_core.app.responders.archives import submission_archive_schema_from_orm
 from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.app.schemas.event import EventInternal, UpvoteSubmissionInternal
 from chafan_core.app.task import (

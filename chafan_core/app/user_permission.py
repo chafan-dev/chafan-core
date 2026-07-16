@@ -98,6 +98,27 @@ def answer_read_allowed(
     )
 
 
+def can_read_answer(db: Session, *, answer: models.Answer, principal_id: int) -> bool:
+    """Stricter gift/reward check: live answer readable by giver principal."""
+    if answer.is_deleted:
+        return False
+    if principal_id == answer.author_id:
+        return True
+    if not is_live_answer(answer):
+        return False
+    return user_in_site(
+        db, site=answer.site, user_id=principal_id, op_type=OperationType.ReadSite
+    )
+
+
+def visitor_can_read_answer(*, answer: models.Answer) -> bool:
+    if not is_live_answer(answer):
+        return False
+    if answer.visibility != ContentVisibility.ANYONE:
+        return False
+    return bool(answer.site.public_readable)
+
+
 def check_user_in_site(
     db: Session, *, site: models.Site, user_id: int, op_type: OperationType
 ) -> None:

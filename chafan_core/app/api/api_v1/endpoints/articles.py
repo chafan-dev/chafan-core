@@ -13,7 +13,7 @@ from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import client_ip
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import check_writing_session
-from chafan_core.app.materialize import article_archive_schema_from_orm
+from chafan_core.app.responders.archives import article_archive_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import ContentVisibility, HTTPException_

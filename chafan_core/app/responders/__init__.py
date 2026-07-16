@@ -1,4 +1,5 @@
 from . import (
+    archives,
     question,
     submission,
     article,

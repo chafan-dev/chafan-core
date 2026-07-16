@@ -31,7 +31,9 @@ def get_user_follows(
 
 def preview_of_user(cached_layer, user: models.User) -> schemas.UserPreview:
     """User preview with social annotations for the current principal."""
-    user_preview = cached_layer.materializer.preview_of_user(user)
+    from chafan_core.app.responders import user as user_responder
+
+    user_preview = user_responder.plain_preview_of_user(user)
     principal_id = cached_layer.principal_id
     if principal_id:
         m = cached_layer.get_follow_follow_fanout()

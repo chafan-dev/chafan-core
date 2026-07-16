@@ -130,11 +130,41 @@ def invitation_link_schema_from_orm(
     return schemas.InvitationLink(**d)
 
 
+def get_user_article_column_subscription(
+    mat, article_column: models.ArticleColumn
+) -> schemas.UserArticleColumnSubscription:
+    principal = getattr(mat, "principal", None)
+    if principal is None and getattr(mat, "principal_id", None) is not None:
+        # RequestContext path: resolve principal if needed
+        try:
+            principal = mat.try_get_current_user()
+        except Exception:
+            principal = None
+    if principal:
+        subscribed = article_column in principal.subscribed_article_columns
+    else:
+        subscribed = False
+    return schemas.UserArticleColumnSubscription(
+        article_column_uuid=article_column.uuid,
+        subscription_count=article_column.subscribers.count(),
+        subscribed_by_me=subscribed,
+    )
+
+
 def article_column_schema_from_orm(
     mat, article_column: models.ArticleColumn
 ) -> schemas.ArticleColumn:
     base = schemas.ArticleColumnInDBBase.from_orm(article_column)
     data_dict = base.dict()
     data_dict["owner"] = mat.preview_of_user(article_column.owner)
-    data_dict["subscription"] = mat.get_user_article_column_subscription(article_column)
+    data_dict["subscription"] = get_user_article_column_subscription(
+        mat, article_column
+    )
     return schemas.ArticleColumn(**data_dict)
+
+
+def task_schema_from_orm(mat, task: models.Task) -> schemas.Task:
+    base = schemas.TaskInDB.from_orm(task)
+    d = base.dict()
+    d["initiator"] = mat.preview_of_user(task.initiator)
+    return schemas.Task(**d)

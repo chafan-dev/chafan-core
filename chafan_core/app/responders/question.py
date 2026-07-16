@@ -7,10 +7,18 @@ import chafan_core.app.responders as responders
 from chafan_core.app import models, schemas
 from chafan_core.app.common import OperationType
 from chafan_core.app.model_utils import get_live_answers_of_question
-from chafan_core.app.schemas.question import QuestionInDBBase
+from chafan_core.app.schemas.question import QuestionInDBBase, QuestionPreviewForSearch
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app import user_permission, view_counters
 from chafan_core.utils.base import filter_not_none, map_
+
+
+def preview_of_question_as_search_hit(
+    question: models.Question,
+) -> Optional[QuestionPreviewForSearch]:
+    if not question.site.public_readable:
+        return None
+    return QuestionPreviewForSearch(uuid=question.uuid, title=question.title)
 
 
 def get_question_upvotes(
