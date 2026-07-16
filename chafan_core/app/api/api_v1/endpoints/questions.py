@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-AnswersData = Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]
+AnswersData = List[schemas.AnswerPreview]
 
 
 def _get_answers(
@@ -36,20 +36,6 @@ def _get_answers(
             [
                 cached_layer.materializer.preview_of_answer(answer)
                 for answer in question.answers
-            ]
-        ),
-        key=lambda a: a.upvotes_count,
-    )
-
-
-def _get_answers_for_visitor(
-    cached_layer: CachedLayer, question: models.Question
-) -> List[schemas.AnswerPreviewForVisitor]:
-    return sorted(
-        filter_not_none(
-            [
-                cached_layer.materializer.preview_of_answer_for_visitor(answer)
-                for answer in question.answers[:10]
             ]
         ),
         key=lambda a: a.upvotes_count,
@@ -116,9 +102,7 @@ def bump_views_counter(
 
 @router.get(
     "/{uuid}/answers/",
-    response_model=Union[
-        List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-    ],
+    response_model=List[schemas.AnswerPreview],
 )
 def get_question_answers(
     *,
@@ -130,21 +114,17 @@ def get_question_answers(
     Get question's answers' previews.
     """
     question = cached_layer.get_question_model_http(uuid)
-    if current_user_id is not None:
-        check_user_in_site(
-            cached_layer.get_db(),
-            site=question.site,
-            user_id=current_user_id,
-            op_type=OperationType.ReadSite,
+    if not user_in_site(
+        cached_layer.get_db(),
+        site=question.site,
+        user_id=current_user_id,
+        op_type=OperationType.ReadSite,
+    ):
+        raise HTTPException_(
+            status_code=400,
+            detail="Unauthorized.",
         )
-        return _get_answers(cached_layer, question)
-    else:
-        if not question.site.public_readable:
-            raise HTTPException_(
-                status_code=400,
-                detail="Unauthorized.",
-            )
-        return _get_answers_for_visitor(cached_layer, question)
+    return _get_answers(cached_layer, question)
 
 
 @router.post("/", response_model=schemas.Question)

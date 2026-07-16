@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Answer, schemas.AnswerForVisitor])
+@router.get("/{uuid}", response_model=schemas.Answer)
 def get_one(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

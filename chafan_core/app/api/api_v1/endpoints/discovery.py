@@ -127,9 +127,7 @@ def get_interesting_users(
 
 @router.get(
     "/featured-answers/",
-    response_model=Union[
-        List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-    ],
+    response_model=List[schemas.AnswerPreview],
 )
 def get_featured_answers(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),

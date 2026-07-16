@@ -9,7 +9,7 @@ from pydantic.tools import parse_obj_as
 from chafan_core.app import models
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import is_dev
-from chafan_core.app.schemas import AnswerPreviewForVisitor, QuestionPreview
+from chafan_core.app.schemas import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.submission import SubmissionForVisitor
 from chafan_core.app.schemas.webhook import WebhookEventSpec, WebhookSiteEvent
 
@@ -28,7 +28,7 @@ class SiteNewSubmissionEvent(NamedTuple):
 
 class NewAnswerEventDetails(BaseModel):
     sub_type: Literal["new_answer"] = "new_answer"
-    answer_preview: AnswerPreviewForVisitor
+    answer_preview: AnswerPreview
 
 
 class NewQuestionEventDetails(BaseModel):
@@ -77,7 +77,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_answer
         ):
-            answer_preview = cached_layer.materializer.preview_of_answer_for_visitor(
+            answer_preview = cached_layer.materializer.preview_of_answer(
                 event.answer
             )
             if answer_preview:

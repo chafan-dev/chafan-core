@@ -266,9 +266,7 @@ def get_user_articles(
 
 @router.get(
     "/{uuid}/answers/",
-    response_model=Union[
-        List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-    ],
+    response_model=List[schemas.AnswerPreview],
 )
 def get_user_answers(
     *,
