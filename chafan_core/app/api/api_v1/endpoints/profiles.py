@@ -2,17 +2,10 @@ from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.common import OperationType
-from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.user_permission import (
-    check_user_in_site,
-    get_active_site_profile,
-    user_in_site,
-)
-from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import profiles as profiles_service
 
 router = APIRouter()
 
@@ -30,24 +23,12 @@ def view_profile(
     """
     View profile as one self or another user in the same site.
     """
-    db = ctx.get_db()
-    site = get_site(db, site_uuid)
-    if user_in_site(
-        db,
-        site=site,
-        user_id=current_user_id,
-        op_type=OperationType.ReadSite,
-    ):
-        owner = crud.user.get_by_uuid(db, uuid=owner_uuid)
-        if owner is None:
-            raise HTTPException_(
-                status_code=400,
-                detail="Invalid user UUID.",
-            )
-        profile = get_active_site_profile(db, site=site, user_id=owner.id)
-        if profile:
-            return ctx.materializer.profile_schema_from_orm(profile)
-    return None
+    return profiles_service.view_profile(
+        ctx,
+        site_uuid=site_uuid,
+        owner_uuid=owner_uuid,
+        current_user_id=current_user_id,
+    )
 
 
 @router.get("/members/{site_uuid}", response_model=List[schemas.Profile])
@@ -60,10 +41,6 @@ def get_profiles(
     """
     Get profiles of a site as moderator or site member.
     """
-    db = ctx.get_db()
-    site = get_site(db, site_uuid)
-    if current_user_id != site.moderator_id:
-        check_user_in_site(
-            db, site=site, user_id=current_user_id, op_type=OperationType.ReadSite
-        )
-    return [ctx.materializer.profile_schema_from_orm(p) for p in site.profiles]
+    return profiles_service.list_site_profiles(
+        ctx, site_uuid=site_uuid, current_user_id=current_user_id
+    )

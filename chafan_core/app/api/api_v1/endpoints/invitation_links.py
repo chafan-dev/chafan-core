@@ -2,16 +2,11 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas, models
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.common import OperationType
-from chafan_core.app.endpoint_utils import get_site
-from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.app.schemas.invitation_link import InvitationLinkCreate
 from chafan_core.app.services import invitations as invitations_service
-from chafan_core.app.services import sites as sites_service
-from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
 
@@ -21,52 +16,22 @@ def create_invitation_link(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     *,
     create_in: InvitationLinkCreate,
-) -> models.User:
-    current_user = ctx.get_current_active_user()
-    # TODO we didn't check if this user is allowed to invite new users 2025-Jul-06
-    invited_to_site_id = None
-    db = ctx.get_db()
-
-    if create_in.invited_to_site_uuid is not None:
-        invited_to_site = get_site(db, create_in.invited_to_site_uuid)
-        check_user_in_site(
-            db,
-            site=invited_to_site,
-            user_id=current_user.id,
-            op_type=OperationType.AddSiteMember,
-        )
-        invited_to_site_id = invited_to_site.id
-    invitation_link = crud.invitation_link.create_invitation(
-            db, invited_to_site_id=invited_to_site_id, inviter=current_user
-        )
-    crud.audit_log.create_with_user(
-        db, ipaddr="0.0.0.0", user_id=current_user.id, api=f"Created invitation link {invitation_link.uuid}"
-    )
-    return ctx.materializer.invitation_link_schema_from_orm(
-            invitation_link
-    )
+) -> Any:
+    return invitations_service.create_invitation_link(ctx, create_in=create_in)
 
 
 @router.get("/daily", response_model=schemas.InvitationLink)
 def get_daily_invitation_link(
     ctx: RequestContext = Depends(deps.get_request_context),
 ) -> Any:
-    return invitations_service.get_daily_invitation_link(
-        ctx.get_db(), ctx.materializer
-    )
+    return invitations_service.get_daily_invitation_link(ctx)
 
 
 @router.get("/{uuid}", response_model=schemas.InvitationLink)
 def get_invitation_link(
     ctx: RequestContext = Depends(deps.get_request_context), *, uuid: str
 ) -> Any:
-    invitation_link = crud.invitation_link.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if invitation_link is None:
-        raise HTTPException_(
-            status_code=404,
-            detail="Invalid invitation link",
-        )
-    return ctx.materializer.invitation_link_schema_from_orm(invitation_link)
+    return invitations_service.get_invitation_link(ctx, uuid)
 
 
 @router.post("/{uuid}/join", response_model=schemas.GenericResponse)
@@ -75,35 +40,5 @@ def join_site_with_invitation_link(
     *,
     uuid: str,
 ) -> Any:
-    current_user = ctx.get_current_active_user()
-    db = ctx.get_db()
-    invitation_link = crud.invitation_link.get_by_uuid(db, uuid=uuid)
-    if (
-        invitation_link is None
-        or not ctx.materializer.invitation_link_schema_from_orm(
-            invitation_link
-        ).valid
-    ):
-        raise HTTPException_(
-            status_code=400,
-            detail="Invalid invitation link",
-        )
-    if invitation_link.invited_to_site_id is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="Not for a specific site",
-        )
-    existing_profile = crud.profile.get_by_user_and_site(
-        db, owner_id=current_user.id, site_id=invitation_link.invited_to_site_id
-    )
-    if not existing_profile:
-        sites_service.create_site_profile(
-            db,
-            ctx.materializer,
-            owner=current_user,
-            site_uuid=invitation_link.invited_to_site.uuid,
-        )
-        invitation_link.remaining_quota -= 1
-        db.add(invitation_link)
-        db.commit()
+    invitations_service.join_site_with_invitation_link(ctx, uuid=uuid)
     return schemas.GenericResponse()

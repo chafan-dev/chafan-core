@@ -1,12 +1,11 @@
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
-from chafan_core.app.config import settings
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.utils.base import HTTPException_, filter_not_none
+from chafan_core.app.services import article_columns as article_columns_service
 
 router = APIRouter()
 
@@ -17,13 +16,7 @@ def get_article_column(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    article_column = crud.article_column.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if article_column is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The article_column doesn't exist in the system.",
-        )
-    return ctx.materializer.article_column_schema_from_orm(article_column)
+    return article_columns_service.get_article_column(ctx, uuid)
 
 
 # TODO This API should support limit and page 2025-Mar-23
@@ -34,17 +27,8 @@ def get_article_column_articles(
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
-    article_column = crud.article_column.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if article_column is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The article_column doesn't exist in the system.",
-        )
-    articles = article_column.articles
-    if not current_user_id:
-        articles = articles[:settings.VISITORS_READ_ARTICLE_LIMIT]
-    return filter_not_none(
-        [ctx.materializer.preview_of_article(a) for a in articles]
+    return article_columns_service.list_column_articles(
+        ctx, uuid=uuid, current_user_id=current_user_id
     )
 
 
@@ -54,12 +38,9 @@ def create_article_column(
     *,
     article_column_in: schemas.ArticleColumnCreate,
 ) -> Any:
-    new_article_column = crud.article_column.create_with_owner(
-        ctx.get_db(),
-        obj_in=article_column_in,
-        owner_id=ctx.unwrapped_principal_id(),
+    return article_columns_service.create_article_column(
+        ctx, article_column_in=article_column_in
     )
-    return ctx.materializer.article_column_schema_from_orm(new_article_column)
 
 
 @router.put("/{uuid}", response_model=schemas.ArticleColumn)
@@ -69,18 +50,6 @@ def update_article_column(
     uuid: str,
     article_column_in: schemas.ArticleColumnUpdate,
 ) -> Any:
-    db = ctx.get_db()
-    article_column = crud.article_column.get_by_uuid(db, uuid=uuid)
-    if article_column is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The article_column doesn't exist in the system.",
-        )
-    if article_column.owner_id != ctx.principal_id:
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
-    return ctx.materializer.article_column_schema_from_orm(
-        crud.article_column.update(db, db_obj=article_column, obj_in=article_column_in),
+    return article_columns_service.update_article_column(
+        ctx, uuid=uuid, article_column_in=article_column_in
     )

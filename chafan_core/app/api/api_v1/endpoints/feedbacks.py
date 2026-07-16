@@ -1,4 +1,3 @@
-import datetime
 from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, Request, Response, BackgroundTasks
@@ -6,13 +5,12 @@ from fastapi.datastructures import UploadFile
 from fastapi.param_functions import File, Form
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.common import valid_content_length
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.limiter import limiter
-from chafan_core.app.models.feedback import Feedback
-from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import feedbacks as feedbacks_service
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 
 router = APIRouter()
@@ -22,11 +20,7 @@ router = APIRouter()
 def get_my_feedbacks(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    current_user = ctx.get_current_active_user()
-    return [
-        ctx.materializer.feedback_schema_from_orm(f)
-        for f in current_user.feedbacks
-    ]
+    return feedbacks_service.list_my_feedbacks(ctx)
 
 
 @router.get("/{feedback_id}/screenshot", response_class=Response)
@@ -35,27 +29,8 @@ def get_feedback_screenshot(
     *,
     feedback_id: int,
 ) -> Any:
-    current_user = ctx.get_current_active_user()
-    feedback = crud.feedback.get(ctx.get_db(), id=feedback_id)
-    if not feedback:
-        raise HTTPException_(
-            status_code=400,
-            detail="The feedback doesn't exist.",
-        )
-    if not (
-        (feedback.user and feedback.user.id == current_user.id)
-        or current_user.is_superuser
-    ):
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
-    if not feedback.screenshot_blob:
-        raise HTTPException_(
-            status_code=400,
-            detail="The feedback has no screenshot.",
-        )
-    return Response(content=feedback.screenshot_blob, media_type="image/jpeg")
+    blob = feedbacks_service.get_feedback_screenshot_bytes(ctx, feedback_id=feedback_id)
+    return Response(content=blob, media_type="image/jpeg")
 
 
 @router.post("/", response_model=schemas.GenericResponse)
@@ -83,16 +58,14 @@ def post_feedback(
                 break
             written_size += len(chunk)
             screenshot_blob += chunk
-    feedback = Feedback(
-        created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-        user_id=current_user_id,
-        user_email=email,
+    feedback = feedbacks_service.create_feedback(
+        db,
         description=description,
-        screenshot_blob=screenshot_blob,
         location_url=location_url,
+        email=email,
+        screenshot_blob=screenshot_blob,
+        current_user_id=current_user_id,
     )
-    db.add(feedback)
-    db.commit()
     from chafan_core.app.task import postprocess_new_feedback
 
     background_tasks.add_task(postprocess_new_feedback, feedback.id)

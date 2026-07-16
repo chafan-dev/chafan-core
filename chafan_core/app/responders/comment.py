@@ -27,7 +27,7 @@ def root_route(comment: models.Comment) -> Optional[str]:
 
 
 def comment_schema_from_orm(mat, comment: models.Comment) -> Optional[schemas.Comment]:
-    """Shape a comment for mat.principal_id. mat is Materializer (db + principal + previews)."""
+    """Shape a comment for mat.principal_id. mat is PrincipalView (db + principal + previews)."""
     from chafan_core.app.user_permission import user_in_site
 
     db = mat.broker.get_db()
