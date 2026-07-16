@@ -483,8 +483,14 @@ def get_question_page(
     current_user_id = cached_layer.principal_id
     question = cached_layer.get_question_by_uuid(uuid, current_user_id)
     if question is None:
-        cached_layer.create_audit(
-                api=f"get_question_page {uuid} retrieved None", request=request, user_id=current_user_id)
+        from chafan_core.app.services import audit as audit_service
+
+        audit_service.create_audit(
+            cached_layer.get_db(),
+            api=f"get_question_page {uuid} retrieved None",
+            request=request,
+            user_id=current_user_id,
+        )
         raise HTTPException_(
                 status_code=404,
                 detail="No such question"

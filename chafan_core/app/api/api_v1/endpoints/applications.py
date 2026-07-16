@@ -7,6 +7,7 @@ from chafan_core.app import crud, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.limiter import limiter
+from chafan_core.app.services import sites as sites_service
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
@@ -67,7 +68,9 @@ def update_application(
         db, owner_id=application.applicant.id, site_id=application.applied_site.id
     )
     if not existing_profile:
-        cached_layer.create_site_profile(
+        sites_service.create_site_profile(
+            db,
+            cached_layer.materializer,
             owner=application.applicant,
             site_uuid=application.applied_site.uuid,
         )
