@@ -8,6 +8,7 @@ from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.infra.request_context import RequestContext
+from chafan_core.app.services import answers as answers_service
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.limiter import limiter
@@ -243,7 +244,7 @@ def create_answer(
     if answer.is_published:
         logger.info(f"create_answer add postprocess task id={answer.id}")
         background_tasks.add_task(postprocess_new_answer, answer.id, False)
-    return cached_layer.answer_schema_from_orm(answer)
+    return answers_service.answer_schema(cached_layer, answer)
 
 
 def _update_answer(
@@ -293,7 +294,7 @@ def _update_answer(
         # TODO: Implement the update subscription logic
 
         background_tasks.add_task(postprocess_new_answer, answer.id, was_published)
-    return unwrap(cached_layer.answer_schema_from_orm(answer))
+    return unwrap(answers_service.answer_schema(cached_layer, answer))
 
 
 @router.put("/{uuid}", response_model=schemas.Answer)
@@ -363,7 +364,7 @@ def update_answer_by_mod(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
-    answer_data = cached_layer.answer_schema_from_orm(answer)
+    answer_data = answers_service.answer_schema(cached_layer, answer)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
@@ -381,7 +382,7 @@ def update_answer_by_mod(
     answer = crud.answer.update_checked(
         db, db_obj=answer, obj_in=update_in.dict(exclude_none=True)
     )
-    answer_data = cached_layer.answer_schema_from_orm(answer)
+    answer_data = answers_service.answer_schema(cached_layer, answer)
     return answer_data
 
 

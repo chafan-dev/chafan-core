@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
+from chafan_core.app.services import sites as sites_service
+from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.materialize import preview_of_question_as_search_hit
 from chafan_core.app.limiter import limiter
@@ -47,7 +49,7 @@ def search_sites(
     if q == "":
         return []
     sites = crud.site.search(cached_layer.get_db(), fragment=q)
-    return [cached_layer.site_schema_from_orm(s) for s in sites]
+    return [sites_service.site_schema(cached_layer, s) for s in sites]
 
 
 @router.get("/topics/", response_model=List[schemas.Topic])
@@ -119,7 +121,7 @@ def search_submissions(
         return []
     submissions = crud.submission.search(cached_layer.get_db(), q=q)
     return filter_not_none(
-        [cached_layer.submission_schema_from_orm(q) for q in submissions]
+        [submissions_service.submission_schema(cached_layer, q) for q in submissions]
     )
 
 

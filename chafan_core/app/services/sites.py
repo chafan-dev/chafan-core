@@ -12,6 +12,7 @@ from chafan_core.app.recs.matrices import similar_entity_ids
 from chafan_core.app.recs.ranking import rank_site_profiles
 from chafan_core.app.schemas.site import SiteCreate
 from chafan_core.utils.base import EntityType
+import chafan_core.app.responders as responders
 
 
 def create_site(
@@ -90,11 +91,15 @@ def get_site_by_subdomain(db: Session, subdomain: str) -> Optional[models.Site]:
     return crud.site.get_by_subdomain(db, subdomain=subdomain)
 
 
+def site_schema(cached_layer, site: models.Site) -> schemas.Site:
+    return responders.site.site_schema_from_orm(cached_layer, site)
+
+
 def get_site_info(cached_layer, *, subdomain: str) -> Optional[schemas.Site]:
     site = get_site_by_subdomain(cached_layer.get_db(), subdomain)
     if site is None:
         return None
-    return cached_layer.site_schema_from_orm(site)
+    return site_schema(cached_layer, site)
 
 
 def update_site(

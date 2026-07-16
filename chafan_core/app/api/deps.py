@@ -87,29 +87,12 @@ def get_data_broker_with_params(*, use_read_replica: bool = False) -> Any:
     return _f
 
 
-def get_cached_layer(
-    current_user_id: Optional[int] = Depends(try_get_current_user_id),
-) -> Generator:
-    # DataBroker is a RequestContext; principal lives on the context.
-    broker = DataBroker(principal_id=current_user_id)
-    try:
-        yield CachedLayer(broker, current_user_id)
-    finally:
-        broker.close()
-
-
-def get_cached_layer_logged_in(
-    current_user_id: int = Depends(get_current_user_id),
-) -> Generator:
-    broker = DataBroker(principal_id=current_user_id)
-    try:
-        yield CachedLayer(broker, current_user_id)
-    finally:
-        broker.close()
-
-
 def cached_layer_from_context(ctx: RequestContext) -> CachedLayer:
-    """Build a transitional CachedLayer on a RequestContext/DataBroker."""
+    """Build a transitional CachedLayer on a RequestContext/DataBroker.
+
+    Prefer calling services with RequestContext directly. This helper exists
+    only while responders/materializer still expect a CachedLayer façade.
+    """
     broker = ctx if isinstance(ctx, DataBroker) else DataBroker(principal_id=ctx.principal_id)
     if not isinstance(ctx, DataBroker):
         broker._db = ctx._db
