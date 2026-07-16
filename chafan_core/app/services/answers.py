@@ -6,7 +6,8 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud
+from chafan_core.app import crud, models, schemas
+import chafan_core.app.responders as responders
 
 
 def delete_answer(
@@ -20,3 +21,43 @@ def delete_answer(
         return "Unauthorized."
     crud.answer.delete_forever(db, answer=answer)
     return None
+
+
+def get_answer_upvotes(
+    db: Session, *, uuid: str, principal_id: Optional[int]
+) -> Optional[schemas.AnswerUpvotes]:
+    answer = crud.answer.get_by_uuid(db, uuid=uuid)
+    if answer is None:
+        return None
+    upvoted = False
+    if principal_id:
+        upvoted = (
+            db.query(models.Answer_Upvotes)
+            .filter_by(answer_id=answer.id, voter_id=principal_id, cancelled=False)
+            .first()
+            is not None
+        )
+    valid_upvotes = (
+        db.query(models.Answer_Upvotes)
+        .filter_by(answer_id=answer.id, cancelled=False)
+        .count()
+    )
+    return schemas.AnswerUpvotes(
+        answer_uuid=answer.uuid, count=valid_upvotes, upvoted=upvoted
+    )
+
+
+def get_answer_schema(cached_layer, uuid: str) -> Optional[schemas.Answer]:
+    """Shape a single answer for the layer principal (permission gated)."""
+    db = cached_layer.get_db()
+    answer = crud.answer.get_by_uuid(db, uuid=uuid)
+    if answer is None:
+        return None
+    answer_data = responders.answer.answer_schema_from_orm(
+        cached_layer, answer, cached_layer.principal_id
+    )
+    if answer_data:
+        answer_data.upvotes = get_answer_upvotes(
+            db, uuid=uuid, principal_id=cached_layer.principal_id
+        )
+    return answer_data

@@ -197,17 +197,8 @@ class CachedLayer(object):
         if answer_data:
             answer_data.upvotes = self.get_answer_upvotes(answer.uuid)
         return answer_data
-    def get_answer(
-        self, uuid: str
-    ) -> Optional[schemas.Answer]:
-        db = self.get_db()
-        answer = crud.answer.get_by_uuid(db, uuid=uuid)
-        if answer is None:
-            return None
-        answer_data = responders.answer.answer_schema_from_orm(self, answer, self.principal_id)
-        if answer_data:
-            answer_data.upvotes = self.get_answer_upvotes(uuid)
-        return answer_data
+    def get_answer(self, uuid: str) -> Optional[schemas.Answer]:
+        return services.answers.get_answer_schema(self, uuid)
 
     def get_submissions_for_user(
         self,
@@ -353,27 +344,8 @@ class CachedLayer(object):
         return value == code
 
     def get_answer_upvotes(self, uuid: str) -> Optional[schemas.AnswerUpvotes]:
-        db = self.get_db()
-        answer = crud.answer.get_by_uuid(db, uuid=uuid)
-        if answer is None:
-            return None
-        upvoted = False
-        if self.principal_id:
-            upvoted = (
-                db.query(models.Answer_Upvotes)
-                .filter_by(
-                    answer_id=answer.id, voter_id=self.principal_id, cancelled=False
-                )
-                .first()
-                is not None
-            )
-        valid_upvotes = (
-            db.query(models.Answer_Upvotes)
-            .filter_by(answer_id=answer.id, cancelled=False)
-            .count()
-        )
-        return schemas.AnswerUpvotes(
-            answer_uuid=answer.uuid, count=valid_upvotes, upvoted=upvoted
+        return services.answers.get_answer_upvotes(
+            self.get_db(), uuid=uuid, principal_id=self.principal_id
         )
 
     def delete_answer(self, uuid: str) -> Optional[str]:
@@ -600,37 +572,18 @@ class CachedLayer(object):
     def get_user_activity(
             self,
             current_user_id: int,
-            before_activity_id:Optional[int],
-            limit:int,
-            random:bool,
+            before_activity_id: Optional[int],
+            limit: int,
+            random: bool,
             subject_user_uuid: Optional[str]):
-        logger.info(f"cached_layer get_user_activity for {current_user_id}")
-        activities = get_activities_v2(
-            cached_layer=self,
+        return services.feed.get_user_activity(
+            self,
+            current_user_id=current_user_id,
             before_activity_id=before_activity_id,
             limit=limit,
-            receiver_user_id=current_user_id,
+            random=random,
             subject_user_uuid=subject_user_uuid,
         )
-
-        insufficient = limit - len(activities)
-        tolerate_order = before_activity_id is None
-        if random:
-            tolerate_order = True
-
-        if (
-            tolerate_order
-            and insufficient > 0
-            and subject_user_uuid is None
-        ):
-            extra_activities = get_random_activities(
-                receiver_user_id=current_user_id,
-                before_activity_id=before_activity_id,
-                limit=limit,
-            )
-            activities.extend(extra_activities)
-
-        return activities
 
 
 

@@ -27,7 +27,11 @@ def _update_feed_seq(
             answer: AnswerPreview = getattr(
                 a.event.content, "answer"
             )
-            answer.full_answer = cached_layer.get_answer(answer.uuid)
+            from chafan_core.app.services import answers as answers_service
+
+            answer.full_answer = answers_service.get_answer_schema(
+                cached_layer, answer.uuid
+            )
     return s
 
 
@@ -48,8 +52,16 @@ def get_feed(
     current_user_id: int = unwrap(cached_layer.principal_id)
     logger.info(f"User {current_user_id} GET activity skip={before_activity_id} limit={limit}, random={random}, full={full_answers}")
 
-    activities = cached_layer.get_user_activity(
-            current_user_id, before_activity_id, limit, random, subject_user_uuid)
+    from chafan_core.app.services import feed as feed_service
+
+    activities = feed_service.get_user_activity(
+        cached_layer,
+        current_user_id=current_user_id,
+        before_activity_id=before_activity_id,
+        limit=limit,
+        random=random,
+        subject_user_uuid=subject_user_uuid,
+    )
 
     data = schemas.FeedSequence(activities=activities, random=random)
     return _update_feed_seq(cached_layer, data, full_answers=full_answers)

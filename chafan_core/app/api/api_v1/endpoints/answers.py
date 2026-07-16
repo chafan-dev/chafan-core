@@ -36,7 +36,9 @@ def get_one(
     """
     Get answer in one of current_user's belonging sites.
     """
-    answer_data = cached_layer.get_answer(uuid)
+    from chafan_core.app.services import answers as answers_service
+
+    answer_data = answers_service.get_answer_schema(cached_layer, uuid)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
@@ -385,7 +387,13 @@ def get_answer_upvotes(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
     uuid: str,
 ) -> Any:
-    data = cached_layer.get_answer_upvotes(uuid)
+    from chafan_core.app.services import answers as answers_service
+
+    data = answers_service.get_answer_upvotes(
+        cached_layer.get_db(),
+        uuid=uuid,
+        principal_id=cached_layer.principal_id,
+    )
     if data is None:
         raise HTTPException_(
             status_code=400,
