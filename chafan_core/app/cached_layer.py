@@ -215,14 +215,14 @@ class CachedLayer(object):
 
     def get_submissions_for_user(
         self,
-    ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    ) -> List[schemas.Submission]:
         return self._get_submissions_for_user(self.principal_id)
-        # def f() -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+        # def f() -> List[schemas.Submission]:
         #     return self._get_submissions_for_user(self.principal_id)
         #
         # return self._get_cached(
         #     key=SUBMISSIONS_FOR_USER_CACHE_KEY.format(user_id=self.principal_id),
-        #     typeObj=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+        #     typeObj=List[schemas.Submission],
         #     fetch=f,
         #     hours=24,
         # )
@@ -251,7 +251,7 @@ class CachedLayer(object):
 
     def _get_submissions_for_user(
         self, current_user_id: Optional[int]
-    ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    ) -> List[schemas.Submission]:
         if current_user_id:
             current_user = crud.user.get(self.broker.get_db(), id=current_user_id)
             assert current_user is not None
@@ -272,18 +272,17 @@ class CachedLayer(object):
                     )
             return rank_submissions(submissions)
         else:
-            submissions_for_visitors: List[schemas.SubmissionForVisitor] = []
+            submissions: List[schemas.Submission] = []
             for site in crud.site.get_all_public_readable(self.broker.get_db()):
-                submissions_for_visitors.extend(
+                submissions.extend(
                     filter_not_none(
                         [
-                            self.materializer.submission_for_visitor_schema_from_orm(s)
+                            self.materializer.submission_schema_from_orm(s)
                             for s in site.submissions
                         ]
                     )[:10]
                 )
-            print(submissions_for_visitors)
-            return rank_submissions(submissions_for_visitors)
+            return rank_submissions(submissions)
 
     def get_site_by_subdomain(self, subdomain: str):
         return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
@@ -304,7 +303,7 @@ class CachedLayer(object):
 
     def get_site_submissions_for_user(
         self, *, site: models.Site, user_id: Optional[int], skip: int, limit: int
-    ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    ) -> List[schemas.Submission]:
         redis = self.get_redis()
         key = SITE_SUBMISSIONS_FOR_USER_CACHE_KEY.format(
             site_id=site.id, user_id=user_id
@@ -316,7 +315,7 @@ class CachedLayer(object):
                     skip : skip + limit
                 ]
             else:
-                return TypeAdapter(List[schemas.SubmissionForVisitor]).validate_json(
+                return TypeAdapter(List[schemas.Submission]).validate_json(
                     value
                 )[skip : skip + limit]
         submissions: List[Any] = []

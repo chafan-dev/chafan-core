@@ -103,7 +103,6 @@ from .site import Site, SiteCreate, SiteInDB, SiteInDBBase, SiteUpdate
 from .submission import (
     Submission,
     SubmissionCreate,
-    SubmissionForVisitor,
     SubmissionInDB,
     SubmissionUpdate,
     SubmissionUpvotes,

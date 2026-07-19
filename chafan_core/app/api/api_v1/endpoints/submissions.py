@@ -31,7 +31,7 @@ router = APIRouter()
 # TODO: paging
 @router.get(
     "/",
-    response_model=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+    response_model=List[schemas.Submission],
 )
 def get_submissions_for_user(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -40,7 +40,7 @@ def get_submissions_for_user(
 
 
 @router.get(
-    "/{uuid}", response_model=Union[schemas.Submission, schemas.SubmissionForVisitor]
+    "/{uuid}", response_model=schemas.Submission
 )
 def get_submission(
     *,
@@ -58,7 +58,7 @@ def get_submission(
             detail="The submission doesn't exist in the system.",
         )
     submission_data: Optional[
-        Union[schemas.Submission, schemas.SubmissionForVisitor]
+        schemas.Submission
     ] = None
     # TODO didn't check principal id
     submission_data = cached_layer.submission_schema_from_orm(submission)
