@@ -1,35 +1,57 @@
-from typing import Optional
+"""Legacy session holder.
 
-import redis
+Prefer RequestContext (chafan_core.app.infra.request_context). DataBroker remains
+as a thin compatibility wrapper used by CachedLayer and existing call sites.
+use_read_replica is ignored (D6: single Postgres, no replica).
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Optional
+
 from sqlalchemy.orm import Session
 
-from chafan_core.app.common import get_redis_cli
-from chafan_core.db.session import ReadSessionLocal, SessionLocal
+from chafan_core.app.infra.request_context import RequestContext
+from chafan_core.db.session import SessionLocal
+
+if TYPE_CHECKING:
+    import redis
 
 
-# Data broker operates after authentication logic and business logic
-# Its main job is to manage cache and data backend sessions.
-class DataBroker(object):
+class DataBroker(RequestContext):
+    """Backward-compatible alias: same lazy db/redis as RequestContext.
+
+    close() still commits (legacy request-end behavior) so existing endpoints
+    keep working until services own transactions.
+    """
+
     def __init__(self, use_read_replica: bool = False) -> None:
-        self.redis: Optional[redis.Redis] = None
-        self.db: Optional[Session] = None
+        super().__init__(principal_id=None)
+        # Kept for signature compatibility; ReadSessionLocal is an alias of SessionLocal.
         self.use_read_replica = use_read_replica
 
-    def get_redis(self) -> redis.Redis:
-        if self.redis is None:
-            self.redis = get_redis_cli()
-        return self.redis
+    # Expose redis/db attributes some call sites still poke at.
+    @property
+    def redis(self) -> Optional["redis.Redis"]:
+        return self._redis
+
+    @redis.setter
+    def redis(self, value: Optional["redis.Redis"]) -> None:
+        self._redis = value
+
+    @property
+    def db(self) -> Optional[Session]:
+        return self._db
+
+    @db.setter
+    def db(self, value: Optional[Session]) -> None:
+        self._db = value
 
     def get_db(self) -> Session:
-        if self.db is None:
-            if self.use_read_replica:
-                self.db = ReadSessionLocal()
-            else:
-                self.db = SessionLocal()
-        return self.db
+        if self._db is None:
+            # Ignore use_read_replica (D6).
+            self._db = SessionLocal()
+        return self._db
 
     def close(self) -> None:
-        if self.db:
-            if not self.use_read_replica:
-                self.db.commit()
-            self.db.close()
+        self.close_legacy_commit()
