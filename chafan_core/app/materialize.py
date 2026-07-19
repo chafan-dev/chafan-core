@@ -28,10 +28,7 @@ from chafan_core.app.schemas.event import (
     EventInternal,
 )
 from chafan_core.app.schemas.notification import Notification, NotificationInDBBase
-from chafan_core.app.schemas.question import (
-        QuestionInDBBase,
-        QuestionPreviewForSearch
-)
+from chafan_core.app.schemas.question import QuestionPreviewForSearch
 from chafan_core.app.schemas.reward import AnsweredQuestionCondition, RewardCondition
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.security import IntlPhoneNumber
@@ -85,7 +82,7 @@ def user_in_site(
     db: Session,
     *,
     site: models.Site,
-    user_id: int,
+    user_id: Optional[int],
     op_type: OperationType,
 ) -> bool:
     # TODO remove it from materialize
@@ -344,9 +341,21 @@ class Materializer(object):
         )
         return schemas.ArticleColumn(**data_dict)
 
-    def get_question_preview_for_visitor(
+    def preview_of_question(
         self, question: models.Question
-    ) -> schemas.QuestionPreviewForVisitor:
+    ) -> Optional[schemas.QuestionPreview]:
+        """One question preview for any principal allowed to read the site."""
+        if not user_in_site(
+            self.broker.get_db(),
+            site=question.site,
+            user_id=self.principal_id,
+            op_type=OperationType.ReadSite,
+        ):
+            return None
+        if question.is_hidden and (
+            self.principal_id is None or self.principal_id != question.author_id
+        ):
+            return None
         desc = None
         if question.description:
             desc = RichText(
@@ -354,7 +363,7 @@ class Materializer(object):
                 editor=question.description_editor,
                 rendered_text=question.description_text,
             )
-        return schemas.QuestionPreviewForVisitor(
+        return schemas.QuestionPreview(
             uuid=question.uuid,
             title=question.title,
             author=self.preview_of_user(question.author),
@@ -363,35 +372,17 @@ class Materializer(object):
             desc=desc,
             answers_count=len(get_live_answers_of_question(question)),
             upvotes=self.get_question_upvotes(question),
-        )
-
-    def preview_of_question_for_visitor(
-        self,
-        question: models.Question,
-    ) -> Optional[schemas.QuestionPreviewForVisitor]:
-        if not question.site.public_readable:
-            return None
-        if not is_eligible_item(question, _VISIBLE_QUESTION_CONDITIONS):
-            return None
-        return self.get_question_preview_for_visitor(question)
-
-    def preview_of_question(
-        self, question: models.Question
-    ) -> Optional[schemas.QuestionPreview]:
-        if self.principal_id and not user_in_site(
-            self.broker.get_db(),
-            site=question.site,
-            user_id=self.principal_id,
-            op_type=OperationType.ReadSite,
-        ):
-            return None
-        preview_base = self.get_question_preview_for_visitor(question)
-        return schemas.QuestionPreview(
-            **preview_base.dict(),
             site=self.site_schema_from_orm(question.site),
             upvotes_count=question.upvotes_count,
             comments_count=len(question.comments),
         )
+
+    # Back-compat alias during Step 1 migration of call sites.
+    def preview_of_question_for_visitor(
+        self,
+        question: models.Question,
+    ) -> Optional[schemas.QuestionPreview]:
+        return self.preview_of_question(question)
 
     def get_answer_preview_base(
         self, answer: models.Answer
@@ -413,7 +404,7 @@ class Materializer(object):
     ) -> Optional[schemas.AnswerPreviewForVisitor]:
         if not visitor_can_read_answer(answer=answer):
             return None
-        question = self.preview_of_question_for_visitor(answer.question)
+        question = self.preview_of_question(answer.question)
         if not question:
             return None
         base = self.get_answer_preview_base(answer)
@@ -776,7 +767,7 @@ class Materializer(object):
         d["comments"] = filter_not_none(
             [self.comment_for_visitor_schema_from_orm(c) for c in answer.comments]
         )
-        q = self.preview_of_question_for_visitor(answer.question)
+        q = self.preview_of_question(answer.question)
         if q is None:
             return None
         d["question"] = q
@@ -839,48 +830,6 @@ class Materializer(object):
         d["suggest_editable"] = answer.body_draft is None
         return schemas.Answer(**d)
 
-    def question_schema_from_orm(
-        self, question: models.Question
-    ) -> Optional[schemas.Question]:
-        logger.error("materialize question_data is deprecated")
-        if not self.principal_id:
-            return None
-        if not user_in_site(
-            self.broker.get_db(),
-            site=question.site,
-            user_id=self.principal_id,
-            op_type=OperationType.ReadSite,
-        ):
-            return None
-        upvoted = (
-            self.broker.get_db()
-            .query(models.QuestionUpvotes)
-            .filter_by(
-                question_id=question.id, voter_id=self.principal_id, cancelled=False
-            )
-            .first()
-            is not None
-        )
-        base = QuestionInDBBase.from_orm(question)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(question.site)
-        d["comments"] = filter_not_none(
-            [self.comment_schema_from_orm(c) for c in question.comments]
-        )
-        d["author"] = self.preview_of_user(question.author)
-        d["editor"] = map_(question.editor, self.preview_of_user)
-        d["upvoted"] = upvoted
-        d["view_times"] = 0 #view_counters.get_views(question.uuid, "question")
-        d["answers_count"] = len(get_live_answers_of_question(question))
-        if question.description is not None:
-            d["desc"] = RichText(
-                source=question.description,
-                editor=question.description_editor,
-                rendered_text=question.description_text,
-            )
-        d["upvotes"] = self.get_question_upvotes(question)
-        return schemas.Question(**d)
-
     def get_materalized_answer(
         self, answer: models.Answer
     ) -> Union[Optional[schemas.Answer], Optional[schemas.AnswerForVisitor]]:
@@ -888,29 +837,6 @@ class Materializer(object):
             return self.answer_schema_from_orm(answer)
         else:
             return self.answer_for_visitor_schema_from_orm(answer)
-
-    def question_for_visitor_schema_from_orm(
-        self,
-        question: models.Question,
-    ) -> Optional[schemas.QuestionForVisitor]:
-        if not question.site.public_readable:
-            return None
-        base = QuestionInDBBase.from_orm(question)
-        d = base.dict()
-        d["author"] = self.preview_of_user(question.author)
-        d["site"] = self.site_schema_from_orm(question.site)
-        d["comments"] = filter_not_none(
-            [self.comment_for_visitor_schema_from_orm(c) for c in question.comments]
-        )
-        d["answers_count"] = len(get_live_answers_of_question(question))
-        if question.description:
-            d["desc"] = RichText(
-                source=question.description,
-                editor=question.description_editor,
-                rendered_text=question.description_text,
-            )
-        d["upvotes"] = self.get_question_upvotes(question)
-        return schemas.QuestionForVisitor(**d)
 
     def submission_for_visitor_schema_from_orm(
         self,

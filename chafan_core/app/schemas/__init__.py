@@ -90,10 +90,8 @@ from .profile import Profile, ProfileCreate, ProfileInDB, ProfileInDBBase, Profi
 from .question import (
     Question,
     QuestionCreate,
-    QuestionForVisitor,
     QuestionInDB,
     QuestionPreview,
-    QuestionPreviewForVisitor,
     QuestionPreviewForSearch,
     QuestionUpdate,
     QuestionUpvotes,

@@ -8,7 +8,7 @@ from chafan_core.app.schemas.answer import (
     AnswerPreview,
     AnswerPreviewForVisitor,
 )
-from chafan_core.app.schemas.question import Question, QuestionForVisitor
+from chafan_core.app.schemas.question import Question
 from chafan_core.app.schemas.user import UserQuestionSubscription
 
 
@@ -21,7 +21,7 @@ class QuestionPageFlags(BaseModel):
 
 
 class QuestionPage(BaseModel):
-    question: Union[Question, QuestionForVisitor]
+    question: Question
     full_answers: List[Union[Answer, AnswerForVisitor]]
     answer_previews: List[Union[AnswerPreview, AnswerPreviewForVisitor]]
     question_subscription: Optional[UserQuestionSubscription]
