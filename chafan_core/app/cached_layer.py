@@ -79,7 +79,18 @@ REQUEST_TEXT_CACHE_KEY = "chafan:request-text:{url}"
 BUMP_VIEW_COUNT_QUEUE_CACHE_KEY = "chafan:bump-view-count"
 
 class CachedLayer(object):
+    """Transitional façade over RequestContext + responders/materialize.
+
+    Prefer RequestContext for sessions/principal. This class still hosts
+    domain helpers until they move to services/.
+    """
+
     def __init__(self, broker: DataBroker, principal_id: Optional[int] = None) -> None:
+        # Keep principal on the shared RequestContext (broker is a DataBroker/RequestContext).
+        if principal_id is not None:
+            broker.principal_id = principal_id
+        elif broker.principal_id is not None:
+            principal_id = broker.principal_id
         self.broker = broker
         self.principal_id = principal_id
         self.materializer = Materializer(self.broker, self.principal_id)
@@ -459,6 +470,11 @@ class CachedLayer(object):
     def try_get_current_user(self) -> Optional[models.User]:
         if self._principal:
             return self._principal
+        # Prefer RequestContext principal resolution when broker is a context.
+        user = self.broker.try_get_current_user()
+        if user is not None:
+            self._principal = user
+            return user
         if not self.principal_id:
             return None
         self._principal = crud.user.get(self.get_db(), id=self.principal_id)
