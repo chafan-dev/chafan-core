@@ -27,7 +27,7 @@ from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.materialize import Materializer
 import chafan_core.app.responders as responders
 from chafan_core.app.recs.ranking import rank_site_profiles, rank_submissions
-from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
+from chafan_core.app.schemas.answer import AnswerPreview
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.site import SiteCreate
 from chafan_core.utils.base import (
@@ -203,7 +203,7 @@ class CachedLayer(object):
         return answer_data
     def get_answer(
         self, uuid: str
-    ) -> Optional[Union[schemas.Answer, schemas.AnswerForVisitor]]:
+    ) -> Optional[schemas.Answer]:
         db = self.get_db()
         answer = crud.answer.get_by_uuid(db, uuid=uuid)
         if answer is None:
@@ -215,14 +215,14 @@ class CachedLayer(object):
 
     def get_submissions_for_user(
         self,
-    ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    ) -> List[schemas.Submission]:
         return self._get_submissions_for_user(self.principal_id)
-        # def f() -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+        # def f() -> List[schemas.Submission]:
         #     return self._get_submissions_for_user(self.principal_id)
         #
         # return self._get_cached(
         #     key=SUBMISSIONS_FOR_USER_CACHE_KEY.format(user_id=self.principal_id),
-        #     typeObj=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+        #     typeObj=List[schemas.Submission],
         #     fetch=f,
         #     hours=24,
         # )
@@ -251,7 +251,7 @@ class CachedLayer(object):
 
     def _get_submissions_for_user(
         self, current_user_id: Optional[int]
-    ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    ) -> List[schemas.Submission]:
         if current_user_id:
             current_user = crud.user.get(self.broker.get_db(), id=current_user_id)
             assert current_user is not None
@@ -272,37 +272,17 @@ class CachedLayer(object):
                     )
             return rank_submissions(submissions)
         else:
-            submissions_for_visitors: List[schemas.SubmissionForVisitor] = []
+            submissions: List[schemas.Submission] = []
             for site in crud.site.get_all_public_readable(self.broker.get_db()):
-                submissions_for_visitors.extend(
+                submissions.extend(
                     filter_not_none(
                         [
-                            self.materializer.submission_for_visitor_schema_from_orm(s)
+                            self.materializer.submission_schema_from_orm(s)
                             for s in site.submissions
                         ]
                     )[:10]
                 )
-            print(submissions_for_visitors)
-            return rank_submissions(submissions_for_visitors)
-
-    def get_answer_for_visitor(self, uuid: str) -> Optional[schemas.AnswerForVisitor]:
-        redis_cli = self.get_redis()
-        key = ANSWER_FOR_VISITOR_CACHE_KEY.format(uuid=uuid)
-        value = redis_cli.get(key)
-        if value is not None:
-            return schemas.AnswerForVisitor.model_validate_json(value)
-        db = self.get_db()
-        answer = crud.answer.get_by_uuid(db, uuid=uuid)
-        if answer is None:
-            return None
-        if answer.visibility != ContentVisibility.ANYONE:
-            return None
-        answer_data = self.materializer.answer_for_visitor_schema_from_orm(answer)
-        if answer_data is None:
-            return None
-        if not is_dev():
-            redis_cli.set(key, answer_data.json(), ex=datetime.timedelta(hours=12))
-        return answer_data
+            return rank_submissions(submissions)
 
     def get_site_by_subdomain(self, subdomain: str):
         return crud.site.get_by_subdomain(self.get_db(), subdomain=subdomain)
@@ -323,7 +303,7 @@ class CachedLayer(object):
 
     def get_site_submissions_for_user(
         self, *, site: models.Site, user_id: Optional[int], skip: int, limit: int
-    ) -> Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]]:
+    ) -> List[schemas.Submission]:
         redis = self.get_redis()
         key = SITE_SUBMISSIONS_FOR_USER_CACHE_KEY.format(
             site_id=site.id, user_id=user_id
@@ -335,7 +315,7 @@ class CachedLayer(object):
                     skip : skip + limit
                 ]
             else:
-                return TypeAdapter(List[schemas.SubmissionForVisitor]).validate_json(
+                return TypeAdapter(List[schemas.Submission]).validate_json(
                     value
                 )[skip : skip + limit]
         submissions: List[Any] = []
@@ -708,43 +688,28 @@ class CachedLayer(object):
 
     def preview_of_answer(
         self, answer: models.Answer
-    ) -> Union[Optional[AnswerPreview], Optional[AnswerPreviewForVisitor]]:
-        if self.principal_id:
-            return self.materializer.preview_of_answer(answer)
-        else:
-            return self.materializer.preview_of_answer_for_visitor(answer)
+    ) -> Optional[AnswerPreview]:
+        return self.materializer.preview_of_answer(answer)
 
     def get_authored_answers_for_principal(
         self, author: models.User
-    ) -> Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]:
+    ) -> List[schemas.AnswerPreview]:
         key = AUTHOR_ANSWERS_FOR_USER_CACHE_KEY.format(
             author_id=author.id, user_id=self.principal_id
         )
 
-        def f() -> (
-            Union[List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]]
-        ):
+        def f() -> List[schemas.AnswerPreview]:
             logger.info(f"not found in redis, fetch postgresql author={author.id}")
-            if self.principal_id:
-                return filter_not_none(
-                    [
-                        self.materializer.preview_of_answer(answer)
-                        for answer in author.answers
-                    ]
-                )
-            else:
-                return filter_not_none(
-                    [
-                        self.materializer.preview_of_answer_for_visitor(answer)
-                        for answer in author.answers
-                    ]
-                )
+            return filter_not_none(
+                [
+                    self.materializer.preview_of_answer(answer)
+                    for answer in author.answers
+                ]
+            )
 
         return self._get_cached_non_empty(
             key=key,
-            typeObj=Union[
-                List[schemas.AnswerPreview], List[schemas.AnswerPreviewForVisitor]
-            ],
+            typeObj=List[schemas.AnswerPreview],
             fallable_fetch=f,
             hours=24,
         )  # type: ignore

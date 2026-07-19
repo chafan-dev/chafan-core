@@ -15,10 +15,8 @@ from .activity import (
 from .answer import (
     Answer,
     AnswerCreate,
-    AnswerForVisitor,
     AnswerInDBBase,
     AnswerPreview,
-    AnswerPreviewForVisitor,
     AnswerUpdate,
     AnswerUpvotes,
 )
@@ -35,7 +33,6 @@ from .article import (
     ArticleColumn,
     ArticleCreate,
     ArticleDraft,
-    ArticleForVisitor,
     ArticlePreview,
     ArticleTopicsUpdate,
     ArticleUpdate,
@@ -60,7 +57,6 @@ from .coin_payment import (
 from .comment import (
     Comment,
     CommentCreate,
-    CommentForVisitor,
     CommentInDBBase,
     CommentUpdate,
     CommentUpvotes,
@@ -105,7 +101,6 @@ from .site import Site, SiteCreate, SiteInDB, SiteInDBBase, SiteUpdate
 from .submission import (
     Submission,
     SubmissionCreate,
-    SubmissionForVisitor,
     SubmissionInDB,
     SubmissionUpdate,
     SubmissionUpvotes,
@@ -137,7 +132,6 @@ from .user import (
     UserInDBBase,
     UserInvite,
     UserPublic,
-    UserPublicForVisitor,
     UserQuestionSubscription,
     UserSubmissionSubscription,
     UserTopicSubscription,

@@ -131,7 +131,13 @@ class UserInDBBase(UserBase):
         from_attributes = True
 
 
-class UserPublicForVisitor(UserPreview):
+class YearContributions(BaseModel):
+    year: int
+    data: List[int]
+
+
+# One public profile schema for any principal allowed to view the user.
+class UserPublic(UserPreview):
     gif_avatar_url: Optional[AnyHttpUrl] = None
     answers_count: int
     submissions_count: int
@@ -139,25 +145,17 @@ class UserPublicForVisitor(UserPreview):
     articles_count: int
     created_at: datetime.datetime
     profile_view_times: int
-
-
-class YearContributions(BaseModel):
-    year: int
-    data: List[int]
-
-
-class UserPublic(UserPublicForVisitor):
-    about_content: Optional[RichText]
+    about_content: Optional[RichText] = None
     # deprecated
-    profiles: List[Profile]
-    residency_topics: List[Topic]
-    profession_topics: List[Topic]
+    profiles: List[Profile] = []
+    residency_topics: List[Topic] = []
+    profession_topics: List[Topic] = []
     github_username: Optional[str] = None
     twitter_username: Optional[str] = None
     linkedin_url: Optional[AnyHttpUrl] = None
     homepage_url: Optional[AnyHttpUrl] = None
     zhihu_url: Optional[AnyHttpUrl] = None
-    subscribed_topics: List[Topic]
+    subscribed_topics: List[Topic] = []
     work_exps: List[UserWorkExperience] = []
     edu_exps: List[UserEducationExperience] = []
     contributions: Optional[List[YearContributions]] = None

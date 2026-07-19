@@ -1,14 +1,14 @@
 from typing import Any
 
 import sentry_sdk
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.api.api_v1.endpoints.answers import _update_answer
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, run_dramatiq_task
+from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.schemas.answer import AnswerUpdate
 from chafan_core.app.schemas.answer_suggest_edit import (
@@ -26,6 +26,7 @@ def post_answer_suggest_edits(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     create_in: AnswerSuggestEditCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     current_user = cached_layer.get_current_active_user()
     answer = crud.answer.get_by_uuid(cached_layer.get_db(), uuid=create_in.answer_uuid)
@@ -58,7 +59,7 @@ def post_answer_suggest_edits(
     )
     from chafan_core.app.task import postprocess_new_answer_suggest_edit
 
-    run_dramatiq_task(postprocess_new_answer_suggest_edit, s.id)
+    background_tasks.add_task(postprocess_new_answer_suggest_edit, s.id)
     return unwrap(cached_layer.materializer.answer_suggest_edit_schema_from_orm(s))
 
 
@@ -81,7 +82,9 @@ def _check_suggestion_author(
 
 
 def _accept_answer_suggest_edit(
-    cached_layer: CachedLayer, answer_suggest_edit: models.AnswerSuggestEdit
+    cached_layer: CachedLayer,
+    answer_suggest_edit: models.AnswerSuggestEdit,
+    background_tasks: BackgroundTasks,
 ) -> None:
     # Update the answer
     body_rich_text = None
@@ -100,11 +103,12 @@ def _accept_answer_suggest_edit(
             is_draft=False,
             visibility=answer_suggest_edit.answer.visibility,
         ),
+        background_tasks=background_tasks,
     )
     # Rebate the suggestion author
     from chafan_core.app.task import postprocess_accept_answer_suggest_edit
 
-    run_dramatiq_task(postprocess_accept_answer_suggest_edit, answer_suggest_edit.id)
+    background_tasks.add_task(postprocess_accept_answer_suggest_edit, answer_suggest_edit.id)
 
 
 @router.put("/{uuid}", response_model=schemas.AnswerSuggestEdit)
@@ -113,6 +117,7 @@ def update_answer_suggest_edits(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     update_in: AnswerSuggestEditUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     db = cached_layer.get_db()
     current_user_id = cached_layer.unwrapped_principal_id()
@@ -154,7 +159,7 @@ def update_answer_suggest_edits(
                     answer_suggest_edit.author
                 )
             db.commit()
-            _accept_answer_suggest_edit(cached_layer, answer_suggest_edit)
+            _accept_answer_suggest_edit(cached_layer, answer_suggest_edit, background_tasks=background_tasks)
         elif new_status == "rejected":
             _check_author(answer_suggest_edit, current_user_id)
             update_dict["rejected_at"] = utc_now

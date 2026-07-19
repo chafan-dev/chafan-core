@@ -2,8 +2,6 @@ import datetime
 from typing import List, Optional
 
 from collections import Counter
-import dramatiq
-from dramatiq.brokers.redis import RedisBroker
 from sqlalchemy.orm.session import Session
 
 
@@ -66,12 +64,6 @@ import chafan_core.app.rep_manager as rep
 import logging
 logger = logging.getLogger(__name__)
 
-
-# TODO do we need a better way to get url?
-redis_url = settings.REDIS_URL
-logger.info(f"Create DramatiqBroker with redis {redis_url}")
-dramatiq_broker = RedisBroker(url=redis_url, namespace="dramatiq")
-dramatiq.set_broker(dramatiq_broker)
 
 
 
@@ -146,7 +138,6 @@ def get_comment_event(comment: models.Comment) -> Optional[EventInternal]:
     return None
 
 
-@dramatiq.actor
 def postprocess_new_comment(
     comment_id: int, shared_to_timeline: bool, mentioned: Optional[List[str]]
 ) -> None:
@@ -217,7 +208,6 @@ def postprocess_new_comment(
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_comment_update(
     comment_id: int,
     was_shared_to_timeline: bool,
@@ -249,12 +239,10 @@ def postprocess_comment_update(
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_question_common(question: models.Question) -> None:
     update_question_keywords(question)
 
 
-@dramatiq.actor
 def postprocess_new_question(question_id: int) -> None:
     print("postprocess_new_question")
 
@@ -293,7 +281,6 @@ def postprocess_new_question(question_id: int) -> None:
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_updated_question(question_id: int) -> None:
     print("postprocess_updated_question")
 
@@ -323,7 +310,6 @@ def postprocess_submission_common(submission: models.Submission) -> None:
     update_submission_keywords(submission)
 
 
-@dramatiq.actor
 def postprocess_new_submission(submission_id: int) -> None:
     def runnable(broker: DataBroker) -> None:
         submission = crud.submission.get(broker.get_db(), id=submission_id)
@@ -350,7 +336,6 @@ def postprocess_new_submission(submission_id: int) -> None:
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None:
     def runnable(broker: DataBroker) -> None:
         submission_suggestion = crud.submission_suggestion.get(
@@ -378,7 +363,6 @@ def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> None:
     def runnable(db: Session) -> None:
         submission_suggestion = crud.submission_suggestion.get(
@@ -400,7 +384,6 @@ def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> N
     execute_with_db(SessionLocal(), runnable)
 
 
-@dramatiq.actor
 def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
     def runnable(broker: DataBroker) -> None:
         answer_suggest_edit = crud.answer_suggest_edit.get(
@@ -427,7 +410,6 @@ def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_accept_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
     def runnable(db: Session) -> None:
         answer_suggest_edit = crud.answer_suggest_edit.get(
@@ -449,7 +431,6 @@ def postprocess_accept_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-@dramatiq.actor
 def postprocess_updated_submission(submission_id: int) -> None:
     def runnable(db: Session) -> None:
         submission = crud.submission.get(db, id=submission_id)
@@ -459,7 +440,6 @@ def postprocess_updated_submission(submission_id: int) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-@dramatiq.actor
 def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
     def runnable(broker: DataBroker) -> None:
         answer = crud.answer.get(broker.get_db(), id=answer_id)
@@ -510,7 +490,6 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_new_article(article_id: int) -> None:
     def runnable(broker: DataBroker) -> None:
         article = crud.article.get(broker.get_db(), id=article_id)
@@ -543,7 +522,6 @@ def postprocess_new_article(article_id: int) -> None:
     execute_with_broker(runnable)
 
 
-@dramatiq.actor
 def postprocess_updated_article(article_id: int, was_published: bool) -> None:
     def runnable(db: Session) -> None:
         article = crud.article.get(db, id=article_id)
@@ -557,7 +535,6 @@ def postprocess_updated_article(article_id: int, was_published: bool) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-@dramatiq.actor
 def postprocess_new_feedback(feedback_id: int) -> None:
     def runnable(db: Session) -> None:
         feedback = (
@@ -570,7 +547,6 @@ def postprocess_new_feedback(feedback_id: int) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-@dramatiq.actor
 def refresh_interesting_question_ids_for_user(user_id: int) -> None:
     def runnable(db: Session) -> None:
         user = crud.user.get(db, user_id)
@@ -589,7 +565,6 @@ def refresh_interesting_question_ids_for_user(user_id: int) -> None:
     execute_with_db(SessionLocal(), runnable)
 
 
-@dramatiq.actor
 def refresh_interesting_user_ids_for_user(user_id: int) -> None:
     def runnable(db: Session) -> None:
         user = crud.user.get(db, user_id)

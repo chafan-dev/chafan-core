@@ -260,7 +260,7 @@ def get_site_questions(
 
 @router.get(
     "/{uuid}/submissions/",
-    response_model=Union[List[schemas.Submission], List[schemas.SubmissionForVisitor]],
+    response_model=List[schemas.Submission],
 )
 def get_site_submissions(
     *,

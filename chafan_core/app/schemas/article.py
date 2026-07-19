@@ -4,7 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel, validator
 
 from chafan_core.app.schemas.article_column import ArticleColumn
-from chafan_core.app.schemas.comment import Comment, CommentForVisitor
+from chafan_core.app.schemas.comment import Comment
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.topic import Topic
@@ -82,14 +82,6 @@ class Article(ArticleInDBBase):
     bookmarked: bool
     archives_count: int
 
-
-# Additional properties to return via API
-class ArticleForVisitor(ArticleInDBBase):
-    content: RichText
-
-    author: UserPreview
-    comments: List[CommentForVisitor]
-    article_column: ArticleColumn
 
 
 # Additional properties stored in DB

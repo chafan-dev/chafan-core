@@ -1,13 +1,13 @@
 import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, run_dramatiq_task
+from chafan_core.app.common import OperationType
 from chafan_core.app.materialize import check_user_in_site
 from chafan_core.app.task import postprocess_comment_update, postprocess_new_comment
 from chafan_core.utils.base import HTTPException_
@@ -33,24 +33,13 @@ def get_comment(
             status_code=400,
             detail="The comment doesn't exist in the system.",
         )
-    current_user_id = cached_layer.principal_id
-    if current_user_id:
-        if comment.site is not None:
-            check_user_in_site(
-                cached_layer.get_db(),
-                site=comment.site,
-                user_id=current_user_id,
-                op_type=OperationType.ReadSite,
-            )
-        return cached_layer.materializer.comment_schema_from_orm(comment)
-    else:
-        if comment.site is not None:
-            if not comment.site.public_readable:
-                raise HTTPException_(
-                    status_code=400,
-                    detail="Unauthorized.",
-                )
-        return cached_layer.materializer.comment_for_visitor_schema_from_orm(comment)
+    data = cached_layer.materializer.comment_schema_from_orm(comment)
+    if data is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="Unauthorized.",
+        )
+    return data
 
 
 @router.get("/{uuid}/upvotes/", response_model=schemas.CommentUpvotes)
@@ -115,6 +104,7 @@ def create_comment(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     db: Session = Depends(deps.get_db),
     comment_in: schemas.CommentCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new comment authored by the current active user in one of the belonging sites.
@@ -147,7 +137,7 @@ def create_comment(
     comment = crud.comment.create_with_author(
         db, obj_in=comment_in, author_id=current_user_id, check_site=check_site
     )
-    run_dramatiq_task(
+    background_tasks.add_task(
         postprocess_new_comment,
         comment.id,
         comment_in.shared_to_timeline,
@@ -165,6 +155,7 @@ def update_comment(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     comment_in: schemas.CommentUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Update comment authored by the current user in one of the belonging sites.
@@ -195,7 +186,7 @@ def update_comment(
     new_comment = crud.comment.update(
         cached_layer.get_db(), db_obj=comment, obj_in=comment_in_dict
     )
-    run_dramatiq_task(
+    background_tasks.add_task(
         postprocess_comment_update,
         comment.id,
         was_shared_to_timeline,

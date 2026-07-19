@@ -55,10 +55,3 @@ class CommentUpvotes(BaseModel):
     comment_uuid: str
     count: int
     upvoted: bool
-
-
-class CommentForVisitor(CommentInDBBase):
-    content: RichText
-    author: UserPreview
-    root_route: Optional[str] = None
-    child_comments: List["CommentForVisitor"] = []

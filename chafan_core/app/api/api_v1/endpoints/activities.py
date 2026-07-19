@@ -9,7 +9,7 @@ from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
 from chafan_core.app.common import report_msg
 from chafan_core.app.schemas.activity import UserFeedSettings
-from chafan_core.app.schemas.answer import AnswerPreview, AnswerPreviewForVisitor
+from chafan_core.app.schemas.answer import AnswerPreview
 from chafan_core.utils.base import unwrap
 
 
@@ -24,7 +24,7 @@ def _update_feed_seq(
 ) -> schemas.FeedSequence:
     for a in s.activities:
         if hasattr(a.event.content, "answer") and full_answers:
-            answer: Union[AnswerPreview, AnswerPreviewForVisitor] = getattr(
+            answer: AnswerPreview = getattr(
                 a.event.content, "answer"
             )
             answer.full_answer = cached_layer.get_answer(answer.uuid)

@@ -1,7 +1,6 @@
 from typing import Literal, Optional
 
 import sentry_sdk
-from sentry_sdk.integrations.dramatiq import DramatiqIntegration
 from pydantic import AnyHttpUrl
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings
@@ -119,6 +118,5 @@ if settings.SENTRY_DSN:
         integrations=[
             RedisIntegration(),
             SqlalchemyIntegration(),
-            DramatiqIntegration(),
         ],
     )

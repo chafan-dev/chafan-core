@@ -1,13 +1,13 @@
 from typing import Any, List, Union
 
-from fastapi import APIRouter, Depends, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import OperationType, client_ip, run_dramatiq_task
+from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.limiter import limiter
 from chafan_core.app.materialize import (
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Answer, schemas.AnswerForVisitor])
+@router.get("/{uuid}", response_model=schemas.Answer)
 def get_one(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -183,6 +183,7 @@ def create_answer(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     answer_in: schemas.AnswerCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new answer authored by the current user in one of the belonging sites.
@@ -228,8 +229,8 @@ def create_answer(
     )
     if answer.is_published:
         logger.info(f"create_answer add postprocess task id={answer.id}")
-        run_dramatiq_task(postprocess_new_answer, answer.id, False)
-    return cached_layer.materializer.answer_schema_from_orm(answer)
+        background_tasks.add_task(postprocess_new_answer, answer.id, False)
+    return cached_layer.answer_schema_from_orm(answer)
 
 
 def _update_answer(
@@ -237,6 +238,7 @@ def _update_answer(
     *,
     answer: models.Answer,
     answer_in: schemas.AnswerUpdate,
+    background_tasks: BackgroundTasks,
 ) -> schemas.Answer:
     db = cached_layer.get_db()
     answer_in_dict = answer_in.dict(exclude_none=True)
@@ -277,10 +279,10 @@ def _update_answer(
         # NOTE: Since is_published will not be reverted, thus this should only be delivered once
         # TODO: Implement the update subscription logic
 
-        run_dramatiq_task(postprocess_new_answer, answer.id, was_published)
+        background_tasks.add_task(postprocess_new_answer, answer.id, was_published)
 
     cached_layer.invalidate_answer_cache(answer.uuid)
-    return unwrap(cached_layer.materializer.answer_schema_from_orm(answer))
+    return unwrap(cached_layer.answer_schema_from_orm(answer))
 
 
 @router.put("/{uuid}", response_model=schemas.Answer)
@@ -290,6 +292,7 @@ def update_answer(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     answer_in: schemas.AnswerUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Update answer authored by current user in one of current user's belonging sites.
@@ -326,7 +329,7 @@ def update_answer(
         user_id=current_user_id,
         op_type=OperationType.WriteSiteAnswer,
     )
-    return _update_answer(cached_layer, answer=answer, answer_in=answer_in)
+    return _update_answer(cached_layer, answer=answer, answer_in=answer_in, background_tasks=background_tasks)
 
 
 @router.put("/{uuid}/mod", response_model=schemas.Answer, include_in_schema=False)
@@ -347,7 +350,7 @@ def update_answer_by_mod(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
-    answer_data = cached_layer.materializer.answer_schema_from_orm(answer)
+    answer_data = cached_layer.answer_schema_from_orm(answer)
     if answer_data is None:
         raise HTTPException_(
             status_code=400,
@@ -365,7 +368,7 @@ def update_answer_by_mod(
     answer = crud.answer.update_checked(
         db, db_obj=answer, obj_in=update_in.dict(exclude_none=True)
     )
-    answer_data = cached_layer.materializer.answer_schema_from_orm(answer)
+    answer_data = cached_layer.answer_schema_from_orm(answer)
     cached_layer.invalidate_answer_cache(uuid=uuid)
     return answer_data
 

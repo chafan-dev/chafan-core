@@ -1,7 +1,7 @@
 import datetime
 from typing import Any, List, Optional, Union
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
 from fastapi.param_functions import Query
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ import chafan_core
 from chafan_core.app import crud, models, schemas, view_counters
 from chafan_core.app.api import deps
 from chafan_core.app.cached_layer import CachedLayer
-from chafan_core.app.common import client_ip, run_dramatiq_task
+from chafan_core.app.common import client_ip
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.materialize import article_archive_schema_from_orm
@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
+@router.get("/{uuid}", response_model=schemas.Article)
 def get_article(
     request: Request,
     *,
@@ -175,6 +175,7 @@ def create_article(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     *,
     article_in: schemas.ArticleCreate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     """
     Create new article authored by the current user in one of the belonging sites.
@@ -213,8 +214,8 @@ def create_article(
     if new_article.is_published:
         from chafan_core.app.task import postprocess_new_article
 
-        run_dramatiq_task(postprocess_new_article, new_article.id)
-    data = cached_layer.materializer.article_schema_from_orm(new_article)
+        background_tasks.add_task(postprocess_new_article, new_article.id)
+    data = cached_layer.article_schema_from_orm(new_article)
     assert data is not None
     return data
 
@@ -226,6 +227,7 @@ def update_article(
     cached_layer: CachedLayer = Depends(deps.get_cached_layer_logged_in),
     uuid: str,
     article_in: schemas.ArticleUpdate,
+    background_tasks: BackgroundTasks,
 ) -> Any:
     current_user_id = cached_layer.unwrapped_principal_id()
     crud.audit_log.create_with_user(
@@ -290,8 +292,8 @@ def update_article(
     if article.is_published:
         from chafan_core.app.task import postprocess_updated_article
 
-        run_dramatiq_task(postprocess_updated_article, article.id, was_published)
-    data = cached_layer.materializer.article_schema_from_orm(article)
+        background_tasks.add_task(postprocess_updated_article, article.id, was_published)
+    data = cached_layer.article_schema_from_orm(article)
     assert data is not None
     return data
 

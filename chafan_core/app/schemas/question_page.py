@@ -1,13 +1,8 @@
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from pydantic import BaseModel
 
-from chafan_core.app.schemas.answer import (
-    Answer,
-    AnswerForVisitor,
-    AnswerPreview,
-    AnswerPreviewForVisitor,
-)
+from chafan_core.app.schemas.answer import Answer, AnswerPreview
 from chafan_core.app.schemas.question import Question
 from chafan_core.app.schemas.user import UserQuestionSubscription
 
@@ -22,7 +17,7 @@ class QuestionPageFlags(BaseModel):
 
 class QuestionPage(BaseModel):
     question: Question
-    full_answers: List[Union[Answer, AnswerForVisitor]]
-    answer_previews: List[Union[AnswerPreview, AnswerPreviewForVisitor]]
+    full_answers: List[Answer]
+    answer_previews: List[AnswerPreview]
     question_subscription: Optional[UserQuestionSubscription]
     flags: QuestionPageFlags
