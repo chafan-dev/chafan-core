@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/{uuid}", response_model=Union[schemas.Article, schemas.ArticleForVisitor])
+@router.get("/{uuid}", response_model=schemas.Article)
 def get_article(
     request: Request,
     *,
@@ -215,7 +215,7 @@ def create_article(
         from chafan_core.app.task import postprocess_new_article
 
         background_tasks.add_task(postprocess_new_article, new_article.id)
-    data = cached_layer.materializer.article_schema_from_orm(new_article)
+    data = cached_layer.article_schema_from_orm(new_article)
     assert data is not None
     return data
 
@@ -293,7 +293,7 @@ def update_article(
         from chafan_core.app.task import postprocess_updated_article
 
         background_tasks.add_task(postprocess_updated_article, article.id, was_published)
-    data = cached_layer.materializer.article_schema_from_orm(article)
+    data = cached_layer.article_schema_from_orm(article)
     assert data is not None
     return data
 

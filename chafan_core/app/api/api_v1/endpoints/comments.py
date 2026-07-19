@@ -33,24 +33,13 @@ def get_comment(
             status_code=400,
             detail="The comment doesn't exist in the system.",
         )
-    current_user_id = cached_layer.principal_id
-    if current_user_id:
-        if comment.site is not None:
-            check_user_in_site(
-                cached_layer.get_db(),
-                site=comment.site,
-                user_id=current_user_id,
-                op_type=OperationType.ReadSite,
-            )
-        return cached_layer.materializer.comment_schema_from_orm(comment)
-    else:
-        if comment.site is not None:
-            if not comment.site.public_readable:
-                raise HTTPException_(
-                    status_code=400,
-                    detail="Unauthorized.",
-                )
-        return cached_layer.materializer.comment_for_visitor_schema_from_orm(comment)
+    data = cached_layer.materializer.comment_schema_from_orm(comment)
+    if data is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="Unauthorized.",
+        )
+    return data
 
 
 @router.get("/{uuid}/upvotes/", response_model=schemas.CommentUpvotes)

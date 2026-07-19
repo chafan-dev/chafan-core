@@ -73,11 +73,20 @@ def _get_edu_exps(
     return ret
 
 
-def _get_user_public_visitor(
+def _get_user_public(
     cached_layer: CachedLayer, user: models.User, view_times: int
-) -> schemas.UserPublicForVisitor:
+) -> schemas.UserPublic:
+    """One public profile schema for any principal allowed to view the user."""
     preview = cached_layer.preview_of_user(user)
-    return schemas.UserPublicForVisitor(
+    db = cached_layer.get_db()
+    about_content = None
+    if user.about is not None:
+        about_content = RichText(source=user.about, editor="wysiwyg")
+    contributions = [
+        YearContributions(year=year, data=data)
+        for year, data in cached_layer.get_user_contributions(user)
+    ]
+    return schemas.UserPublic(
         **preview.dict(),
         gif_avatar_url=user.gif_avatar_url,
         answers_count=len(
@@ -94,12 +103,23 @@ def _get_user_public_visitor(
         ),
         created_at=user.created_at,
         profile_view_times=view_times,
+        about_content=about_content,
+        profiles=[],
+        residency_topics=[schemas.Topic.from_orm(t) for t in user.residency_topics],
+        profession_topics=[schemas.Topic.from_orm(t) for t in user.profession_topics],
+        github_username=user.github_username,
+        twitter_username=user.twitter_username,
+        linkedin_url=user.linkedin_url,
+        homepage_url=user.homepage_url,
+        zhihu_url=user.zhihu_url,
+        subscribed_topics=[schemas.Topic.from_orm(t) for t in user.subscribed_topics],
+        work_exps=_get_work_exps(db, user),
+        edu_exps=_get_edu_exps(db, user),
+        contributions=contributions,
     )
 
 
-@router.get(
-    "/{handle}", response_model=Union[schemas.UserPublic, schemas.UserPublicForVisitor]
-)
+@router.get("/{handle}", response_model=schemas.UserPublic)
 def get_user_public(
     *,
     cached_layer: CachedLayer = Depends(deps.get_cached_layer),
@@ -115,35 +135,10 @@ def get_user_public(
             detail="The user doesn't exist in the system.",
         )
     # TODO turn it off 2025-07-23
-    view_times = 5 # view_counters.get_views(user.uuid, "profile")
-    if current_user_id is None:
-        return _get_user_public_visitor(cached_layer, user, view_times)
-    #view_counters.add_view(user.uuid, "profile", current_user_id)
-    db.commit()
-    about_content = None
-    if user.about is not None:
-        about_content = RichText(source=user.about, editor="wysiwyg")
-    u = _get_user_public_visitor(cached_layer, user, view_times)
-    contributions = [
-        YearContributions(year=year, data=data)
-        for year, data in cached_layer.get_user_contributions(user)
-    ]
-    return schemas.UserPublic(
-        **u.dict(),
-        about_content=about_content,
-        profiles=[],
-        residency_topics=[schemas.Topic.from_orm(t) for t in user.residency_topics],
-        profession_topics=[schemas.Topic.from_orm(t) for t in user.profession_topics],
-        github_username=user.github_username,
-        twitter_username=user.twitter_username,
-        linkedin_url=user.linkedin_url,
-        homepage_url=user.homepage_url,
-        zhihu_url=user.zhihu_url,
-        subscribed_topics=[schemas.Topic.from_orm(t) for t in user.subscribed_topics],
-        work_exps=_get_work_exps(db, user),
-        edu_exps=_get_edu_exps(db, user),
-        contributions=contributions,
-    )
+    view_times = 5  # view_counters.get_views(user.uuid, "profile")
+    if current_user_id is not None:
+        db.commit()
+    return _get_user_public(cached_layer, user, view_times)
 
 
 @router.get("/{uuid}/site-profiles/", response_model=List[schemas.Profile])
