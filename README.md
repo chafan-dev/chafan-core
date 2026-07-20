@@ -89,7 +89,7 @@ pytest -vv chafan_core/tests/app/email/test_email.py
   - Add event definition: `chafan_core/app/schemas/event.py`
   - If the event goes to the activity feed: update `chafan_core/app/feed.py:get_activity_receivers`
   - If the event goes to notifications:
-    - `chafan_core/app/materialize.py`: `materialize_event` and `_KEYS` (if a new field type)
+    - `chafan_core/app/responders/event.py`: `materialize_event` (if a new field type)
     - `chafan_core/app/common.py`: `EVENT_TEMPLATES`
 - PWA
   - Add event definition: `src/interfaces/index.ts`

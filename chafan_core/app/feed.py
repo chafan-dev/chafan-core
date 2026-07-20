@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.event import (
     AnswerQuestionInternal,
@@ -27,7 +27,7 @@ from chafan_core.app.schemas.event import (
     UpvoteSubmissionInternal,
 )
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
-from chafan_core.db.session import ReadSessionLocal, SessionLocal
+from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import map_, unwrap
 
 import logging
@@ -41,7 +41,7 @@ class ActivityDistributionInfo(NamedTuple):
 
 
 
-def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)->ActivityDistributionInfo:
+def lookup_activity_receiver_list(broker: RequestContext, activity: models.Activity)->ActivityDistributionInfo:
     try:
         event = EventInternal.parse_raw(activity.event_json)
     except Exception:
@@ -62,7 +62,7 @@ def lookup_activity_receiver_list(broker: DataBroker, activity: models.Activity)
         receiver_ids=set(receivers.keys()), subject_user_uuid=subject_user_uuid
     )
 
-def new_activity_into_feed(broker: DataBroker, activity:models.Activity) -> None:
+def new_activity_into_feed(broker: RequestContext, activity:models.Activity) -> None:
     logger.info("generating feed for activity "  + str(activity.id))
     assert activity.id is not None
     assert isinstance(activity.id, int)
@@ -207,7 +207,7 @@ def is_blocked(
 
 
 def materialize_activity(
-    data_broker: DataBroker,
+    data_broker: RequestContext,
     activity: models.Activity,
     receiver_id: int,
     feed_settings: Optional[UserFeedSettings],
@@ -336,7 +336,7 @@ def get_activities( # TODO to remove this function
     receiver_user_id: int,
     subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
-    def runnable(broker: DataBroker) -> List[schemas.Activity]:
+    def runnable(broker: RequestContext) -> List[schemas.Activity]:
         db = broker.get_db()
         receiver = crud.user.get(db, id=receiver_user_id)
         assert receiver is not None, receiver_user_id
@@ -385,7 +385,7 @@ def get_random_activities(
 ) -> List[schemas.Activity]:
     id_bucket = receiver_user_id % 10
 
-    def runnable(broker: DataBroker) -> List[schemas.Activity]:
+    def runnable(broker: RequestContext) -> List[schemas.Activity]:
         db = broker.get_db()
         stream = db.query(models.Activity)
         if before_activity_id is not None:

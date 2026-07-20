@@ -4,7 +4,7 @@ from fastapi.encoders import jsonable_encoder
 
 from chafan_core.app import crud, models
 from chafan_core.app.crud.base import CRUDBase
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.models.message import Message
 from chafan_core.app.schemas.event import CreateMessageInternal, EventInternal
 from chafan_core.app.schemas.message import MessageCreate, MessageUpdate
@@ -13,7 +13,7 @@ from chafan_core.app.schemas.message import MessageCreate, MessageUpdate
 class CRUDMessage(CRUDBase[Message, MessageCreate, MessageUpdate]):
     def create_with_author(
         self,
-        broker: DataBroker,
+        broker: RequestContext,
         *,
         obj_in: MessageCreate,
         author: models.User,

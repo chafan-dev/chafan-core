@@ -72,7 +72,7 @@ def get_submission(
 @router.get("/{uuid}/upvotes/", response_model=schemas.SubmissionUpvotes)
 def get_submission_upvotes(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
@@ -258,7 +258,7 @@ def update_submission(
 @router.get("/{uuid}/archives/", response_model=List[schemas.SubmissionArchive])
 def get_submission_archives(
     *,
-    db: Session = Depends(deps.get_read_db),
+    db: Session = Depends(deps.get_db),
     uuid: str,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:

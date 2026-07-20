@@ -4,7 +4,7 @@ from typing import Iterable, List
 from sqlalchemy.orm import Session
 
 from chafan_core.app.crud.base import CRUDBase
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.models.notification import Notification
 from chafan_core.app.mq import push_notification
 from chafan_core.app.schemas.event import EventInternal
@@ -38,7 +38,7 @@ class CRUDNotification(CRUDBase[Notification, NotificationCreate, NotificationUp
 
     def create_with_content(
         self,
-        broker: DataBroker,
+        broker: RequestContext,
         *,
         event: EventInternal,
         receiver_id: int,

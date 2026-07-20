@@ -10,6 +10,4 @@ engine = create_engine(
     max_overflow=settings.DB_SESSION_POOL_MAX_OVERFLOW_SIZE,
 )
 
-read_engine = engine
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-ReadSessionLocal = SessionLocal

@@ -7,7 +7,7 @@ import sentry_sdk
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models, rep_manager
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.email_utils import send_notification_email
 from chafan_core.app.task_utils import execute_with_broker, execute_with_db
 from chafan_core.db.session import SessionLocal
@@ -16,7 +16,7 @@ from chafan_core.utils.base import EntityType, filter_not_none
 karma_drift_logger = logging.getLogger("chafan.karma_drift")
 
 
-def deliver_notifications(data_broker: DataBroker) -> None:
+def deliver_notifications(data_broker: RequestContext) -> None:
     db = data_broker.get_db()
     print(f"Deliver notifications @ {datetime.datetime.now(tz=datetime.timezone.utc)}")
     user_notifications: Dict[models.User, List[models.Notification]] = {}
@@ -73,7 +73,7 @@ def refresh_karmas() -> None:
 def cache_matrices() -> None:
     """Warm recs matrices (in-process; content redis cache removed)."""
 
-    def f(broker: DataBroker) -> None:
+    def f(broker: RequestContext) -> None:
         from chafan_core.app.recs import matrices as recs_matrices
 
         db = broker.get_db()
@@ -83,4 +83,4 @@ def cache_matrices() -> None:
         for u in crud.user.get_all_active_users(db):
             recs_matrices.compute_user_contributions(u)
 
-    execute_with_broker(f, use_read_replica=True)
+    execute_with_broker(f)

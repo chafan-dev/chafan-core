@@ -16,7 +16,7 @@ from chafan_core.app.crud.crud_activity import (
     create_answer_activity,
     create_article_activity,
 )
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.recs.indexing import (
     compute_interesting_questions_ids_for_normal_user,
     compute_interesting_questions_ids_for_visitor_user,
@@ -67,7 +67,7 @@ logger = logging.getLogger(__name__)
 
 
 def notify_mentioned_users(
-    broker: DataBroker, comment: models.Comment, user_handles: List[str]
+    broker: RequestContext, comment: models.Comment, user_handles: List[str]
 ) -> None:
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     event = EventInternal(
@@ -141,7 +141,7 @@ def postprocess_new_comment(
     comment_id: int, shared_to_timeline: bool, mentioned: Optional[List[str]]
 ) -> None:
 
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         logger.info("postprocess_new_comment: id=" + str(comment_id))
         comment = crud.comment.get(broker.get_db(), id=comment_id)
         assert comment is not None
@@ -215,7 +215,7 @@ def postprocess_comment_update(
 ) -> None:
     print("postprocess_comment_update")
 
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         comment = crud.comment.get(broker.get_db(), id=comment_id)
         assert comment is not None
         event = get_comment_event(comment)
@@ -245,7 +245,7 @@ def postprocess_question_common(question: models.Question) -> None:
 def postprocess_new_question(question_id: int) -> None:
     print("postprocess_new_question")
 
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         logger.info(f"run postprocess_new_question for qid={question_id}")
         question = crud.question.get(broker.get_db(), id=question_id)
         assert question is not None
@@ -283,7 +283,7 @@ def postprocess_new_question(question_id: int) -> None:
 def postprocess_updated_question(question_id: int) -> None:
     print("postprocess_updated_question")
 
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         question = crud.question.get(broker.get_db(), id=question_id)
         assert question is not None
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -310,7 +310,7 @@ def postprocess_submission_common(submission: models.Submission) -> None:
 
 
 def postprocess_new_submission(submission_id: int) -> None:
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         submission = crud.submission.get(broker.get_db(), id=submission_id)
         assert submission is not None
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
@@ -336,7 +336,7 @@ def postprocess_new_submission(submission_id: int) -> None:
 
 
 def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None:
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         submission_suggestion = crud.submission_suggestion.get(
             broker.get_db(), id=submission_suggestion_id
         )
@@ -384,7 +384,7 @@ def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> N
 
 
 def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         answer_suggest_edit = crud.answer_suggest_edit.get(
             broker.get_db(), id=answer_suggest_edit_id
         )
@@ -440,7 +440,7 @@ def postprocess_updated_submission(submission_id: int) -> None:
 
 
 def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         answer = crud.answer.get(broker.get_db(), id=answer_id)
         logger.info(f"postprocess_new_answer id={answer_id}, was_published={was_published}")
         assert answer is not None and answer.is_published
@@ -490,7 +490,7 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
 
 
 def postprocess_new_article(article_id: int) -> None:
-    def runnable(broker: DataBroker) -> None:
+    def runnable(broker: RequestContext) -> None:
         article = crud.article.get(broker.get_db(), id=article_id)
         assert article is not None and article.is_published
         superuser = crud.user.get_superuser(broker.get_db())
@@ -585,7 +585,7 @@ def refresh_interesting_user_ids_for_user(user_id: int) -> None:
 from chafan_core.app.models.viewcount import ViewCountQuestion, ViewCountAnswer, ViewCountArticle, ViewCountSubmission
 
 # TODO Should I move this function to another file? 2025-07-23
-def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
+def _add_viewcount_to_db(broker: RequestContext, key: str, count: int) -> None:
     segs = key.split(":")
     row_type = segs[0]
     row_id = segs[1]
@@ -647,7 +647,7 @@ def _add_viewcount_to_db(broker: DataBroker, key: str, count: int) -> None:
 
 
 def write_view_count_to_db() -> None:
-    def runnable(broker: DataBroker):
+    def runnable(broker: RequestContext):
         logger.debug("write_view_count_to_db called")
         redis = broker.get_redis()
         views = redis.lrange(BUMP_VIEW_COUNT_QUEUE_CACHE_KEY, 0, -1)
@@ -673,7 +673,7 @@ from chafan_core.app import crud
 from chafan_core.app.config import settings
 from chafan_core.app.search import schemas
 from chafan_core.app.task_utils import execute_with_db
-from chafan_core.db.session import ReadSessionLocal
+from chafan_core.db.session import SessionLocal
 from chafan_core.utils.constants import indexed_object_T
 
 @contextmanager
@@ -733,4 +733,4 @@ def refresh_search_index() -> None:
                     body_text=article.body_text,
                 )
 
-    execute_with_db(ReadSessionLocal(), runnable)
+    execute_with_db(SessionLocal(), runnable)

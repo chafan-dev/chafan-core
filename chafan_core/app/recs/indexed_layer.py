@@ -3,7 +3,7 @@ import datetime
 from typing import List, Optional, Union
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.data_broker import DataBroker
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.schemas.preview import UserPreview
 from chafan_core.app.task import (
     refresh_interesting_question_ids_for_user,
@@ -83,11 +83,11 @@ def get_interesting_users(cached_layer: RequestContext) -> List[UserPreview]:
     return []
 
 
-def force_refresh_all_interesting_users(broker: DataBroker) -> None:
+def force_refresh_all_interesting_users(broker: RequestContext) -> None:
     for u in crud.user.get_all_active_users(broker.get_db()):
         refresh_interesting_user_ids_for_user(u.id)
 
 
-def force_refresh_all_interesting_questions(broker: DataBroker) -> None:
+def force_refresh_all_interesting_questions(broker: RequestContext) -> None:
     for u in crud.user.get_all_active_users(broker.get_db()):
         refresh_interesting_question_ids_for_user(u.id)
