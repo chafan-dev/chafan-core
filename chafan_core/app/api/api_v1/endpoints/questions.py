@@ -33,15 +33,7 @@ AnswersData = List[schemas.AnswerPreview]
 def _get_answers(
     ctx: RequestContext, question: models.Question
 ) -> List[schemas.AnswerPreview]:
-    return sorted(
-        filter_not_none(
-            [
-                ctx.materializer.preview_of_answer(answer)
-                for answer in question.answers
-            ]
-        ),
-        key=lambda a: a.upvotes_count,
-    )
+    return questions_service.list_answer_previews(ctx, question)
 
 
 def _get_question_data(
@@ -262,17 +254,7 @@ def get_question_archives(
     ctx: RequestContext = Depends(deps.get_request_context),
     uuid: str,
 ) -> Any:
-    db = ctx.get_db()
-    question = crud.question.get_by_uuid(db, uuid=uuid)
-    if question is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The question doesn't exist in the system.",
-        )
-    return [
-        ctx.materializer.question_archive_schema_from_orm(a)
-        for a in question.archives
-    ]
+    return questions_service.list_archives(ctx, uuid=uuid)
 
 
 @router.get("/{uuid}/upvotes/", response_model=schemas.QuestionUpvotes)
@@ -281,9 +263,7 @@ def get_question_upvotes(
     *,
     uuid: str,
 ) -> Any:
-    return ctx.materializer.get_question_upvotes(
-        questions_service.get_question_model_http(ctx.get_db(), uuid)
-    )
+    return questions_service.get_upvotes(ctx, uuid=uuid)
 
 
 @router.put("/{uuid}/hide", response_model=schemas.Question)

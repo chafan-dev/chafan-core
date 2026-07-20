@@ -260,11 +260,8 @@ def get_site_questions(
         )
     max_questions = settings.API_LIMIT_SITES_GET_QUESTIONS_LIMIT
     limit = min(limit, max_questions)
-    questions = crud.site.get_multi_questions(
-        db, db_obj=site, skip=skip, limit=limit
-    )
-    return filter_not_none(
-        [ctx.materializer.preview_of_question(q) for q in questions]
+    return sites_service.list_site_question_previews(
+        ctx, site=site, skip=skip, limit=limit
     )
 
 
@@ -432,10 +429,7 @@ def get_webhooks(
             status_code=500,
             detail="Unauthorized.",
         )
-    return [
-        ctx.materializer.webhook_schema_from_orm(webhook)
-        for webhook in site.webhooks
-    ]
+    return sites_service.list_site_webhooks(ctx, site=site)
 
 
 @router.get("/{uuid}/related/", response_model=List[schemas.Site])

@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import random
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from chafan_core.app import crud, models, schemas
+from chafan_core.app.common import OperationType
 from chafan_core.app.recs import matrices as recs_matrices
+from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.schemas.preview import UserPreview
-from chafan_core.utils.base import EntityType, filter_not_none, unwrap
+from chafan_core.app.user_permission import user_in_site
+from chafan_core.utils.base import EntityType, HTTPException_, filter_not_none, unwrap
 
 MAX_SAMPLED_RELATED_FOLLOWED = 20
 
@@ -66,12 +69,70 @@ def get_followed(
 def get_authored_answers_for_principal(
     cached_layer, author: models.User
 ) -> List[schemas.AnswerPreview]:
+    mat = cached_layer.materializer
+    return filter_not_none(
+        [mat.preview_of_answer(answer) for answer in author.answers]
+    )
+
+
+def _require_user(ctx, uuid: str) -> models.User:
+    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
+    if user is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The user doesn't exist in the system.",
+        )
+    return user
+
+
+def list_user_site_profiles(
+    ctx, *, uuid: str, current_user_id: Optional[int]
+) -> List[schemas.Profile]:
+    user = _require_user(ctx, uuid)
+    if not user.is_active:
+        raise HTTPException_(
+            status_code=400,
+            detail="The user doesn't exist in the system.",
+        )
+    if not current_user_id:
+        return []
+    mat = ctx.materializer
+    return [
+        misc_responder.profile_schema_from_orm(mat, profile)
+        for profile in user.profiles
+        if user_in_site(
+            ctx.get_db(),
+            site=profile.site,
+            user_id=current_user_id,
+            op_type=OperationType.ReadSite,
+        )
+    ]
+
+
+def list_user_questions(
+    ctx, *, uuid: str, skip: int, limit: int
+) -> List[schemas.QuestionPreview]:
+    user = _require_user(ctx, uuid)
+    mat = ctx.materializer
+    # FIXME: think about more efficient paging mechanism
     return filter_not_none(
         [
-            cached_layer.materializer.preview_of_answer(answer)
-            for answer in author.answers
+            mat.preview_of_question(question)
+            for question in user.questions
+            if not question.is_hidden
         ]
-    )
+    )[skip : skip + limit]
+
+
+def list_user_articles(
+    ctx, *, uuid: str, skip: int, limit: int
+) -> List[schemas.ArticlePreview]:
+    user = _require_user(ctx, uuid)
+    mat = ctx.materializer
+    # TODO we have limit, but we still generate all articles. Need generator 2025-Mar-23
+    return filter_not_none(
+        [mat.preview_of_article(article) for article in user.articles]
+    )[skip : skip + limit]
 
 
 def get_related_users(cached_layer, target_user: models.User) -> List[UserPreview]:

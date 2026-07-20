@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 import fastapi
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud
+from chafan_core.app import crud, schemas
 from chafan_core.app.common import client_ip
+from chafan_core.app.responders import misc as misc_responder
 
 
 def create_audit(
@@ -31,3 +32,14 @@ def create_audit(
         api=api,
         request_info=request_info or {},
     )
+
+
+def list_my_audit_logs(ctx) -> List[schemas.AuditLog]:
+    mat = ctx.materializer
+    return [
+        misc_responder.audit_log_schema_from_orm(mat, audit_log)
+        for audit_log in crud.audit_log.get_audit_logs(
+            ctx.get_db(),
+            user_id=ctx.unwrapped_principal_id(),
+        )
+    ]

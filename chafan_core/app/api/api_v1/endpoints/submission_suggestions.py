@@ -59,7 +59,13 @@ def post_submission_suggestions(
     from chafan_core.app.task import postprocess_new_submission_suggestion
 
     background_tasks.add_task(postprocess_new_submission_suggestion, s.id)
-    return unwrap(ctx.materializer.submission_suggestion_schema_from_orm(s))
+    from chafan_core.app.responders import suggestions as suggestions_responder
+
+    return unwrap(
+        suggestions_responder.submission_suggestion_schema_from_orm(
+            ctx.materializer, s
+        )
+    )
 
 
 def _check_author(
@@ -196,4 +202,10 @@ def update_submission_suggestions(
     s = crud.submission_suggestion.update(
         db, db_obj=submission_suggestion, obj_in=update_dict
     )
-    return unwrap(ctx.materializer.submission_suggestion_schema_from_orm(s))
+    from chafan_core.app.responders import suggestions as suggestions_responder
+
+    return unwrap(
+        suggestions_responder.submission_suggestion_schema_from_orm(
+            ctx.materializer, s
+        )
+    )

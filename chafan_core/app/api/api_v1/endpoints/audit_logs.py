@@ -2,9 +2,10 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
+from chafan_core.app.services import audit as audit_service
 
 router = APIRouter()
 
@@ -14,10 +15,4 @@ def get_audit_logs(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    return [
-        ctx.materializer.audit_log_schema_from_orm(audit_log)
-        for audit_log in crud.audit_log.get_audit_logs(
-            ctx.get_db(),
-            user_id=ctx.unwrapped_principal_id(),
-        )
-    ]
+    return audit_service.list_my_audit_logs(ctx)

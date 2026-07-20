@@ -60,7 +60,13 @@ def post_answer_suggest_edits(
     from chafan_core.app.task import postprocess_new_answer_suggest_edit
 
     background_tasks.add_task(postprocess_new_answer_suggest_edit, s.id)
-    return unwrap(ctx.materializer.answer_suggest_edit_schema_from_orm(s))
+    from chafan_core.app.responders import suggestions as suggestions_responder
+
+    return unwrap(
+        suggestions_responder.answer_suggest_edit_schema_from_orm(
+            ctx.materializer, s
+        )
+    )
 
 
 def _check_author(answer_suggest_edit: models.AnswerSuggestEdit, user_id: int) -> None:
@@ -188,4 +194,10 @@ def update_answer_suggest_edits(
     s = crud.answer_suggest_edit.update(
         db, db_obj=answer_suggest_edit, obj_in=update_dict
     )
-    return unwrap(ctx.materializer.answer_suggest_edit_schema_from_orm(s))
+    from chafan_core.app.responders import suggestions as suggestions_responder
+
+    return unwrap(
+        suggestions_responder.answer_suggest_edit_schema_from_orm(
+            ctx.materializer, s
+        )
+    )

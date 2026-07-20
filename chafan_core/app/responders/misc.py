@@ -1,7 +1,7 @@
 """Small resource schemas (message, form, profile, channel, …).
 
-Free functions take a Materializer-like object (preview_of_user, principal,
-broker/get_db) so Materializer methods can thin-delegate here.
+Free functions take a PrincipalView-like object (preview_of_user, principal,
+broker/get_db) so PrincipalView methods can thin-delegate here.
 """
 
 from __future__ import annotations

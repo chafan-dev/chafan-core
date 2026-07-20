@@ -2,14 +2,12 @@ from typing import Any, List
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.data_broker import DataBroker
 from chafan_core.app.limiter import limiter
 from chafan_core.app.schemas.notification import NotificationUpdate
-from chafan_core.app.task_utils import execute_with_broker
-from chafan_core.utils.base import unwrap
+from chafan_core.app.services import notifications as notifications_service
 
 router = APIRouter()
 
@@ -19,14 +17,7 @@ def get_unread_notifications(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    notifs = [
-        ctx.materializer.notification_schema_from_orm(n)
-        for n in crud.notification.get_unread(
-            ctx.get_db(),
-            receiver_id=ctx.unwrapped_principal_id(),
-        )
-    ]
-    return [n for n in notifs if n is not None]
+    return notifications_service.list_unread(ctx)
 
 
 @router.get("/read/", response_model=List[schemas.Notification])
@@ -34,27 +25,7 @@ def get_read_notifications(
     *,
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
 ) -> Any:
-    # TODO: pagination
-    notifs = [
-        ctx.materializer.notification_schema_from_orm(n)
-        for n in crud.notification.get_read(
-            ctx.get_db(),
-            receiver_id=ctx.unwrapped_principal_id(),
-        )
-    ]
-    return [n for n in notifs if n is not None]
-
-
-def _update_notification(
-    *, id: int, current_user_id: int, notif_in: NotificationUpdate
-) -> None:
-    def runnable(broker: DataBroker) -> None:
-        broker.principal_id = current_user_id
-        broker.update_notification(
-            unwrap(crud.notification.get(broker.get_db(), id)), notif_in
-        )
-
-    execute_with_broker(runnable)
+    return notifications_service.list_read(ctx)
 
 
 @router.put("/{id}", response_model=schemas.GenericResponse)
@@ -67,5 +38,7 @@ def update_notification(
     notif_in: NotificationUpdate,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    _update_notification(id=id, current_user_id=current_user_id, notif_in=notif_in)
+    notifications_service.update_notification(
+        id=id, current_user_id=current_user_id, notif_in=notif_in
+    )
     return schemas.GenericResponse()

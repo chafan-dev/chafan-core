@@ -1,10 +1,10 @@
-"""Shared helpers for responders that accept Materializer or RequestContext."""
+"""Shared helpers for responders that accept PrincipalView or RequestContext."""
 
 
 def shaper(ctx):
-    """Return the Materializer-like object for nested previews/comments.
+    """Return the PrincipalView-like object for nested previews/comments.
 
-    RequestContext has .materializer; Materializer is itself the shaper.
+    RequestContext has .materializer; PrincipalView is itself the shaper.
     """
     return getattr(ctx, "materializer", ctx)
 
