@@ -53,11 +53,36 @@ _ANONYMOUS_USER_PREVIEW = schemas.UserPreview(
 
 
 import chafan_core.app.user_permission as user_permission
+# Back-compat wrappers — prefer chafan_core.app.user_permission.
+# Call through functions (not aliases) to avoid circular-import init issues.
+
+
 def get_active_site_profile(
     db: Session, *, site: models.Site, user_id: int
 ) -> Optional[models.Profile]:
-    # TODO remove it from materialize
     return user_permission.get_active_site_profile(db, site, user_id)
+
+
+def user_in_site(
+    db: Session,
+    *,
+    site: models.Site,
+    user_id: Optional[int],
+    op_type: OperationType,
+) -> bool:
+    return user_permission.user_in_site(db, site, user_id, op_type)
+
+
+def check_user_in_site(
+    db: Session, *, site: models.Site, user_id: int, op_type: OperationType
+) -> None:
+    user_permission.check_user_in_site(
+        db, site=site, user_id=user_id, op_type=op_type
+    )
+
+
+def check_user_in_channel(current_user: models.User, channel: models.Channel) -> None:
+    user_permission.check_user_in_channel(current_user, channel)
 
 
 _VISIBLE_QUESTION_CONDITIONS = {
@@ -75,39 +100,6 @@ def keep_items(questions: Any, conditions: Mapping[str, Any]) -> Any:
 
 def is_eligible_item(question: models.Question, conditions: Mapping[str, Any]) -> bool:
     return all(getattr(question, k) == v for k, v in conditions.items())
-
-
-def user_in_site(
-    db: Session,
-    *,
-    site: models.Site,
-    user_id: Optional[int],
-    op_type: OperationType,
-) -> bool:
-    # TODO remove it from materialize
-    return user_permission.user_in_site(db, site, user_id, op_type)
-
-
-def check_user_in_site(
-    db: Session, *, site: models.Site, user_id: int, op_type: OperationType
-) -> None:
-    if not user_in_site(db, site=site, user_id=user_id, op_type=op_type):
-        raise HTTPException_(
-            status_code=400,
-            detail="Current user is not allowed in this site.",
-        )
-
-
-def check_user_in_channel(current_user: models.User, channel: models.Channel) -> None:
-    if (
-        current_user not in channel.members
-        and current_user is not channel.admin
-        and current_user is not channel.private_with_user
-    ):
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
 
 
 _KEYS = [
@@ -174,19 +166,9 @@ def answer_archive_schema_from_orm(
 
 
 def root_route(comment: models.Comment) -> Optional[str]:
-    if comment.answer is not None:
-        return (
-            f"/questions/{comment.answer.question.uuid}/answers/{comment.answer.uuid}"
-        )
-    elif comment.question is not None:
-        return f"/questions/{comment.question.uuid}"
-    elif comment.article is not None:
-        return f"/articles/{comment.article.uuid}"
-    elif comment.submission is not None:
-        return f"/submissions/{comment.submission.uuid}"
-    elif comment.parent_comment is not None:
-        return root_route(comment.parent_comment)
-    return None
+    from chafan_core.app.responders.comment import root_route as _root_route
+
+    return _root_route(comment)
 
 
 _MAX_ANSWER_BODY_CHARS = 100
@@ -297,23 +279,9 @@ class Materializer(object):
         )
 
     def site_schema_from_orm(self, site: models.Site) -> schemas.Site:
-        #logger.error("TODO materialize site_schema_from_orm to be removed")
-        # This function SHOULD be removed. However, it's error log is so annoying. Turn it off for now. 2025-Aug-16
-        base = schemas.SiteInDBBase.from_orm(site)
-        site_dict = base.dict()
-        site_dict["moderator"] = self.preview_of_user(site.moderator)
-        site_dict["questions_count"] = keep_items(
-            site.questions, _VISIBLE_QUESTION_CONDITIONS
-        ).count()
-        site_dict["submissions_count"] = keep_items(
-            site.submissions, _VISIBLE_SUBMISSION_CONDITIONS
-        ).count()
-        site_dict["members_count"] = len(site.profiles)
-        if site.category_topic:
-            site_dict["category_topic"] = schemas.Topic.from_orm(site.category_topic)
-        else:
-            site_dict["category_topic"] = None
-        return schemas.Site(**site_dict)
+        import chafan_core.app.responders as responders
+
+        return responders.site.site_schema_from_orm(self, site)
 
     def get_user_article_column_subscription(
         self, article_column: models.ArticleColumn
@@ -332,13 +300,9 @@ class Materializer(object):
         self,
         article_column: models.ArticleColumn,
     ) -> schemas.ArticleColumn:
-        base = schemas.ArticleColumnInDBBase.from_orm(article_column)
-        data_dict = base.dict()
-        data_dict["owner"] = self.preview_of_user(article_column.owner)
-        data_dict["subscription"] = self.get_user_article_column_subscription(
-            article_column
-        )
-        return schemas.ArticleColumn(**data_dict)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.article_column_schema_from_orm(self, article_column)
 
     def preview_of_question(
         self, question: models.Question
@@ -442,39 +406,32 @@ class Materializer(object):
         )
 
     def message_schema_from_orm(self, message: models.Message) -> schemas.Message:
-        base = schemas.MessageInDBBase.from_orm(message)
-        d = base.dict()
-        d["author"] = self.preview_of_user(message.author)
-        return schemas.Message(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.message_schema_from_orm(self, message)
 
     def form_schema_from_orm(self, form: models.Form) -> schemas.Form:
-        base = schemas.FormInDBBase.from_orm(form)
-        d = base.dict()
-        d["author"] = self.preview_of_user(form.author)
-        return schemas.Form(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.form_schema_from_orm(self, form)
 
     def webhook_schema_from_orm(self, webhook: models.Webhook) -> schemas.Webhook:
-        base = schemas.WebhookInDB.from_orm(webhook)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(webhook.site)
-        return schemas.Webhook(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.webhook_schema_from_orm(self, webhook)
 
     def form_response_schema_from_orm(
         self,
         form_response: models.FormResponse,
     ) -> schemas.FormResponse:
-        base = schemas.FormResponseInDBBase.from_orm(form_response)
-        d = base.dict()
-        d["response_author"] = self.preview_of_user(form_response.response_author)
-        d["form"] = self.form_schema_from_orm(form_response.form)
-        return schemas.FormResponse(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.form_response_schema_from_orm(self, form_response)
 
     def profile_schema_from_orm(self, profile: models.Profile) -> schemas.Profile:
-        base = schemas.ProfileInDBBase.from_orm(profile)
-        d = base.dict()
-        d["site"] = self.site_schema_from_orm(profile.site)
-        d["owner"] = self.preview_of_user(profile.owner)
-        return schemas.Profile(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.profile_schema_from_orm(self, profile)
 
     def question_archive_schema_from_orm(
         self, archive: models.QuestionArchive
@@ -494,43 +451,26 @@ class Materializer(object):
         self,
         invitation_link: models.InvitationLink,
     ) -> schemas.InvitationLink:
-        base = schemas.InvitationLinkInDB.from_orm(invitation_link)
-        d = base.dict()
-        d["invited_to_site"] = map_(
-            invitation_link.invited_to_site, self.site_schema_from_orm
-        )
-        d["inviter"] = self.preview_of_user(invitation_link.inviter)
-        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        d["valid"] = (
-            invitation_link.expired_at > utc_now and invitation_link.remaining_quota > 0
-        )
-        return schemas.InvitationLink(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.invitation_link_schema_from_orm(self, invitation_link)
 
     def reward_schema_from_orm(self, reward: models.Reward) -> schemas.Reward:
-        base = schemas.RewardInDBBase.from_orm(reward)
-        d = base.dict()
-        d["giver"] = self.preview_of_user(reward.giver)
-        d["receiver"] = self.preview_of_user(reward.receiver)
-        if reward.condition:
-            d["condition"] = parse_obj_as(
-                schemas.reward.RewardCondition, reward.condition
-            )
-        return schemas.Reward(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.reward_schema_from_orm(self, reward)
 
     def application_schema_from_orm(
         self, application: models.Application
     ) -> schemas.Application:
-        base = schemas.ApplicationInDBBase.from_orm(application)
-        d = base.dict()
-        d["applicant"] = self.preview_of_user(application.applicant)
-        d["applied_site"] = self.site_schema_from_orm(application.applied_site)
-        return schemas.Application(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.application_schema_from_orm(self, application)
 
     def audit_log_schema_from_orm(self, audit_log: models.AuditLog) -> schemas.AuditLog:
-        base = schemas.AuditLogInDBBase.from_orm(audit_log)
-        d = base.dict()
-        d["user"] = self.preview_of_user(audit_log.user)
-        return schemas.AuditLog(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.audit_log_schema_from_orm(self, audit_log)
 
     def task_schema_from_orm(self, task: models.Task) -> schemas.Task:
         base = schemas.TaskInDB.from_orm(task)
@@ -785,44 +725,12 @@ class Materializer(object):
             d["body_rich_text"] = None
         return schemas.AnswerSuggestEdit(**d)
 
-    # TODO: optimize -- principal can be unchecked if the parent (e.g. answer) is already checked with principal
     def comment_schema_from_orm(
         self, comment: models.Comment
     ) -> Optional[schemas.Comment]:
-        db = self.broker.get_db()
-        if comment.site and not user_in_site(
-            db,
-            site=comment.site,
-            user_id=self.principal_id,
-            op_type=OperationType.ReadSite,
-        ):
-            return None
-        base = schemas.CommentInDBBase.from_orm(comment)
-        upvoted = False
-        if self.principal_id is not None:
-            upvoted = (
-                db.query(models.CommentUpvotes)
-                .filter_by(
-                    comment_id=comment.id,
-                    voter_id=self.principal_id,
-                    cancelled=False,
-                )
-                .first()
-                is not None
-            )
-        d = base.dict()
-        d["author"] = self.preview_of_user(comment.author)
-        d["upvoted"] = upvoted
-        d["root_route"] = root_route(comment)
-        d["content"] = RichText(
-            source=comment.body,
-            rendered_text=comment.body_text,
-            editor=comment.editor,
-        )
-        d["child_comments"] = filter_not_none(
-            [self.comment_schema_from_orm(c) for c in comment.child_comments]
-        )
-        return schemas.Comment(**d)
+        from chafan_core.app.responders import comment as comment_responder
+
+        return comment_responder.comment_schema_from_orm(self, comment)
 
     def get_question_upvotes(
         self, question: models.Question
@@ -851,33 +759,16 @@ class Materializer(object):
         )
 
     def channel_schema_from_orm(self, channel: models.Channel) -> schemas.Channel:
-        base = schemas.ChannelInDBBase.from_orm(channel)
-        d = base.dict()
-        if channel.private_with_user:
-            d["private_with_user"] = self.preview_of_user(channel.private_with_user)
-        d["admin"] = self.preview_of_user(channel.admin)
-        if channel.feedback_subject:
-            d["feedback_subject"] = self.feedback_schema_from_orm(
-                channel.feedback_subject
-            )
-        return schemas.Channel(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.channel_schema_from_orm(self, channel)
 
     def report_schema_from_orm(self, report: models.Report) -> schemas.Report:
-        base = schemas.ReportInDBBase.from_orm(report)
-        d = base.dict()
-        d["author"] = self.preview_of_user(report.author)
-        return schemas.Report(**d)
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.report_schema_from_orm(self, report)
 
     def feedback_schema_from_orm(self, f: models.Feedback) -> schemas.Feedback:
-        ret = schemas.Feedback(
-            id=f.id,
-            created_at=f.created_at,
-            description=f.description,
-            status=f.status,
-            has_screenshot=f.screenshot_blob is not None,
-        )
-        if f.user:
-            ret.user = self.preview_of_user(f.user)
-        elif f.user_email:
-            ret.user_email = f.user_email
-        return ret
+        from chafan_core.app.responders import misc as misc_responder
+
+        return misc_responder.feedback_schema_from_orm(self, f)

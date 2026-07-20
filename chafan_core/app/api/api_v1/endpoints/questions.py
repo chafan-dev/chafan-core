@@ -11,7 +11,7 @@ from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, client_ip
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.limiter import limiter
-from chafan_core.app.materialize import check_user_in_site, user_in_site
+from chafan_core.app.user_permission import check_user_in_site, user_in_site
 from chafan_core.app.recs.ranking import rank_answers
 from chafan_core.app.schemas.event import (
     EventInternal,

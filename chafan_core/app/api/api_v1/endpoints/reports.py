@@ -7,7 +7,7 @@ from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.common import OperationType
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.materialize import check_user_in_site
+from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()

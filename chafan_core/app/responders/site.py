@@ -25,5 +25,8 @@ def site_schema_from_orm(cached_layer, site: models.Site) -> schemas.Site:
         site.submissions, _VISIBLE_SUBMISSION_CONDITIONS
     ).count()
     site_dict["members_count"] = len(site.profiles)
-    site_dict["category_topic"] = None
+    if site.category_topic:
+        site_dict["category_topic"] = schemas.Topic.from_orm(site.category_topic)
+    else:
+        site_dict["category_topic"] = None
     return schemas.Site(**site_dict)

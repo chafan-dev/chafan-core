@@ -9,7 +9,8 @@ from chafan_core.app import crud, rep_manager, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType
-from chafan_core.app.materialize import can_read_answer, user_in_site
+from chafan_core.app.materialize import can_read_answer
+from chafan_core.app.user_permission import user_in_site
 from chafan_core.app.schemas.event import (
     ClaimAnswerQuestionRewardInternal,
     CreateAnswerQuestionRewardInternal,

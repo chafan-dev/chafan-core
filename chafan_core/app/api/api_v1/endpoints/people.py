@@ -11,7 +11,7 @@ from chafan_core.app.services import submissions as submissions_service
 from chafan_core.app.services import people as people_service
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import OperationType, get_logger
-from chafan_core.app.materialize import user_in_site
+from chafan_core.app.user_permission import user_in_site
 from chafan_core.app.model_utils import is_live_answer, is_live_article
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.schemas.user import (
