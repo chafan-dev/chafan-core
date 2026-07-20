@@ -24,12 +24,14 @@ from chafan_core.app.services import (
     profiles,
     questions,
     reports,
+    reputation,
     rewards,
     search,
     sites,
     submissions,
     topics,
     viewcounts,
+    webhook_delivery,
     webhooks,
 )
 
@@ -57,11 +59,13 @@ __all__ = [
     "profiles",
     "questions",
     "reports",
+    "reputation",
     "rewards",
     "search",
     "sites",
     "submissions",
     "topics",
     "viewcounts",
+    "webhook_delivery",
     "webhooks",
 ]
