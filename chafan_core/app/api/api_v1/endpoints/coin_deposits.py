@@ -3,9 +3,9 @@ from typing import Any
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
-from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import coin_deposits as coin_deposits_service
 
 router = APIRouter()
 
@@ -17,15 +17,6 @@ def get_deposit(
     id: int,
     current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    deposit = crud.coin_deposit.get(db, id=id)
-    if deposit is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The deposit doesn't exist in the system.",
-        )
-    if current_user_id not in (deposit.authorizer_id, deposit.payee_id):
-        raise HTTPException_(
-            status_code=400,
-            detail="Unauthorized.",
-        )
-    return deposit
+    return coin_deposits_service.get_deposit(
+        db, deposit_id=id, current_user_id=current_user_id
+    )

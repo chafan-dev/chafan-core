@@ -6,7 +6,8 @@ from typing import Dict, List
 import sentry_sdk
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, rep_manager
+from chafan_core.app import crud, models
+from chafan_core.app.services import reputation as rep_manager
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.email_utils import send_notification_email
 from chafan_core.app.infra.runtime import execute_with_broker, execute_with_db

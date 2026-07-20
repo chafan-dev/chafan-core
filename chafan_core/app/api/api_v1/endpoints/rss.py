@@ -1,11 +1,8 @@
 from fastapi import APIRouter, Depends, Response
 
-from chafan_core.app.config import settings
 from chafan_core.app.api import deps
-from chafan_core.app.services.feed_impl import get_site_activities
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.responders.rss import build_rss
-from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import rss as rss_service
 
 import logging
 logger = logging.getLogger(__name__)
@@ -19,12 +16,5 @@ def get_site_activity(
 ) -> str:
     """Get a site's activity. Pilot: RequestContext dependency."""
     logger.info("Generating RSS for site " + subdomain)
-    site = ctx.get_site_by_subdomain(subdomain)
-    if site is None:
-        raise HTTPException_(status_code=404, detail="No such site " + subdomain)
-    if not site.public_readable:
-        raise HTTPException_(status_code=405, detail="Not allowed " + subdomain)
-    activities = get_site_activities(ctx, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
-    logger.info("api get: " + str(activities))
-    rss_str = build_rss(activities, site)
+    rss_str = rss_service.site_rss_xml(ctx, subdomain=subdomain)
     return Response(content=rss_str, media_type="application/rss+xml")

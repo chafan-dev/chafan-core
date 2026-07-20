@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import models, rep_manager
+from chafan_core.app import coins, models
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.coin_deposit import CoinDeposit
 from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositUpdate
@@ -19,7 +19,7 @@ class CRUDCoinDeposit(CRUDBase[CoinDeposit, CoinDepositCreate, CoinDepositUpdate
         authorizer_id: int,
         payee: models.User
     ) -> CoinDeposit:
-        rep_manager.award_coins(db, payee, obj_in.amount, "coin_deposit")
+        coins.award_coins(db, payee, obj_in.amount, "coin_deposit")
         deposit = CoinDeposit(
             **jsonable_encoder(obj_in),
             created_at=datetime.datetime.now(tz=datetime.timezone.utc),

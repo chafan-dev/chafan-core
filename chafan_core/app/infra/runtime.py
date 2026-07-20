@@ -22,6 +22,10 @@ def execute_with_db(
         return ret
     except Exception as e:
         handle_exception(e)
+        try:
+            db.rollback()
+        except Exception:
+            pass
     finally:
         db.close()
     return None
@@ -34,19 +38,14 @@ def execute_with_context(
     ctx = RequestContext()
     try:
         ret = runnable(ctx)
-        if auto_commit and ctx.db is not None:
-            ctx.db.commit()
-            ctx.mark_committed()
+        if auto_commit:
+            ctx.commit()
         return ret
     except Exception as e:
         handle_exception(e)
+        ctx.rollback()
     finally:
-        if ctx.db is not None:
-            if not ctx._committed:
-                ctx.close()
-            else:
-                ctx._db.close()  # type: ignore[union-attr]
-                ctx._db = None
+        ctx.close()
     return None
 
 

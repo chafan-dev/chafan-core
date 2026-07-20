@@ -78,11 +78,6 @@ class RequestContext:
             self._principal_view = PrincipalView(self, self.principal_id)
         return self._principal_view
 
-    # Deprecated alias — use principal_view.
-    @property
-    def materializer(self):
-        return self.principal_view
-
     def as_principal(self, principal_id: Optional[int]) -> "PrincipalView":
         """Schema shaper for a different principal (feed, notifications, payments).
 
@@ -178,25 +173,21 @@ class RequestContext:
 
         crud.notification.update(self.get_db(), db_obj=notif, obj_in=notif_in)
 
-    def mark_committed(self) -> None:
-        """Call after an explicit service-level commit."""
-        self._committed = True
+    def commit(self) -> None:
+        """Commit the unit of work (service or request boundary)."""
+        if self._db is not None:
+            self._db.commit()
+            self._committed = True
+
+    def rollback(self) -> None:
+        if self._db is not None:
+            self._db.rollback()
+            self._committed = False
 
     def close(self) -> None:
-        """End of request: roll back unless a service marked committed."""
+        """Close the session. Callers must commit or rollback first on success/error."""
         if self._db is not None:
             if not self._committed:
                 self._db.rollback()
-            self._db.close()
-            self._db = None
-
-    def close_legacy_commit(self) -> None:
-        """Match historical request-end commit: commit write session then close.
-
-        Used while endpoints still rely on request-end implicit commits.
-        Remove once services own all transaction boundaries.
-        """
-        if self._db is not None:
-            self._db.commit()
             self._db.close()
             self._db = None
