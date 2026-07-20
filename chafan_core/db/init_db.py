@@ -28,3 +28,4 @@ def init_db(db: Session) -> None:
             handle=StrippedNonEmptyBasicStr("super"),
         )
         user = crud.user.create(db, obj_in=user_in)  # noqa: F841
+        db.commit()

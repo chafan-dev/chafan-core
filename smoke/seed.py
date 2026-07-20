@@ -162,6 +162,7 @@ def main() -> None:
 
     column = _get_or_create_column(db, owner=a)
     question = _get_or_create_known_question(db, site, author=a)
+    db.commit()
 
     config = {
         "api_base": API_BASE,
