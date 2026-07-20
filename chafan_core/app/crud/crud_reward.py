@@ -34,7 +34,7 @@ class CRUDReward(CRUDBase[Reward, RewardCreate, RewardUpdate]):
             receiver_id=receiver.id,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         return db_obj
 
 

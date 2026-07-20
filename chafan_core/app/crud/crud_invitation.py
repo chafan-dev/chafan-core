@@ -38,7 +38,7 @@ class CRUDComment(object):
             is_sent=is_sent,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 

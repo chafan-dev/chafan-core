@@ -47,9 +47,9 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
             uuid=self.get_unique_uuid(db),
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
-        db.commit()
+        db.flush()
         return db_obj
 
     def upvote(self, db: Session, *, db_obj: Answer, voter: User) -> Answer:
@@ -62,7 +62,7 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
             answer_upvote = Answer_Upvotes(answer=db_obj, voter=voter)
             db.add(answer_upvote)
             db_obj.upvotes_count += 1
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             db.add(
                 upvote_answer_activity(
@@ -72,11 +72,11 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
                     created_at=datetime.datetime.now(tz=datetime.timezone.utc),
                 )
             )
-            db.commit()
+            db.flush()
         elif answer_upvote.cancelled:
             db_obj.upvotes_count += 1
             answer_upvote.cancelled = False
-            db.commit()
+            db.flush()
         return db_obj
 
     def cancel_upvote(self, db: Session, *, db_obj: Answer, voter: User) -> Answer:
@@ -89,7 +89,7 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
             db_obj.upvotes_count -= 1
             assert db_obj.upvotes_count >= 0
             answer_upvote.cancelled = True
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -121,7 +121,7 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
         for archive in answer.archives:
             archive.body = "[DELETED]"
         db.add(answer)
-        db.commit()
+        db.flush()
 
     def get_all_published(self, db: Session) -> List[Answer]:
         return db.query(Answer).filter_by(is_deleted=False, is_published=True).all()

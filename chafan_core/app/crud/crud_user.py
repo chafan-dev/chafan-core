@@ -81,7 +81,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             created_at=utc_now,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
         return db_obj
 
@@ -127,7 +127,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     def add_follower(self, db: Session, *, db_obj: User, follower: User) -> User:
         if follower not in db_obj.followers:
             db_obj.followers.append(follower)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             db.add(
                 follow_user_activity(
@@ -136,13 +136,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                     created_at=datetime.datetime.now(tz=datetime.timezone.utc),
                 )
             )
-            db.commit()
+            db.flush()
         return db_obj
 
     def remove_follower(self, db: Session, *, db_obj: User, follower: User) -> User:
         if follower in db_obj.followers:
             db_obj.followers.remove(follower)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             assert db_obj not in follower.followed
         return db_obj
@@ -152,11 +152,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User:
         if question not in db_obj.subscribed_questions:
             db_obj.subscribed_questions.append(question)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             # TODO:
             # db.add(subscribe_question_activity())
-            # db.commit()
+            # db.flush()
         return db_obj
 
     def unsubscribe_question(
@@ -164,7 +164,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User:
         if question in db_obj.subscribed_questions:
             db_obj.subscribed_questions.remove(question)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -173,11 +173,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User:
         if submission not in db_obj.subscribed_submissions:
             db_obj.subscribed_submissions.append(submission)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             # TODO:
             # db.add(subscribe_submission_activity())
-            # db.commit()
+            # db.flush()
         return db_obj
 
     def unsubscribe_submission(
@@ -185,7 +185,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User:
         if submission in db_obj.subscribed_submissions:
             db_obj.subscribed_submissions.remove(submission)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -201,7 +201,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                     created_at=datetime.datetime.now(tz=datetime.timezone.utc),
                 )
             )
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -210,28 +210,28 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User:
         if article_column in db_obj.subscribed_article_columns:
             db_obj.subscribed_article_columns.remove(article_column)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
     def bookmark_answer(self, db: Session, *, db_obj: User, answer: Answer) -> User:
         if answer not in db_obj.bookmarked_answers:
             db_obj.bookmarked_answers.append(answer)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
     def unbookmark_answer(self, db: Session, *, db_obj: User, answer: Answer) -> User:
         if answer in db_obj.bookmarked_answers:
             db_obj.bookmarked_answers.remove(answer)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
     def bookmark_article(self, db: Session, *, db_obj: User, article: Article) -> User:
         if article not in db_obj.bookmarked_articles:
             db_obj.bookmarked_articles.append(article)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -240,24 +240,24 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> User:
         if article in db_obj.bookmarked_articles:
             db_obj.bookmarked_articles.remove(article)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
     def subscribe_topic(self, db: Session, *, db_obj: User, topic: Topic) -> User:
         if topic not in db_obj.subscribed_topics:
             db_obj.subscribed_topics.append(topic)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
             # TODO:
             # db.add(subscribe_topic_activity())
-            # db.commit()
+            # db.flush()
         return db_obj
 
     def unsubscribe_topic(self, db: Session, *, db_obj: User, topic: Topic) -> User:
         if topic in db_obj.subscribed_topics:
             db_obj.subscribed_topics.remove(topic)
-            db.commit()
+            db.flush()
             db.refresh(db_obj)
         return db_obj
 
@@ -272,7 +272,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             if t not in new_topics:
                 db_obj.residency_topics.remove(t)
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
 
     def update_profession_topics(
@@ -286,7 +286,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             if t not in new_topics:
                 db_obj.profession_topics.remove(t)
         db.add(db_obj)
-        db.commit()
+        db.flush()
         db.refresh(db_obj)
 
     def search_by_handle_or_full_name(

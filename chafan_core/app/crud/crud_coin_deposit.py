@@ -26,7 +26,7 @@ class CRUDCoinDeposit(CRUDBase[CoinDeposit, CoinDepositCreate, CoinDepositUpdate
             authorizer_id=authorizer_id,
         )
         db.add(deposit)
-        db.commit()
+        db.flush()
         db.refresh(deposit)
         return deposit
 

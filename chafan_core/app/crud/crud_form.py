@@ -27,7 +27,7 @@ class CRUDForm(CRUDBase[Form, FormCreate, FormUpdate]):
             created_at=utc_now,
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         return db_obj
 
 

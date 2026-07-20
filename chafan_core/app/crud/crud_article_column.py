@@ -26,7 +26,7 @@ class CRUDArticleColumn(
             uuid=self.get_unique_uuid(db)
         )
         db.add(db_obj)
-        db.commit()
+        db.flush()
         return db_obj
 
 
