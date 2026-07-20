@@ -32,7 +32,7 @@ class RequestContext:
         self._redis: Optional["redis.Redis"] = None
         self._db: Optional[Session] = None
         self._principal: Optional["models.User"] = None
-        self._materializer: Optional["PrincipalView"] = None
+        self._principal_view: Optional["PrincipalView"] = None
         self._follow_follow_fanout: Optional[WeightedMatrixType] = None
         self._user_contributions_map: Dict[int, UserContributions] = {}
         # True once a service has explicitly committed the unit of work.
@@ -70,22 +70,27 @@ class RequestContext:
         return self._db
 
     @property
-    def materializer(self) -> "PrincipalView":
+    def principal_view(self) -> "PrincipalView":
         """PrincipalView for this request's principal (plain nested previews)."""
-        if self._materializer is None:
+        if self._principal_view is None:
             from chafan_core.app.infra.principal_view import PrincipalView
 
-            self._materializer = PrincipalView(self, self.principal_id)
-        return self._materializer
+            self._principal_view = PrincipalView(self, self.principal_id)
+        return self._principal_view
+
+    # Deprecated alias — use principal_view.
+    @property
+    def materializer(self):
+        return self.principal_view
 
     def as_principal(self, principal_id: Optional[int]) -> "PrincipalView":
         """Schema shaper for a different principal (feed, notifications, payments).
 
-        Shares this context's db/redis. Reuses .materializer when principal_id
+        Shares this context's db/redis. Reuses .principal_view when principal_id
         matches the request principal.
         """
         if principal_id == self.principal_id:
-            return self.materializer
+            return self.principal_view
         from chafan_core.app.infra.principal_view import PrincipalView
 
         return PrincipalView(self, principal_id)
@@ -139,7 +144,7 @@ class RequestContext:
         return people_service.preview_of_user(self, user)
 
     def preview_of_answer(self, answer: "models.Answer") -> Optional["AnswerPreview"]:
-        return self.materializer.preview_of_answer(answer)
+        return self.principal_view.preview_of_answer(answer)
 
     def site_schema_from_orm(self, site: "models.Site") -> "schemas.Site":
         from chafan_core.app.services import sites as sites_service
@@ -147,7 +152,7 @@ class RequestContext:
         return sites_service.site_schema(self, site)
 
     def channel_schema_from_orm(self, channel: "models.Channel") -> "schemas.Channel":
-        return self.materializer.channel_schema_from_orm(channel)
+        return self.principal_view.channel_schema_from_orm(channel)
 
     def get_user_follows(self, followed: "models.User") -> "schemas.UserFollows":
         from chafan_core.app.services import people as people_service

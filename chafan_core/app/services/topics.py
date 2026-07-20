@@ -31,7 +31,7 @@ def list_topic_questions(
     topic = get_topic(db, uuid)
     # FIXME: expensive
     questions: List[models.Question] = topic.questions[skip : (skip + limit)]
-    mat = ctx.materializer
+    mat = ctx.principal_view
     return filter_not_none(
         [
             mat.preview_of_question(question)

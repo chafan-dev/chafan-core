@@ -53,7 +53,7 @@ def get_request_context(
 ) -> Generator:
     """Preferred per-request context (principal + lazy db/redis).
 
-    Use ctx.materializer for the request principal, or ctx.as_principal(id)
+    Use ctx.principal_view for the request principal, or ctx.as_principal(id)
     for another viewer. close_legacy_commit keeps historical request-end
     commit until services own transactions.
     """

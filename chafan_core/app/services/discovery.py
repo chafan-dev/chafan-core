@@ -27,7 +27,7 @@ def pinned_questions(ctx) -> List[schemas.QuestionPreview]:
     if value:
         return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
 
-    mat = ctx.materializer
+    mat = ctx.principal_view
 
     def runnable(db: Session) -> List[schemas.QuestionPreview]:
         questions = crud.question.get_placed_at_home(db)
@@ -42,7 +42,7 @@ def pinned_questions(ctx) -> List[schemas.QuestionPreview]:
 
 
 def _get_pending_questions(ctx) -> List[schemas.QuestionPreview]:
-    mat = ctx.materializer
+    mat = ctx.principal_view
     if ctx.principal_id:
         current_user = crud.user.get(ctx.get_db(), id=ctx.principal_id)
         assert current_user is not None

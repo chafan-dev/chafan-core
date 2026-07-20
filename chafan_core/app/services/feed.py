@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_user_activity(
-    cached_layer,
+    ctx,
     *,
     current_user_id: int,
     before_activity_id: Optional[int],
@@ -23,7 +23,7 @@ def get_user_activity(
 ) -> List[schemas.Activity]:
     logger.info(f"services.feed get_user_activity for {current_user_id}")
     activities = get_activities_v2(
-        cached_layer=cached_layer,
+        ctx=ctx,
         before_activity_id=before_activity_id,
         limit=limit,
         receiver_user_id=current_user_id,

@@ -63,7 +63,7 @@ def post_submission_suggestions(
 
     return unwrap(
         suggestions_responder.submission_suggestion_schema_from_orm(
-            ctx.materializer, s
+            ctx.principal_view, s
         )
     )
 
@@ -206,6 +206,6 @@ def update_submission_suggestions(
 
     return unwrap(
         suggestions_responder.submission_suggestion_schema_from_orm(
-            ctx.materializer, s
+            ctx.principal_view, s
         )
     )

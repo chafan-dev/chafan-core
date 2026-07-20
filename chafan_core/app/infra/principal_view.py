@@ -1,6 +1,6 @@
 """Principal-scoped schema shaper (plain previews + responder dispatch).
 
-Used as RequestContext.materializer and RequestContext.as_principal(id).
+Used as RequestContext.principal_view and RequestContext.as_principal(id).
 Shares the parent context's db/redis; holds its own principal_id.
 """
 

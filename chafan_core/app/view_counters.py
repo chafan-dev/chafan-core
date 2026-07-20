@@ -8,15 +8,15 @@ logger = logging.getLogger(__name__)
 
 
 def add_view_async(
-    cached_layer_or_none,  # accepts RequestContext or None; redis taken from infra when needed
+    ctx_or_none,  # accepts RequestContext or None; redis taken from infra when needed
     object_type: Literal["question", "answer", "profile", "article", "submission"],
     obj_id: int,
 ) -> None:
     """Enqueue a view bump. Prefer infra_cache; optional layer still accepted for callers."""
     assert object_type in ["question", "answer", "article", "submission"]
     redis_cli = None
-    if cached_layer_or_none is not None and hasattr(cached_layer_or_none, "get_redis"):
-        redis_cli = cached_layer_or_none.get_redis()
+    if ctx_or_none is not None and hasattr(ctx_or_none, "get_redis"):
+        redis_cli = ctx_or_none.get_redis()
     infra_cache.bump_view(object_type, obj_id, redis_cli)
 
 

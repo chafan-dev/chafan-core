@@ -11,7 +11,7 @@ from chafan_core.utils.base import HTTPException_
 
 
 def application_schema(ctx, application: models.Application) -> schemas.Application:
-    return misc_responder.application_schema_from_orm(ctx.materializer, application)
+    return misc_responder.application_schema_from_orm(ctx.principal_view, application)
 
 
 def list_pending_applications(ctx) -> List[schemas.Application]:
@@ -57,7 +57,7 @@ def approve_application(ctx, *, application_id: int) -> schemas.Application:
     if not existing_profile:
         sites_service.create_site_profile(
             db,
-            ctx.materializer,
+            ctx.principal_view,
             owner=application.applicant,
             site_uuid=application.applied_site.uuid,
         )

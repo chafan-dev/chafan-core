@@ -4,7 +4,7 @@
 def shaper(ctx):
     """Return the PrincipalView-like object for nested previews/comments.
 
-    RequestContext has .materializer; PrincipalView is itself the shaper.
+    RequestContext has .principal_view; PrincipalView is itself the shaper.
     """
     return getattr(ctx, "materializer", ctx)
 

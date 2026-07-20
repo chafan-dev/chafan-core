@@ -76,7 +76,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_answer
         ):
-            answer_preview = ctx.materializer.preview_of_answer(event.answer)
+            answer_preview = ctx.principal_view.preview_of_answer(event.answer)
             if answer_preview:
                 _post_webhook(
                     webhook,
@@ -90,7 +90,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_question
         ):
-            question_preview = ctx.materializer.preview_of_question(event.question)
+            question_preview = ctx.principal_view.preview_of_question(event.question)
             if question_preview:
                 _post_webhook(
                     webhook,
@@ -106,7 +106,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_submission
         ):
-            submission = ctx.materializer.submission_for_visitor_schema_from_orm(
+            submission = ctx.principal_view.submission_for_visitor_schema_from_orm(
                 event.submission
             )
             if submission:
