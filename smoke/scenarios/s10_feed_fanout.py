@@ -16,7 +16,7 @@ import json
 import time
 import uuid as uuidlib
 
-from client import ok
+from client import note, ok
 from poll import wait_for
 
 TAG = "s10_feed"
@@ -64,14 +64,21 @@ def run(state: dict) -> None:
     question_uuid_negative, _ = _post_fresh_question(b, cfg["site_uuid"])
     ok(TAG, "B creates question (negative)", f"uuid={question_uuid_negative}")
 
-    # Known bug: unfollow does not prune future fan-out. Skipping negative
-    # check until the activity refactor lands.
-    # TODO: re-enable once the feed fan-out bug is fixed.
+    # Known bug: unfollow does not prune already-scheduled fan-out, so the
+    # negative case is an *expected failure* rather than a pass. Emit XFAIL
+    # (not OK) when the leak is present so it never masquerades as a green
+    # check; emit a genuine OK if the leak is gone (bug fixed).
+    # TODO: turn XFAIL into a hard assertion once the feed fan-out bug is fixed.
     time.sleep(timeout)
     if _feed_contains(a, question_uuid_negative):
-        ok(TAG, "GET /activities/ (negative)", "SKIPPED (known bug: unfollow does not prune fan-out)")
+        note(
+            TAG,
+            "GET /activities/ (negative)",
+            "XFAIL",
+            "known bug: unfollow does not prune fan-out",
+        )
     else:
-        ok(TAG, "GET /activities/ (negative)", f"waited={timeout:.1f}s")
+        ok(TAG, "GET /activities/ (negative)", f"waited={timeout:.1f}s (no leak)")
 
 
 if __name__ == "__main__":

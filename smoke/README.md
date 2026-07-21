@@ -3,7 +3,9 @@
 End-to-end smoke test that drives the real HTTP API and exercises every
 critical read/write path: auth, questions, answers, comments, submissions,
 articles, the follow graph, activity-feed fan-out, notifications, and private
-messages. Exit code 0 = the backend is sane.
+messages. It also asserts the negative paths (`s13_authz`): anonymous writes
+and non-author edits/deletes are rejected with the expected status. Exit code
+0 = the backend is sane.
 
 The suite reads `config.json` (git-ignored) for the target endpoint and two
 member accounts, then runs the scenarios in `scenarios/` fail-fast.

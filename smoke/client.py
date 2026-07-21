@@ -4,10 +4,11 @@ One ApiClient per account. Holds the JWT in memory for the run.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import pathlib
-from typing import Any, Optional
+from typing import Any, Iterator, Optional
 
 import requests
 
@@ -15,7 +16,9 @@ DEBUG = bool(os.environ.get("DEBUG"))
 
 
 class ApiError(RuntimeError):
-    pass
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def load_config() -> dict:
@@ -87,7 +90,8 @@ class ApiClient:
         if len(body) > 800:
             body = body[:800] + "... [truncated]"
         raise ApiError(
-            f"{method} {path} → {resp.status_code}\n  body: {body}"
+            f"{method} {path} → {resp.status_code}\n  body: {body}",
+            status_code=resp.status_code,
         )
 
     def _log(self, method: str, path: str, status: int) -> None:
@@ -168,6 +172,30 @@ class ApiClient:
         self.full_name = me.get("full_name")
 
 
+@contextlib.contextmanager
+def expect_error(*statuses: int) -> Iterator[None]:
+    """Assert the wrapped API call raises ApiError with one of ``statuses``.
+
+    Used by the negative scenarios: a permission-denied or unauthenticated
+    call *must* fail, and must fail with the specific status we expect (not
+    e.g. a 500). A call that unexpectedly succeeds is itself a regression.
+
+        with expect_error(401):
+            anon.post("/api/v1/questions/", {...})
+    """
+    try:
+        yield
+    except ApiError as e:
+        if statuses and e.status_code not in statuses:
+            raise AssertionError(
+                f"expected HTTP {list(statuses)}, got {e.status_code}: {e}"
+            ) from None
+        return
+    raise AssertionError(
+        f"expected the call to fail with HTTP {list(statuses)}, but it succeeded"
+    )
+
+
 def richtext(body: str) -> dict:
     """Build a RichText payload the backend accepts."""
     return {"source": body, "editor": "wysiwyg", "rendered_text": body}
@@ -176,6 +204,18 @@ def richtext(body: str) -> dict:
 def ok(prefix: str, label: str, extra: str = "") -> None:
     """Print an OK line, fixed-width for readability."""
     line = f"[{prefix:<12}] {label:<34} OK"
+    if extra:
+        line += f"   {extra}"
+    print(line)
+
+
+def note(prefix: str, label: str, status: str, extra: str = "") -> None:
+    """Print a non-OK status line (e.g. SKIP / XFAIL) in the same format.
+
+    Distinct from ``ok()`` so a known-bug branch never masquerades as a pass:
+    the operator sees the literal status word, not "OK".
+    """
+    line = f"[{prefix:<12}] {label:<34} {status}"
     if extra:
         line += f"   {extra}"
     print(line)

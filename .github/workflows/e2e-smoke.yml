@@ -1,9 +1,11 @@
 name: E2E smoke (bootstrap)
 
 # Bootstrap-mode end-to-end smoke test: seed a fresh DB, boot a live
-# uvicorn server + dramatiq worker, and drive the real HTTP API through the
-# smoke suite (chafan-core/smoke). This is the CI-safe mode — it invents its
-# own users/site/data and needs no secrets.
+# uvicorn server, and drive the real HTTP API through the smoke suite
+# (chafan-core/smoke). Post-response fan-out (feed, notifications) runs in
+# process via FastAPI BackgroundTasks, so no separate worker is needed. This
+# is the CI-safe mode — it invents its own users/site/data and needs no
+# secrets.
 #
 # The "real world" mode of the suite (hitting api.cha.fan with real accounts)
 # is intentionally NOT run here; it is a manual, credentialed operation.

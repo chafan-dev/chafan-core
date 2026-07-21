@@ -12,7 +12,6 @@ Both sub-flows are polled because the fan-out is post-response (BackgroundTasks)
 """
 from __future__ import annotations
 
-import json
 import uuid as uuidlib
 
 from client import ok, richtext
@@ -21,9 +20,31 @@ from poll import wait_for
 TAG = "s11_notify"
 
 
-def _unread_contains(client, needle: str) -> bool:
-    resp = client.get("/api/v1/notifications/unread/")
-    return needle in json.dumps(resp)
+def _find_notification(client, *, verb: str, uuid_path: list[str], expected_uuid: str):
+    """Return the unread notification whose event matches, else None.
+
+    Stronger than a substring match on the serialized blob: the event must
+    have the right ``verb`` *and* the uuid at ``uuid_path`` (e.g.
+    ``["answer", "uuid"]``) must equal ``expected_uuid``. This catches a
+    malformed event that merely happens to embed the uuid somewhere.
+
+    The serialized ``event`` is ``{"created_at", "content": {...}}`` — verb
+    and the content preview both live under ``event.content`` (see the
+    ``Event`` schema), so ``uuid_path`` is walked from there.
+    """
+    for notif in client.get("/api/v1/notifications/unread/"):
+        content = (notif.get("event") or {}).get("content") or {}
+        if content.get("verb") != verb:
+            continue
+        node = content
+        for key in uuid_path:
+            if not isinstance(node, dict):
+                node = None
+                break
+            node = node.get(key)
+        if node == expected_uuid:
+            return notif
+    return None
 
 
 def run(state: dict) -> None:
@@ -50,12 +71,21 @@ def run(state: dict) -> None:
     state["b_answer_uuid"] = b_answer_uuid
     ok(TAG, "B answers A's question", f"uuid={b_answer_uuid}")
 
-    _, elapsed = wait_for(
-        lambda: _unread_contains(a, b_answer_uuid),
+    notif, elapsed = wait_for(
+        lambda: _find_notification(
+            a, verb="answer_question", uuid_path=["answer", "uuid"],
+            expected_uuid=b_answer_uuid,
+        ),
         timeout=timeout,
-        desc=f"A's notifications never referenced B's answer {b_answer_uuid}",
+        desc=(
+            f"A had no 'answer_question' notification referencing B's answer "
+            f"{b_answer_uuid}"
+        ),
     )
-    ok(TAG, "A polls /notifications/unread/", f"elapsed={elapsed:.1f}s")
+    assert notif["event"]["content"]["subject"]["uuid"] == b.uuid, (
+        f"reply notification actor is not B: {notif['event']['content'].get('subject')!r}"
+    )
+    ok(TAG, "A polls /notifications/unread/", f"elapsed={elapsed:.1f}s verb=answer_question")
 
     # ---- Sub-flow B: mention notification -------------------------------
     mention_body = f"smoke-test mention of @{b.handle}"
@@ -70,15 +100,21 @@ def run(state: dict) -> None:
     mention_comment_uuid = created["uuid"]
     ok(TAG, "A comments with mention", f"uuid={mention_comment_uuid}")
 
-    _, elapsed = wait_for(
-        lambda: _unread_contains(b, mention_comment_uuid),
+    notif, elapsed = wait_for(
+        lambda: _find_notification(
+            b, verb="mentioned_in_comment", uuid_path=["comment", "uuid"],
+            expected_uuid=mention_comment_uuid,
+        ),
         timeout=timeout,
         desc=(
-            f"B's notifications never referenced mention comment "
+            f"B had no 'mentioned_in_comment' notification referencing comment "
             f"{mention_comment_uuid}"
         ),
     )
-    ok(TAG, "B polls /notifications/unread/", f"elapsed={elapsed:.1f}s")
+    assert notif["event"]["content"]["subject"]["uuid"] == a.uuid, (
+        f"mention notification actor is not A: {notif['event']['content'].get('subject')!r}"
+    )
+    ok(TAG, "B polls /notifications/unread/", f"elapsed={elapsed:.1f}s verb=mentioned_in_comment")
 
 
 if __name__ == "__main__":

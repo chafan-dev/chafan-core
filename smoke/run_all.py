@@ -23,11 +23,14 @@ from scenarios import (
     s10_feed_fanout,
     s11_notifications,
     s12_messages,
+    s13_authz,
     s08_delete,
 )
 
 # Order matches SMOKE_TEST_PLAN.md § "Scenario order note".
-# s08_delete runs absolutely last so s11 still has A's question/answer.
+# s13_authz runs before s08_delete: it needs A's answer to exist (and asserts
+# the rejected delete leaves it intact). s08_delete runs absolutely last so
+# s11 still has A's question/answer.
 SCENARIOS = [
     s01_auth,
     s02_read_only,
@@ -40,6 +43,7 @@ SCENARIOS = [
     s10_feed_fanout,
     s11_notifications,
     s12_messages,
+    s13_authz,
     s08_delete,
 ]
 

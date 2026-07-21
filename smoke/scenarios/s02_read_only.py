@@ -24,9 +24,9 @@ def run(state: dict) -> None:
 
     topics = a.anonymous_get("/api/v1/category-topics/")
     assert isinstance(topics, list), (
-        f"/login/category-topics/ expected list, got: {type(topics).__name__}"
+        f"/category-topics/ expected list, got: {type(topics).__name__}"
     )
-    ok(TAG, "GET /login/category-topics/", f"n={len(topics)}")
+    ok(TAG, "GET /category-topics/", f"n={len(topics)}")
 
 
 if __name__ == "__main__":
