@@ -27,12 +27,16 @@ def _find_notification(client, *, verb: str, uuid_path: list[str], expected_uuid
     have the right ``verb`` *and* the uuid at ``uuid_path`` (e.g.
     ``["answer", "uuid"]``) must equal ``expected_uuid``. This catches a
     malformed event that merely happens to embed the uuid somewhere.
+
+    The serialized ``event`` is ``{"created_at", "content": {...}}`` — verb
+    and the content preview both live under ``event.content`` (see the
+    ``Event`` schema), so ``uuid_path`` is walked from there.
     """
     for notif in client.get("/api/v1/notifications/unread/"):
-        event = notif.get("event") or {}
-        if event.get("verb") != verb:
+        content = (notif.get("event") or {}).get("content") or {}
+        if content.get("verb") != verb:
             continue
-        node = event
+        node = content
         for key in uuid_path:
             if not isinstance(node, dict):
                 node = None
@@ -78,8 +82,8 @@ def run(state: dict) -> None:
             f"{b_answer_uuid}"
         ),
     )
-    assert notif["event"]["subject"]["uuid"] == b.uuid, (
-        f"reply notification actor is not B: {notif['event'].get('subject')!r}"
+    assert notif["event"]["content"]["subject"]["uuid"] == b.uuid, (
+        f"reply notification actor is not B: {notif['event']['content'].get('subject')!r}"
     )
     ok(TAG, "A polls /notifications/unread/", f"elapsed={elapsed:.1f}s verb=answer_question")
 
@@ -107,8 +111,8 @@ def run(state: dict) -> None:
             f"{mention_comment_uuid}"
         ),
     )
-    assert notif["event"]["subject"]["uuid"] == a.uuid, (
-        f"mention notification actor is not A: {notif['event'].get('subject')!r}"
+    assert notif["event"]["content"]["subject"]["uuid"] == a.uuid, (
+        f"mention notification actor is not A: {notif['event']['content'].get('subject')!r}"
     )
     ok(TAG, "B polls /notifications/unread/", f"elapsed={elapsed:.1f}s verb=mentioned_in_comment")
 
