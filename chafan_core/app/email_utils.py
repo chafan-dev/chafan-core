@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 #from emails.template import JinjaTemplate  # type: ignore
 
 from chafan_core.app import schemas
-from chafan_core.app.common import from_now, is_dev, render_notif_content
+from chafan_core.app.common import from_now, render_notif_content
 from chafan_core.app.config import settings
 
 # TODO this file should be moved into chafan_core/app/email_util

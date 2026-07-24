@@ -9,7 +9,7 @@ from pydantic.tools import parse_obj_as
 from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.aws import get_s3_client
-from chafan_core.app.common import is_dev, valid_content_length
+from chafan_core.app.common import valid_content_length
 from chafan_core.app.config import settings
 from chafan_core.utils.base import HTTPException_, unwrap
 
@@ -22,15 +22,14 @@ def upload_image(
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
     file_size: int = Depends(valid_content_length),
 ) -> Any:
-    if is_dev():
+    if settings.AWS_CLOUDFRONT_HOST is None:
+        # No object store configured (e.g. local dev): return a placeholder.
         return schemas.UploadedImage(url="https://picsum.photos/200/300")
-    else:
-        if not current_user_id:
-            raise HTTPException_(
-                status_code=400,
-                detail="Upload requires login.",
-            )
-    assert settings.AWS_CLOUDFRONT_HOST is not None
+    if not current_user_id:
+        raise HTTPException_(
+            status_code=400,
+            detail="Upload requires login.",
+        )
     s3 = get_s3_client()
     tmpfile_name = None
     h = hashlib.sha256()
@@ -60,7 +59,8 @@ def upload_files_from_vditor(
     current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
     file_size: int = Depends(valid_content_length),
 ) -> Any:
-    if is_dev():
+    if settings.AWS_CLOUDFRONT_HOST is None:
+        # No object store configured (e.g. local dev): return a placeholder.
         return schemas.msg.UploadResults(
             data=schemas.msg.UploadResultData(
                 succMap={
@@ -70,13 +70,11 @@ def upload_files_from_vditor(
                 }
             )
         )
-    else:
-        if not current_user_id:
-            raise HTTPException_(
-                status_code=400,
-                detail="Upload requires login.",
-            )
-    assert settings.AWS_CLOUDFRONT_HOST is not None
+    if not current_user_id:
+        raise HTTPException_(
+            status_code=400,
+            detail="Upload requires login.",
+        )
     s3 = get_s3_client()
     succMap: Dict[str, AnyHttpUrl] = {}
     for file in files:
