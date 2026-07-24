@@ -196,6 +196,8 @@ def ensure_user_has_coins(db: Session, user_id: int, coins: int = 100) -> None:
 
     if user.remaining_coins < coins:
         crud.user.update(db, db_obj=user, obj_in={"remaining_coins": coins})
+        # crud flushes only; commit so API requests (separate sessions) see the coins.
+        db.commit()
 
 
 # =============================================================================

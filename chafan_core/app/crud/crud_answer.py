@@ -5,7 +5,6 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
-from chafan_core.app.common import is_dev
 from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.crud.crud_activity import upvote_answer_activity
 from chafan_core.app.models.answer import Answer, Answer_Upvotes
@@ -94,11 +93,10 @@ class CRUDAnswer(CRUDBase[Answer, AnswerCreate, AnswerUpdate]):
         return db_obj
 
     def search(self, db: Session, *, q: str) -> List[Answer]:
-        if is_dev():
-            return self.get_all_published(db)
         ids = do_search("answer", query=q)
-        if not ids:
-            return []
+        if ids is None:
+            # Search index unavailable (e.g. local dev): fall back to listing all.
+            return self.get_all_published(db)
         ret = []
         for id in ids:
             answer = self.get_one_as_search_result(db, id=id)

@@ -1,3 +1,4 @@
+import logging
 from typing import Literal, NamedTuple, Union
 
 import requests
@@ -7,10 +8,11 @@ from pydantic.main import BaseModel
 from pydantic.tools import parse_obj_as
 
 from chafan_core.app import models
-from chafan_core.app.common import is_dev
 from chafan_core.app.schemas import AnswerPreview, QuestionPreview
 from chafan_core.app.schemas.submission import Submission
 from chafan_core.app.schemas.webhook import WebhookEventSpec, WebhookSiteEvent
+
+logger = logging.getLogger(__name__)
 
 
 class SiteNewAnswerEvent(NamedTuple):
@@ -57,8 +59,7 @@ def _post_webhook(webhook: models.Webhook, webhook_event: WebhookEvent) -> None:
             },
             timeout=5,
         )
-        if is_dev():
-            print("Response: " + r.text)
+        logger.debug("webhook response: %s", r.text)
     except Exception as e:
         sentry_sdk.capture_exception(e)
 

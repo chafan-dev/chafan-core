@@ -85,6 +85,9 @@ def test_create_user_existing_username(client: TestClient, db: Session) -> None:
         email=username, password=password, handle=random_short_lower_string()
     )
     crud.user.create(db, obj_in=user_in)
+    # crud no longer commits; the API call below runs on a different session, so
+    # this insert must be committed or its unique-index lock blocks it forever.
+    db.commit()
     r = get_open_user_account_response(
         client, username, password.get_secret_value(), invitation_uuid
     )

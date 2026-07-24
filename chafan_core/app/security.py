@@ -15,7 +15,6 @@ from chafan_core.app.common import (
     check_email,
     client_ip,
     get_redis_cli,
-    is_dev,
 )
 
 import logging
