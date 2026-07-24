@@ -2,9 +2,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud
+from chafan_core.app import crud, models
 from chafan_core.app.config import settings
-from chafan_core.tests.conftest import ensure_user_in_site
+from chafan_core.tests.conftest import ensure_user_has_coins, ensure_user_in_site
 from chafan_core.tests.utils.utils import random_lower_string
 
 
@@ -437,3 +437,279 @@ def test_get_question_upvotes(
     db_question = crud.question.get_by_uuid(db, uuid=question_uuid)
     assert db_question is not None
     assert db_question.upvotes_count == data["count"]
+
+
+# =============================================================================
+# Archive Atomicity Tests
+# =============================================================================
+
+
+def _create_question(
+    client: TestClient,
+    normal_user_token_headers: dict,
+    example_site_uuid: str,
+) -> str:
+    r = client.post(
+        f"{settings.API_V1_STR}/questions/",
+        headers=normal_user_token_headers,
+        json={
+            "site_uuid": example_site_uuid,
+            "title": f"Question for archives {random_lower_string()}",
+        },
+    )
+    assert r.status_code == 200, r.json()
+    return r.json()["uuid"]
+
+
+def test_rejected_question_update_writes_no_archive(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+) -> None:
+    """A rejected edit must leave no trace.
+
+    update_question used to commit the QuestionArchive before validating
+    topic_uuids, so a 400 rolled back the update but kept an archive row
+    describing a revision that never happened.
+    """
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+    question_uuid = _create_question(
+        client, normal_user_token_headers, example_site_uuid
+    )
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+    original_title = question.title
+    archives_before = len(question.archives)
+
+    r = client.put(
+        f"{settings.API_V1_STR}/questions/{question_uuid}",
+        headers=normal_user_token_headers,
+        json={
+            "title": f"Rejected update {random_lower_string()}",
+            "topic_uuids": ["nonexistent-topic-uuid"],
+        },
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "The topic doesn't exist."
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+    assert len(question.archives) == archives_before, (
+        "rejected update left an orphan archive row"
+    )
+    assert question.title == original_title
+
+
+def test_repeated_rejected_updates_write_no_archives(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+) -> None:
+    """Retrying a rejected edit must not accumulate archive rows."""
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+    question_uuid = _create_question(
+        client, normal_user_token_headers, example_site_uuid
+    )
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+    archives_before = len(question.archives)
+
+    for _ in range(3):
+        r = client.put(
+            f"{settings.API_V1_STR}/questions/{question_uuid}",
+            headers=normal_user_token_headers,
+            json={
+                "title": f"Rejected {random_lower_string()}",
+                "topic_uuids": ["nonexistent-topic-uuid"],
+            },
+        )
+        assert r.status_code == 400
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+    assert len(question.archives) == archives_before
+
+
+def test_accepted_question_update_writes_one_archive(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+) -> None:
+    """Happy path still archives: removing the mid-function commit must not
+    stop a successful edit from recording its prior revision."""
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+    question_uuid = _create_question(
+        client, normal_user_token_headers, example_site_uuid
+    )
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+    original_title = question.title
+    archives_before = len(question.archives)
+
+    new_title = f"Accepted update {random_lower_string()}"
+    r = client.put(
+        f"{settings.API_V1_STR}/questions/{question_uuid}",
+        headers=normal_user_token_headers,
+        json={"title": new_title},
+    )
+    assert r.status_code == 200, r.json()
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+    assert question.title == new_title
+    assert len(question.archives) == archives_before + 1
+    assert original_title in [a.title for a in question.archives]
+
+
+# =============================================================================
+# Archive Authorization Tests
+# =============================================================================
+
+
+def test_get_question_archives_as_author(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+) -> None:
+    """The author (a site member) can read revision history."""
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+    question_uuid = _create_question(
+        client, normal_user_token_headers, example_site_uuid
+    )
+
+    r = client.get(
+        f"{settings.API_V1_STR}/questions/{question_uuid}/archives/",
+        headers=normal_user_token_headers,
+    )
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
+
+
+def test_get_question_archives_unauthenticated(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+) -> None:
+    """Anonymous callers must not read revision history of a private site.
+
+    list_archives previously performed no permission check at all, so question
+    revision history was world-readable regardless of site visibility.
+    """
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+    question_uuid = _create_question(
+        client, normal_user_token_headers, example_site_uuid
+    )
+
+    r = client.get(f"{settings.API_V1_STR}/questions/{question_uuid}/archives/")
+    assert r.status_code != 200, "anonymous read of private-site archives"
+    assert r.status_code in (400, 401, 403, 404)
+
+
+# =============================================================================
+# Background Postprocess Tests
+# =============================================================================
+
+
+def test_new_question_writes_activity_and_feed(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    moderator_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    moderator_user_id: int,
+    example_site_uuid: str,
+) -> None:
+    """postprocess_new_question must persist both the Activity and its feed fanout.
+
+    These run under execute_with_broker, which has no request boundary; the
+    Activity used to be committed mid-function before new_activity_into_feed
+    ran. Removing that commit means the flush alone has to assign activity.id,
+    and the single boundary at the end has to cover both writes.
+    """
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+
+    # Feed rows fan out to the subject's followers, so give the author one.
+    r = client.post(
+        f"{settings.API_V1_STR}/me/follows/{normal_user_uuid}",
+        headers=moderator_user_token_headers,
+    )
+    assert r.status_code == 200, r.json()
+
+    question_uuid = _create_question(
+        client, normal_user_token_headers, example_site_uuid
+    )
+
+    db.expire_all()
+    question = crud.question.get_by_uuid(db, uuid=question_uuid)
+    assert question is not None
+
+    activities = (
+        db.query(models.Activity).filter_by(site_id=question.site_id).all()
+    )
+    assert activities, "postprocess_new_question persisted no Activity"
+    activity_ids = [a.id for a in activities]
+
+    feeds = (
+        db.query(models.Feed)
+        .filter(
+            models.Feed.receiver_id == moderator_user_id,
+            models.Feed.activity_id.in_(activity_ids),
+        )
+        .all()
+    )
+    assert feeds, "Activity landed but its feed fanout did not"

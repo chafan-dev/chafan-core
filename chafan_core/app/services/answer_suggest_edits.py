@@ -139,7 +139,6 @@ def update_suggest_edit(
                 answer_suggest_edit.answer.contributors.append(
                     answer_suggest_edit.author
                 )
-            db.commit()
             body_rich_text = None
             if answer_suggest_edit.body:
                 assert answer_suggest_edit.body_editor

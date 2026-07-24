@@ -203,18 +203,9 @@ def apply_submission_update(
 ) -> Tuple[models.Submission, Optional[schemas.Submission]]:
     """Apply an update to an existing submission model (used by suggestions accept)."""
     db = ctx.get_db()
-    archive = models.SubmissionArchive(
-        submission_id=submission.id,
-        title=submission.title,
-        description=submission.description,
-        description_editor=submission.description_editor,
-        description_text=submission.description_text,
-        topic_uuids=[t.uuid for t in submission.topics],
-        created_at=submission.updated_at,
-    )
-    db.add(archive)
-    submission.archives.append(archive)
-    db.commit()
+    # Resolve topics before snapshotting: a bad uuid must reject the edit
+    # without having built an archive of a revision that never happened.
+    new_topics = None
     if submission_in.topic_uuids is not None:
         new_topics = []
         for topic_uuid in submission_in.topic_uuids:
@@ -226,6 +217,18 @@ def apply_submission_update(
                 )
             new_topics.append(topic)
         submission_in.topic_uuids = None
+    archive = models.SubmissionArchive(
+        submission_id=submission.id,
+        title=submission.title,
+        description=submission.description,
+        description_editor=submission.description_editor,
+        description_text=submission.description_text,
+        topic_uuids=[t.uuid for t in submission.topics],
+        created_at=submission.updated_at,
+    )
+    db.add(archive)
+    submission.archives.append(archive)
+    if new_topics is not None:
         submission = crud.submission.update_topics(
             db, db_obj=submission, new_topics=new_topics
         )
@@ -380,7 +383,6 @@ def upvote_submission(ctx, *, uuid: str) -> schemas.SubmissionUpvotes:
                 payer=current_user,
                 payee=submission.author,
             )
-        db.commit()
         db.refresh(submission)
     valid_upvotes = (
         db.query(models.SubmissionUpvotes)
@@ -419,7 +421,6 @@ def cancel_upvote_submission(ctx, *, uuid: str) -> schemas.SubmissionUpvotes:
         submission = crud.submission.cancel_upvote(
             db, db_obj=submission, voter=current_user
         )
-        db.commit()
         db.refresh(submission)
     valid_upvotes = (
         db.query(models.SubmissionUpvotes)

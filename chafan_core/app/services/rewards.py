@@ -135,7 +135,6 @@ def claim_reward(ctx, *, reward_id: int) -> schemas.Reward:
     reward.claimed_at = utc_now
     coins.award_coins(db, current_user, reward.coin_amount, "reward_claim")
     db.add(reward)
-    db.commit()
     db.refresh(reward)
     reward_data = misc_responder.reward_schema_from_orm(ctx.principal_view, reward)
     reward_event = None
@@ -185,6 +184,5 @@ def refund_reward(ctx, *, reward_id: int) -> schemas.Reward:
     reward.refunded_at = utc_now
     coins.award_coins(db, current_user, reward.coin_amount, "reward_refund")
     db.add(reward)
-    db.commit()
     db.refresh(reward)
     return misc_responder.reward_schema_from_orm(ctx.principal_view, reward)

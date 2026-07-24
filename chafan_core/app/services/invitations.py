@@ -30,7 +30,6 @@ def try_consume_invitation_link_by_uuid(db: Session, invitation_uuid: str) -> bo
         return False
     invitation_link.remaining_quota -= 1
     db.add(invitation_link)
-    db.commit()
     return True
 
 
@@ -122,4 +121,3 @@ def join_site_with_invitation_link(ctx, *, uuid: str) -> None:
         )
         invitation_link.remaining_quota -= 1
         db.add(invitation_link)
-        db.commit()

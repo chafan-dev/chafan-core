@@ -65,5 +65,4 @@ def create_feedback(
         location_url=location_url,
     )
     db.add(feedback)
-    db.commit()
     return feedback
