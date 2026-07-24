@@ -164,7 +164,6 @@ def delete_draft(
     article.body_draft = None
     article.draft_saved_at = None
     db.add(article)
-    db.commit()
     return data
 
 
@@ -263,7 +262,6 @@ def update_article(
             )
             ctx.get_db().add(archive)
             article.archives.append(archive)
-            ctx.get_db().commit()
         if not article.is_published:
             article_in_dict["initial_published_at"] = utc_now
         article_in_dict["is_published"] = True
@@ -391,7 +389,6 @@ def upvote_article(ctx, *, uuid: str) -> schemas.ArticleUpvotes:
             payer=current_user,
             payee=article.author,
         )
-    db.commit()
     db.refresh(article)
     valid_upvotes = (
         db.query(models.ArticleUpvotes)
@@ -424,7 +421,6 @@ def cancel_upvote_article(ctx, *, uuid: str) -> schemas.ArticleUpvotes:
             detail="You haven't voted yet.",
         )
     article = crud.article.cancel_upvote(db, db_obj=article, voter=current_user)
-    db.commit()
     db.refresh(article)
     valid_upvotes = (
         db.query(models.ArticleUpvotes)

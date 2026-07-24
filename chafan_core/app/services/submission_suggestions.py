@@ -137,7 +137,6 @@ def update_suggestion(
                 submission_suggestion.submission.contributors.append(
                     submission_suggestion.author
                 )
-            db.commit()
             desc = None
             if submission_suggestion.description:
                 desc = RichText(

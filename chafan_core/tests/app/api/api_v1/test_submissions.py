@@ -710,3 +710,131 @@ def test_get_submission_suggestions_nonexistent(
     # Verify it doesn't exist in database
     db_submission = crud.submission.get_by_uuid(db, uuid="invalid-uuid")
     assert db_submission is None
+
+
+# =============================================================================
+# Archive Atomicity Tests
+# =============================================================================
+
+
+def test_rejected_submission_update_writes_no_archive(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+    example_submission_uuid: str,
+) -> None:
+    """A rejected submission edit must leave no archive row behind.
+
+    apply_submission_update used to commit the SubmissionArchive before
+    validating topic_uuids.
+    """
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+
+    db.expire_all()
+    submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert submission is not None
+    original_title = submission.title
+    archives_before = len(submission.archives)
+
+    r = client.put(
+        f"{settings.API_V1_STR}/submissions/{example_submission_uuid}",
+        headers=normal_user_token_headers,
+        json={
+            "title": f"Rejected update {random_lower_string()}",
+            "topic_uuids": ["nonexistent-topic-uuid"],
+        },
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "The topic doesn't exist."
+
+    db.expire_all()
+    submission = crud.submission.get_by_uuid(db, uuid=example_submission_uuid)
+    assert submission is not None
+    assert len(submission.archives) == archives_before, (
+        "rejected update left an orphan archive row"
+    )
+    assert submission.title == original_title
+
+
+def test_failed_suggestion_accept_leaves_all_tables_consistent(
+    client: TestClient,
+    db: Session,
+    superuser_token_headers: dict,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    normal_user_uuid: str,
+    example_site_uuid: str,
+    example_submission_uuid: str,
+) -> None:
+    """Accepting a suggestion is one unit of work across four tables.
+
+    update_suggestion used to commit accepted_diff_base and the contributors
+    append, then call apply_submission_update which committed the archive and
+    only afterwards validated the stored topic_uuids. A failure there credited
+    a contributor and stored an accept-time snapshot on a suggestion whose edit
+    never landed.
+
+    The stored topic_uuids are poked directly because the API cannot currently
+    produce an unresolvable one -- topics are never deleted, and the create
+    path rejects a bad uuid while shaping its response. The accept path must be
+    atomic regardless.
+    """
+    ensure_user_in_site(
+        client, db, normal_user_id, normal_user_uuid,
+        example_site_uuid, superuser_token_headers
+    )
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+
+    r = client.post(
+        f"{settings.API_V1_STR}/submission-suggestions/",
+        headers=normal_user_token_headers,
+        json={
+            "submission_uuid": example_submission_uuid,
+            "title": f"Suggested title {random_lower_string()}",
+        },
+    )
+    assert r.status_code == 200, r.json()
+    suggestion_uuid = r.json()["uuid"]
+
+    db.expire_all()
+    suggestion = crud.submission_suggestion.get_by_uuid(db, uuid=suggestion_uuid)
+    assert suggestion is not None
+    suggestion.topic_uuids = ["nonexistent-topic-uuid"]
+    db.add(suggestion)
+    db.commit()
+
+    db.expire_all()
+    suggestion = crud.submission_suggestion.get_by_uuid(db, uuid=suggestion_uuid)
+    assert suggestion is not None
+    submission_title_before = suggestion.submission.title
+    archives_before = len(suggestion.submission.archives)
+    contributors_before = len(suggestion.submission.contributors)
+
+    r = client.put(
+        f"{settings.API_V1_STR}/submission-suggestions/{suggestion_uuid}",
+        headers=normal_user_token_headers,
+        json={"status": "accepted"},
+    )
+    assert r.status_code == 400
+    assert r.json()["detail"] == "The topic doesn't exist."
+
+    db.expire_all()
+    suggestion = crud.submission_suggestion.get_by_uuid(db, uuid=suggestion_uuid)
+    assert suggestion is not None
+    assert suggestion.status == "pending", "suggestion state advanced on a failed accept"
+    assert suggestion.accepted_at is None
+    assert suggestion.accepted_diff_base is None, (
+        "accept-time snapshot survived a failed accept"
+    )
+    assert len(suggestion.submission.contributors) == contributors_before, (
+        "contributor credited for an edit that never landed"
+    )
+    assert len(suggestion.submission.archives) == archives_before
+    assert suggestion.submission.title == submission_title_before

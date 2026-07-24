@@ -63,6 +63,5 @@ def approve_application(ctx, *, application_id: int) -> schemas.Application:
         )
     application.pending = False
     db.add(application)
-    db.commit()
     db.refresh(application)
     return application_schema(ctx, application)

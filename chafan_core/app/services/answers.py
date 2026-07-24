@@ -141,7 +141,6 @@ def delete_draft(
     answer.body_draft = None
     answer.draft_saved_at = None
     db.add(answer)
-    db.commit()
     return data
 
 
@@ -306,7 +305,6 @@ def apply_answer_update(
             )
             db.add(archive)
             answer.archives.append(archive)
-            db.commit()
         answer_in_dict["is_published"] = True
         answer_in_dict["updated_at"] = get_utc_now()
 
@@ -435,7 +433,6 @@ def upvote_answer(ctx, *, uuid: str) -> schemas.AnswerUpvotes:
                     ),
                 ),
             )
-        db.commit()
         db.refresh(answer)
     valid_upvotes = (
         db.query(models.Answer_Upvotes)
@@ -476,7 +473,6 @@ def cancel_upvote_answer(ctx, *, uuid: str) -> schemas.AnswerUpvotes:
             op_type=OperationType.ReadSite,
         )
         answer = crud.answer.cancel_upvote(db, db_obj=answer, voter=current_user)
-        db.commit()
         db.refresh(answer)
     valid_upvotes = (
         db.query(models.Answer_Upvotes)

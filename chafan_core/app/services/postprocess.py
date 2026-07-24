@@ -200,7 +200,6 @@ def postprocess_new_comment(
                     event_json=event.json(),
                 )
             )
-            broker.get_db().commit()
 
     execute_with_broker(runnable)
 
@@ -225,7 +224,6 @@ def postprocess_comment_update(
                     event_json=event.json(),
                 )
             )
-            broker.get_db().commit()
         if mentioned:
             notify_mentioned_users(
                 broker,
@@ -265,7 +263,6 @@ def postprocess_new_question(question_id: int) -> None:
         db = broker.get_db()
         db.add(question_ac)
         db.flush()
-        db.commit()
         new_activity_into_feed(broker, question_ac)
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
@@ -463,7 +460,6 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
             db = broker.get_db()
             db.add(answer_ac)
             db.flush()
-            db.commit()
             new_activity_into_feed(broker, answer_ac)
         for user in answer.bookmarkers:
             crud.notification.create_with_content(
@@ -512,7 +508,6 @@ def postprocess_new_article(article_id: int) -> None:
         db = broker.get_db()
         db.add(article_ac)
         db.flush()
-        db.commit()
         new_activity_into_feed(broker, article_ac)
         # TODO FIXME TABLE activitity 里同一篇文章有两条记录。看起来无害就先不管了 2025-aug-04
 

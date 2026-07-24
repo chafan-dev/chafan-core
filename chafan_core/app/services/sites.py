@@ -300,7 +300,6 @@ def config_site(
             new_topics.append(topic)
         new_site.topics = new_topics
         db.add(new_site)
-        db.commit()
     return site_schema(ctx, new_site)
 
 
@@ -453,7 +452,6 @@ def remove_my_site_membership(ctx, *, uuid: str) -> None:
         owner_id=ctx.unwrapped_principal_id(),
         site_id=site.id,
     )
-    db.commit()
 
 
 def get_webhooks(ctx, *, uuid: str) -> List[schemas.Webhook]:

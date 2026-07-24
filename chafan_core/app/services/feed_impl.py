@@ -80,7 +80,6 @@ def new_activity_into_feed(broker: RequestContext, activity:models.Activity) -> 
                     subject_user_uuid=receivers.subject_user_uuid,
                 )
             )
-            write_db.commit()
 
 
 

@@ -165,7 +165,6 @@ def upvote_comment(ctx, *, uuid: str) -> schemas.CommentUpvotes:
                 detail="Author can't upvote authored comment.",
             )
         comment = crud.comment.upvote(db, db_obj=comment, voter=current_user)
-        db.commit()
         db.refresh(comment)
     valid_upvotes = (
         db.query(models.CommentUpvotes)
@@ -201,7 +200,6 @@ def cancel_upvote_comment(ctx, *, uuid: str) -> schemas.CommentUpvotes:
     )
     if upvoted:
         comment = crud.comment.cancel_upvote(db, db_obj=comment, voter=current_user)
-        db.commit()
         db.refresh(comment)
     valid_upvotes = (
         db.query(models.CommentUpvotes)

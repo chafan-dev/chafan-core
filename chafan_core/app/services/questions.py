@@ -72,7 +72,19 @@ def require_question_schema(ctx, question: models.Question) -> schemas.Question:
     return question_data
 
 
-def get_question(ctx, *, uuid: str) -> schemas.Question:
+def get_readable_question_http(ctx, uuid: str) -> models.Question:
+    """Fetch question if the principal may read it, else raise 404/403/400.
+
+    The read gate for every question-scoped endpoint. Anything derived from a
+    question (archives, ...) must go through here so it can never end up more
+    permissive than the question itself.
+
+    Two gates, deliberately separate: `get_readable_question` covers hidden
+    questions, and the site-membership check mirrors the one inside
+    `responders.question.question_schema_from_orm`, which returns None for a
+    non-member and which `require_question_schema` reports as 400. Callers that
+    do not build the full schema would otherwise miss it entirely.
+    """
     question = get_readable_question(
         ctx.get_db(),
         uuid=uuid,
@@ -89,7 +101,23 @@ def get_question(ctx, *, uuid: str) -> schemas.Question:
             status_code=403,
             detail="Not allowed to access this quesion",
         )
-    return require_question_schema(ctx, question)
+    if not user_in_site(
+        ctx.get_db(),
+        site=question.site,
+        user_id=ctx.principal_id,
+        op_type=OperationType.ReadSite,
+    ):
+        # Same status and detail require_question_schema produces, so the
+        # observable behaviour of get_question is unchanged.
+        raise HTTPException_(
+            status_code=400,
+            detail="The question doesn't exist in the system.",
+        )
+    return question
+
+
+def get_question(ctx, *, uuid: str) -> schemas.Question:
+    return require_question_schema(ctx, get_readable_question_http(ctx, uuid))
 
 
 def bump_views(ctx, *, uuid: str) -> None:
@@ -214,6 +242,20 @@ def update_question(
     editor_id = question.editor_id
     if editor_id is None:
         editor_id = question.author_id
+    # Resolve topics before snapshotting: a bad uuid must reject the edit
+    # without having built an archive of a revision that never happened.
+    new_topics = None
+    if question_in.topic_uuids is not None:
+        new_topics = []
+        for topic_uuid in question_in.topic_uuids:
+            topic = crud.topic.get_by_uuid(db, uuid=topic_uuid)
+            if topic is None:
+                raise HTTPException_(
+                    status_code=400,
+                    detail="The topic doesn't exist.",
+                )
+            new_topics.append(topic)
+        question_in.topic_uuids = None
     archive = models.QuestionArchive(
         question_id=question.id,
         title=question.title,
@@ -226,18 +268,7 @@ def update_question(
     archive.topics = question.topics
     db.add(archive)
     question.archives.append(archive)
-    db.commit()
-    if question_in.topic_uuids is not None:
-        new_topics = []
-        for topic_uuid in question_in.topic_uuids:
-            topic = crud.topic.get_by_uuid(db, uuid=topic_uuid)
-            if topic is None:
-                raise HTTPException_(
-                    status_code=400,
-                    detail="The topic doesn't exist.",
-                )
-            new_topics.append(topic)
-        question_in.topic_uuids = None
+    if new_topics is not None:
         question = crud.question.update_topics(
             db, db_obj=question, new_topics=new_topics
         )
@@ -258,7 +289,7 @@ def update_question(
 def list_archives(ctx, *, uuid: str) -> list[schemas.QuestionArchive]:
     from chafan_core.app.responders import archives as archives_responder
 
-    question = get_question_model_http(ctx.get_db(), uuid)
+    question = get_readable_question_http(ctx, uuid)
     mat = ctx.principal_view
     return [
         archives_responder.question_archive_schema_from_orm(mat, a)
@@ -380,7 +411,6 @@ def upvote_question(ctx, *, uuid: str) -> schemas.QuestionUpvotes:
                 payer=current_user,
                 payee=question.author,
             )
-        db.commit()
         db.refresh(question)
     valid_upvotes = (
         db.query(models.QuestionUpvotes)
@@ -415,7 +445,6 @@ def cancel_upvote_question(ctx, *, uuid: str) -> schemas.QuestionUpvotes:
     )
     if upvoted:
         question = crud.question.cancel_upvote(db, db_obj=question, voter=current_user)
-        db.commit()
         db.refresh(question)
     valid_upvotes = (
         db.query(models.QuestionUpvotes)
