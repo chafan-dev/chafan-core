@@ -3,18 +3,23 @@
 
 Run: python scripts/static_analysis/check_service_commits.py
 
-`services/` and `crud/` must never call `.commit()`. They do `db.add()`/
-`db.flush()` and let the caller's boundary commit once:
+`api/`, `services/` and `crud/` must never call `.commit()`. They do
+`db.add()`/`db.flush()` and let the caller's boundary commit once:
 
   - HTTP requests      api/deps.py get_request_context{,_logged_in} / get_db
   - background/cron    infra/runtime.py execute_with_context / execute_with_db
 
-A commit in the middle of a service function splits the use case into two
-transactions, and neither boundary can roll back past the first one. That is
-how rejected question and submission edits came to leave orphan archive rows:
-validation raised *after* the archive had already been made durable.
+A commit in the middle of a use case splits it into two transactions, and
+neither boundary can roll back past the first one. That is how rejected
+question and submission edits came to leave orphan archive rows: validation
+raised *after* the archive had already been made durable.
 
-ALLOWLIST is empty and entries may only be removed, never added.
+Two exemptions, deliberately kept separate:
+
+  - BOUNDARY_FILES are the commit boundaries themselves. Permanent.
+  - ALLOWLIST is migration debt. Entries may only be removed, never added,
+    and an entry that no longer commits is an error so it cannot linger and
+    silently re-permit a commit later.
 """
 
 from __future__ import annotations
@@ -26,11 +31,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2] / "chafan_core"
 
 # Directories that must not commit, relative to chafan_core/.
-GUARDED_DIRS = ("app/services", "app/crud")
+GUARDED_DIRS = ("app/services", "app/crud", "app/api")
+
+# The boundaries themselves: these are where the single commit belongs.
+BOUNDARY_FILES = {
+    "chafan_core/app/api/deps.py",
+}
 
 # Files permitted to keep a commit, keyed by path rather than path:line so a
 # moved line cannot silently re-arm the exemption. Must only ever shrink.
-ALLOWLIST: set[str] = set()
+ALLOWLIST: set[str] = {
+    # Mid-migration: the last endpoints holding business logic. Both also sit
+    # on check_layer_imports.py's allowlist; clearing them clears both.
+    "chafan_core/app/api/api_v1/endpoints/login.py",
+    "chafan_core/app/api/api_v1/endpoints/people.py",
+}
 
 
 def iter_py_files(base: Path):
@@ -41,6 +56,8 @@ def iter_py_files(base: Path):
 
 
 def is_guarded(path: Path) -> bool:
+    if str(path.relative_to(ROOT.parent)) in BOUNDARY_FILES:
+        return False
     rel = path.relative_to(ROOT).as_posix()
     return any(rel.startswith(d + "/") for d in GUARDED_DIRS)
 
@@ -59,12 +76,16 @@ def receiver_name(node: ast.expr) -> str:
 def is_db_receiver(name: str) -> bool:
     """True for session-like receivers: db, write_db, get_db(), session, ...
 
+    `ctx`/`context` counts too: RequestContext.commit() is a transaction
+    boundary, and endpoints increasingly hold a ctx rather than a raw session,
+    so `ctx.commit()` is the form a regression would most likely take.
+
     Deliberately excludes non-SQLAlchemy commits that share the method name --
     `writer.commit()` on a Whoosh IndexWriter in services/search.py is not a
     transaction boundary.
     """
     lowered = name.lower()
-    return "db" in lowered or "session" in lowered
+    return any(tok in lowered for tok in ("db", "session", "ctx", "context"))
 
 
 def commit_calls(path: Path) -> list[tuple[int, str]]:
@@ -89,6 +110,8 @@ def main() -> int:
     errors: list[str] = []
     warnings: list[str] = []
 
+    used_allowlist: set[str] = set()
+
     for path in sorted(iter_py_files(ROOT)):
         if not is_guarded(path):
             continue
@@ -100,23 +123,18 @@ def main() -> int:
                 )
                 continue
             msg = (
-                f"{rel}:{lineno}: services/crud must not commit; "
+                f"{rel}:{lineno}: api/services/crud must not commit; "
                 f"let the request or background boundary commit once"
             )
             if str(rel) in ALLOWLIST:
+                used_allowlist.add(str(rel))
                 warnings.append(msg + " (allowlisted)")
             else:
                 errors.append(msg)
 
-    stale = sorted(
-        entry
-        for entry in ALLOWLIST
-        if not any(
-            str(p.relative_to(ROOT.parent)) == entry for p in iter_py_files(ROOT)
-        )
-    )
-    for entry in stale:
-        warnings.append(f"{entry}: allowlist entry no longer exists; remove it")
+    # An entry that no longer commits must go, or it silently re-permits one.
+    for entry in sorted(ALLOWLIST - used_allowlist):
+        errors.append(f"{entry}: allowlist entry no longer commits; remove it")
 
     for w in warnings:
         print(f"WARN  {w}")
