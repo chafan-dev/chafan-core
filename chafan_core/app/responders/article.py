@@ -2,37 +2,18 @@ from typing import Optional
 import logging
 
 from chafan_core.app import crud, models, schemas, user_permission, view_counters
-from chafan_core.app.model_utils import is_live_article
 from chafan_core.app.responders._util import get_db, shaper
 from chafan_core.app.schemas.article import ArticleInDB
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.utils.base import ContentVisibility, filter_not_none
+from chafan_core.utils.base import filter_not_none
 
 logger = logging.getLogger(__name__)
 
 
-def can_read_article(*, article: models.Article, principal_id: int) -> bool:
-    if article.is_deleted:
-        return False
-    if principal_id == article.author_id:
-        return True
-    return is_live_article(article)
-
-
-def visitor_can_read_article(*, article: models.Article) -> bool:
-    if not is_live_article(article):
-        return False
-    return article.visibility == ContentVisibility.ANYONE
-
-
 def preview_of_article(ctx, article: models.Article) -> Optional[schemas.ArticlePreview]:
     principal_id = ctx.principal_id
-    if principal_id:
-        if not can_read_article(article=article, principal_id=principal_id):
-            return None
-    else:
-        if not visitor_can_read_article(article=article):
-            return None
+    if not user_permission.article_preview_read_allowed(article, principal_id):
+        return None
     mat = shaper(ctx)
     return schemas.ArticlePreview(
         uuid=article.uuid,

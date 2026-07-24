@@ -78,11 +78,6 @@ class PrincipalView:
 
         return responders.question.preview_of_question(self, question)
 
-    def preview_of_question_for_visitor(
-        self, question: "models.Question"
-    ) -> Optional["schemas.QuestionPreview"]:
-        return self.preview_of_question(question)
-
     def get_answer_preview_base(
         self, answer: "models.Answer"
     ) -> "schemas.answer.AnswerPreviewBase":
@@ -96,11 +91,6 @@ class PrincipalView:
         from chafan_core.app.responders import answer as answer_responder
 
         return answer_responder.preview_of_answer(self, answer)
-
-    def preview_of_answer_for_visitor(
-        self, answer: "models.Answer"
-    ) -> Optional["schemas.AnswerPreview"]:
-        return self.preview_of_answer(answer)
 
     def preview_of_article(
         self, article: "models.Article"
@@ -185,11 +175,6 @@ class PrincipalView:
         import chafan_core.app.responders as responders
 
         return responders.submission.submission_schema_from_orm(self, submission)
-
-    def submission_for_visitor_schema_from_orm(
-        self, submission: "models.Submission"
-    ) -> Optional["schemas.Submission"]:
-        return self.submission_schema_from_orm(submission)
 
     def notification_schema_from_orm(
         self, notification: "models.Notification"
