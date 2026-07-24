@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
 from chafan_core.app.common import OperationType
-from chafan_core.app.model_utils import is_live_answer
+from chafan_core.app.model_utils import is_live_answer, is_live_article
 from chafan_core.utils.base import ContentVisibility, HTTPException_
 
 import logging
@@ -53,6 +53,7 @@ def user_in_site(
 def article_read_allowed(
     db: Session, article: models.Article, user_id: Optional[int]
 ) -> bool:
+    """Read gate for the full article payload (body included)."""
     if article.is_published and article.visibility == ContentVisibility.ANYONE:
         return True
     if article.author_id == user_id and user_id is not None:
@@ -60,6 +61,26 @@ def article_read_allowed(
 
     logger.info(f"User {user_id} is not allowed to read article {article.id}")
     return False
+
+
+def article_preview_read_allowed(
+    article: models.Article, user_id: Optional[int]
+) -> bool:
+    """Binary read gate for article previews: one predicate for any principal.
+
+    Authors always; otherwise the article must be live. Anonymous principals
+    additionally require ANYONE visibility. Looser than
+    :func:`article_read_allowed`, which gates the full body.
+    """
+    if article.is_deleted:
+        return False
+    if user_id is not None and user_id == article.author_id:
+        return True
+    if not is_live_article(article):
+        return False
+    if user_id is None:
+        return article.visibility == ContentVisibility.ANYONE
+    return True
 
 
 def question_read_allowed(
@@ -109,14 +130,6 @@ def can_read_answer(db: Session, *, answer: models.Answer, principal_id: int) ->
     return user_in_site(
         db, site=answer.site, user_id=principal_id, op_type=OperationType.ReadSite
     )
-
-
-def visitor_can_read_answer(*, answer: models.Answer) -> bool:
-    if not is_live_answer(answer):
-        return False
-    if answer.visibility != ContentVisibility.ANYONE:
-        return False
-    return bool(answer.site.public_readable)
 
 
 def check_user_in_site(

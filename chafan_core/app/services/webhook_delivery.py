@@ -107,9 +107,7 @@ def call_webhook(
             isinstance(event_spec_content, WebhookSiteEvent)
             and event_spec_content.new_submission
         ):
-            submission = ctx.principal_view.submission_for_visitor_schema_from_orm(
-                event.submission
-            )
+            submission = ctx.principal_view.submission_schema_from_orm(event.submission)
             if submission:
                 _post_webhook(
                     webhook,
