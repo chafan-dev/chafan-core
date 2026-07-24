@@ -23,7 +23,6 @@ from chafan_core.app.common import (
     check_email,
     client_ip,
     get_redis_cli,
-    is_dev,
 )
 from chafan_core.app.security import (
     check_token_validity_impl,
@@ -456,9 +455,8 @@ def claim_welcome_test_rewards(
     form_response = crud.form_response.get(db, id=id)
     if form_response is None:
         raise HTTPException_(status_code=400, detail="Invalid form response id.")
-    if not is_dev():
-        if form_response.form.uuid != settings.WELCOME_TEST_FORM_UUID:
-            raise HTTPException_(status_code=400, detail="Wrong form.")
+    if form_response.form.uuid != settings.WELCOME_TEST_FORM_UUID:
+        raise HTTPException_(status_code=400, detail="Wrong form.")
     if form_response.response_author_id != current_user.id:
         raise HTTPException_(status_code=400, detail="Unauthorized.")
     scores = compute_score_of_form_response(form_response)

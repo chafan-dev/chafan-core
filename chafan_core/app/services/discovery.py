@@ -11,7 +11,7 @@ from pydantic import TypeAdapter
 from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.common import get_redis_cli, is_dev
+from chafan_core.app.common import get_redis_cli
 from chafan_core.app.model_utils import get_live_answers_of_question
 from chafan_core.app.recs import indexed_layer
 from chafan_core.app.infra.runtime import execute_with_db
@@ -32,10 +32,9 @@ def pinned_questions(ctx) -> List[schemas.QuestionPreview]:
     def runnable(db: Session) -> List[schemas.QuestionPreview]:
         questions = crud.question.get_placed_at_home(db)
         data = filter_not_none([mat.preview_of_question(q) for q in questions])
-        if not is_dev():
-            redis.set(
-                key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(hours=12)
-            )
+        redis.set(
+            key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(hours=12)
+        )
         return data
 
     return execute_with_db(SessionLocal(), runnable)
@@ -79,10 +78,9 @@ def pending_questions(ctx) -> List[schemas.QuestionPreview]:
     if value is not None:
         return TypeAdapter(List[schemas.QuestionPreview]).validate_json(value)
     data = _get_pending_questions(ctx)
-    if not is_dev():
-        redis.set(
-            key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(hours=24)
-        )
+    redis.set(
+        key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(hours=24)
+    )
     return data
 
 

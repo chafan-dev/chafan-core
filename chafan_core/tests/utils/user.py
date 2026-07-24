@@ -38,6 +38,8 @@ def create_random_user(db: Session) -> User:
         email=email, password=password, handle=random_short_lower_string()
     )
     user = crud.user.create(db=db, obj_in=user_in)
+    # crud flushes only; commit so the row is visible to other sessions (API calls).
+    db.commit()
     return user
 
 
@@ -61,5 +63,8 @@ def authentication_token_from_email(
     else:
         user_in_update = UserUpdate(password=password)
         user = crud.user.update(db, db_obj=user, obj_in=user_in_update)
+    # crud flushes only; the login below runs on a different session, so the new
+    # user / updated password must be committed to be visible to it.
+    db.commit()
 
     return user_authentication_headers(client=client, email=email, password=password)
