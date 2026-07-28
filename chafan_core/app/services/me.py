@@ -19,7 +19,10 @@ from chafan_core.app.schemas.user import (
     UserUpdatePrimaryEmail,
     UserUpdateSecondaryEmails,
 )
+from chafan_core.app.services import answers as answers_service
+from chafan_core.app.services import articles as articles_service
 from chafan_core.app.services import people as people_service
+from chafan_core.app.services import questions as questions_service
 from chafan_core.app.services import sites as sites_service
 from chafan_core.app.services import submissions as submissions_service
 from chafan_core.utils.base import HTTPException_
@@ -313,9 +316,7 @@ def list_my_article_columns(ctx) -> List[schemas.ArticleColumn]:
 
 
 def get_question_subscription(ctx, *, uuid: str) -> schemas.UserQuestionSubscription:
-    from chafan_core.app.services import questions as questions_service
-
-    question = questions_service.get_question_model_http(ctx.get_db(), uuid)
+    question = questions_service.get_readable_question_http(ctx, uuid)
     return questions_service.get_question_subscription(ctx, question)
 
 
@@ -333,12 +334,7 @@ def list_subscribed_questions(
 def subscribe_question(ctx, *, uuid: str) -> schemas.UserQuestionSubscription:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    question = crud.question.get_by_uuid(db, uuid=uuid)
-    if question is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The question doesn't exist in the system.",
-        )
+    question = questions_service.get_readable_question_http(ctx, uuid)
     current_user = crud.user.subscribe_question(
         db, db_obj=current_user, question=question
     )
@@ -352,12 +348,7 @@ def subscribe_question(ctx, *, uuid: str) -> schemas.UserQuestionSubscription:
 def unsubscribe_question(ctx, *, uuid: str) -> schemas.UserQuestionSubscription:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    question = crud.question.get_by_uuid(db, uuid=uuid)
-    if question is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The question doesn't exist in the system.",
-        )
+    question = questions_service.get_readable_question_http(ctx, uuid)
     current_user = crud.user.unsubscribe_question(
         db, db_obj=current_user, question=question
     )
@@ -372,13 +363,7 @@ def get_submission_subscription(
     ctx, *, uuid: str
 ) -> schemas.UserSubmissionSubscription:
     current_user = ctx.get_current_active_user()
-    db = ctx.get_db()
-    submission = crud.submission.get_by_uuid(db, uuid=uuid)
-    if submission is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The submission doesn't exist in the system.",
-        )
+    submission = submissions_service.get_readable_submission_http(ctx, uuid)
     return schemas.UserSubmissionSubscription(
         submission_uuid=submission.uuid,
         subscription_count=submission.subscribers.count(),
@@ -399,12 +384,7 @@ def list_subscribed_submissions(
 def subscribe_submission(ctx, *, uuid: str) -> schemas.UserSubmissionSubscription:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    submission = crud.submission.get_by_uuid(db, uuid=uuid)
-    if submission is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The submission doesn't exist in the system.",
-        )
+    submission = submissions_service.get_readable_submission_http(ctx, uuid)
     current_user = crud.user.subscribe_submission(
         db, db_obj=current_user, submission=submission
     )
@@ -418,12 +398,7 @@ def subscribe_submission(ctx, *, uuid: str) -> schemas.UserSubmissionSubscriptio
 def unsubscribe_submission(ctx, *, uuid: str) -> schemas.UserSubmissionSubscription:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    submission = crud.submission.get_by_uuid(db, uuid=uuid)
-    if submission is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The submission doesn't exist in the system.",
-        )
+    submission = submissions_service.get_readable_submission_http(ctx, uuid)
     current_user = crud.user.unsubscribe_submission(
         db, db_obj=current_user, submission=submission
     )
@@ -448,12 +423,7 @@ def list_bookmarked_answers(
 def bookmark_answer(ctx, *, uuid: str) -> schemas.UserAnswerBookmark:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    answer = crud.answer.get_by_uuid(db, uuid=uuid)
-    if answer is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The answer doesn't exist in the system.",
-        )
+    answer = answers_service.get_readable_answer_http(ctx, uuid)
     current_user = crud.user.bookmark_answer(db, db_obj=current_user, answer=answer)
     return schemas.UserAnswerBookmark(
         answer_uuid=answer.uuid,
@@ -465,12 +435,7 @@ def bookmark_answer(ctx, *, uuid: str) -> schemas.UserAnswerBookmark:
 def unbookmark_answer(ctx, *, uuid: str) -> schemas.UserAnswerBookmark:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    answer = crud.answer.get_by_uuid(db, uuid=uuid)
-    if answer is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The answer doesn't exist in the system.",
-        )
+    answer = answers_service.get_readable_answer_http(ctx, uuid)
     current_user = crud.user.unbookmark_answer(db, db_obj=current_user, answer=answer)
     return schemas.UserAnswerBookmark(
         answer_uuid=answer.uuid,
@@ -493,12 +458,7 @@ def list_bookmarked_articles(
 def bookmark_article(ctx, *, uuid: str) -> schemas.UserArticleBookmark:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    article = crud.article.get_by_uuid(db, uuid=uuid)
-    if article is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The article doesn't exist in the system.",
-        )
+    article = articles_service.get_readable_article_preview_http(ctx, uuid)
     current_user = crud.user.bookmark_article(db, db_obj=current_user, article=article)
     return schemas.UserArticleBookmark(
         article_uuid=article.uuid,
@@ -510,12 +470,7 @@ def bookmark_article(ctx, *, uuid: str) -> schemas.UserArticleBookmark:
 def unbookmark_article(ctx, *, uuid: str) -> schemas.UserArticleBookmark:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    article = crud.article.get_by_uuid(db, uuid=uuid)
-    if article is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The article doesn't exist in the system.",
-        )
+    article = articles_service.get_readable_article_preview_http(ctx, uuid)
     current_user = crud.user.unbookmark_article(
         db, db_obj=current_user, article=article
     )

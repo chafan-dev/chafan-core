@@ -14,12 +14,36 @@ from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.schemas.answer import AnswerModUpdate
 from chafan_core.app.schemas.event import EventInternal, UpvoteAnswerInternal
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.user_permission import check_user_in_site
+from chafan_core.app.user_permission import answer_read_allowed, check_user_in_site
 from chafan_core.utils.base import HTTPException_, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 import chafan_core.app.responders as responders
 
 logger = logging.getLogger(__name__)
+
+
+def get_readable_answer_http(ctx, uuid: str) -> models.Answer:
+    """Fetch answer if the principal may read it, else raise 400.
+
+    The read gate for every answer-scoped endpoint. Anything derived from an
+    answer (bookmarks, ...) must go through here so it can never end up more
+    permissive than the answer itself.
+
+    A denied read is reported as "doesn't exist" rather than 403 on purpose:
+    `answer_read_allowed` folds site membership in, so a distinguishable
+    status would tell a non-member of a private site that the answer exists.
+    Same reasoning as the site-membership branch of
+    `services.questions.get_readable_question_http`.
+    """
+    answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=uuid)
+    if answer is None or not answer_read_allowed(
+        ctx.get_db(), answer, ctx.principal_id
+    ):
+        raise HTTPException_(
+            status_code=400,
+            detail="The answer doesn't exist in the system.",
+        )
+    return answer
 
 
 def delete_answer(
