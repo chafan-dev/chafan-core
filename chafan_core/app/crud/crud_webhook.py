@@ -12,9 +12,7 @@ def get(db: Session, id: Any) -> Optional[Webhook]:
     return db.query(Webhook).filter(Webhook.id == id).first()
 
 
-def create_with_site(
-    db: Session, *, obj_in: WebhookCreate, site_id: int
-) -> Webhook:
+def create_with_site(db: Session, *, obj_in: WebhookCreate, site_id: int) -> Webhook:
     obj_in_data = jsonable_encoder(obj_in)
     del obj_in_data["site_uuid"]
     obj_in_data["site_id"] = site_id

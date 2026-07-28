@@ -52,7 +52,9 @@ def create_with_author(
         del obj_in_data["submission_uuid"]
     if "answer_uuid" in obj_in_data:
         if obj_in_data["answer_uuid"]:
-            answer = unwrap(crud.answer.get_by_uuid(db, uuid=obj_in_data["answer_uuid"]))
+            answer = unwrap(
+                crud.answer.get_by_uuid(db, uuid=obj_in_data["answer_uuid"])
+            )
             check_site(answer.site)
             obj_in_data["site_id"] = answer.site.id
             obj_in_data["answer_id"] = answer.id
