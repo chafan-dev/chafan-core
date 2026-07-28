@@ -2,8 +2,8 @@ import datetime
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
+from chafan_core.app.crud import crud_activity as activity
 from chafan_core.app.crud.crud_activity import (
-    activity,
     create_submission_activity,
     create_article_activity,
     create_answer_activity,
