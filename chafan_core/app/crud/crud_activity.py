@@ -1,10 +1,9 @@
 import datetime
-from typing import Iterable, NoReturn, Optional
+from typing import Any, Iterable, Optional
 
 from sqlalchemy.orm import Session
 
 from chafan_core.app import models
-from chafan_core.app.crud.base import CRUDBase
 from chafan_core.app.models.activity import Activity
 from chafan_core.app.schemas.event import (
     AnswerQuestionInternal,
@@ -20,24 +19,27 @@ from chafan_core.app.schemas.event import (
 )
 
 
-class CRUDActivity(CRUDBase[Activity, NoReturn, NoReturn]):
-    def get_multi_by_id_range(
-        self,
-        db: Session,
-        *,
-        min_id: int,
-        max_id: Optional[int],
-    ) -> Iterable[Activity]:
-        stream = db.query(Activity)
-        if max_id is not None:
-            stream = stream.filter(Activity.id.between(min_id, max_id - 1))
-        else:
-            stream = stream.filter(Activity.id > min_id)
-        stream = stream.order_by(Activity.created_at.desc())
-        return stream
+def get(db: Session, id: Any) -> Optional[Activity]:
+    return db.query(Activity).filter(Activity.id == id).first()
 
-    def count(self, db: Session) -> int:
-        return db.query(Activity).count()
+
+def get_multi_by_id_range(
+    db: Session,
+    *,
+    min_id: int,
+    max_id: Optional[int],
+) -> Iterable[Activity]:
+    stream = db.query(Activity)
+    if max_id is not None:
+        stream = stream.filter(Activity.id.between(min_id, max_id - 1))
+    else:
+        stream = stream.filter(Activity.id > min_id)
+    stream = stream.order_by(Activity.created_at.desc())
+    return stream
+
+
+def count(db: Session) -> int:
+    return db.query(Activity).count()
 
 
 def create_submission_activity(
@@ -198,6 +200,3 @@ def subscribe_article_column_activity(
             ),
         ).json(),
     )
-
-
-activity = CRUDActivity(Activity)
