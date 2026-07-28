@@ -105,7 +105,6 @@ def main() -> int:
                 # Temporary allowlist: large auth/profile modules still mid-migration.
                 allow = {
                     "chafan_core/app/api/api_v1/endpoints/login.py",
-                    "chafan_core/app/api/api_v1/endpoints/people.py",
                 }
                 msg = f"{rel}:{lineno}: api must not import {mod}"
                 if str(rel) in allow:

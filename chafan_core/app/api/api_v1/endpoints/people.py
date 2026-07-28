@@ -1,25 +1,13 @@
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends
 from fastapi.param_functions import Query
-from pydantic.tools import parse_obj_as
-from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
-from chafan_core.app.services import submissions as submissions_service
-from chafan_core.app.services import people as people_service
+from chafan_core.app.common import get_logger
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.common import OperationType, get_logger
-from chafan_core.app.user_permission import user_in_site
-from chafan_core.app.model_utils import is_live_answer, is_live_article
-from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.schemas.user import (
-    UserEducationExperienceInternal,
-    UserWorkExperienceInternal,
-    YearContributions,
-)
-from chafan_core.utils.base import HTTPException_, filter_not_none, unwrap
+from chafan_core.app.services import people as people_service
 from chafan_core.utils.constants import (
     MAX_USER_ANSWERS_PAGINATION_LIMIT,
     MAX_USER_ARTICLES_PAGINATION_LIMIT,
@@ -33,114 +21,14 @@ router = APIRouter()
 logger = get_logger(__name__)
 
 
-def _get_work_exps(db: Session, user: models.User) -> List[schemas.UserWorkExperience]:
-    work_exps: List[UserWorkExperienceInternal] = []
-    if user.work_experiences is not None:
-        work_exps = parse_obj_as(
-            List[UserWorkExperienceInternal], user.work_experiences
-        )
-    ret = []
-    for work_exp in work_exps:
-        company_topic = crud.topic.get_by_uuid(db, uuid=work_exp.company_topic_uuid)
-        position_topic = crud.topic.get_by_uuid(db, uuid=work_exp.position_topic_uuid)
-        ret.append(
-            schemas.UserWorkExperience(
-                company_topic=schemas.Topic.from_orm(company_topic),
-                position_topic=schemas.Topic.from_orm(position_topic),
-            )
-        )
-    return ret
-
-
-def _get_edu_exps(
-    db: Session, user: models.User
-) -> List[schemas.UserEducationExperience]:
-    edu_exps: List[UserEducationExperienceInternal] = []
-    if user.education_experiences is not None:
-        edu_exps = parse_obj_as(
-            List[UserEducationExperienceInternal], user.education_experiences
-        )
-    ret = []
-    for edu_exp in edu_exps:
-        school_topic = crud.topic.get_by_uuid(db, uuid=edu_exp.school_topic_uuid)
-        ret.append(
-            schemas.UserEducationExperience(
-                school_topic=schemas.Topic.from_orm(school_topic),
-                level=edu_exp.level_name,
-                major=edu_exp.major,
-                enroll_year=edu_exp.enroll_year,
-                graduate_year=edu_exp.graduate_year,
-            )
-        )
-    return ret
-
-
-def _get_user_public(
-    ctx: RequestContext, user: models.User, view_times: int
-) -> schemas.UserPublic:
-    """One public profile schema for any principal allowed to view the user."""
-    preview = ctx.preview_of_user(user)
-    db = ctx.get_db()
-    about_content = None
-    if user.about is not None:
-        about_content = RichText(source=user.about, editor="wysiwyg")
-    contributions = [
-        YearContributions(year=year, data=data)
-        for year, data in ctx.get_user_contributions(user)
-    ]
-    return schemas.UserPublic(
-        **preview.dict(),
-        gif_avatar_url=user.gif_avatar_url,
-        answers_count=len(
-            [answer for answer in user.answers if is_live_answer(answer)]
-        ),
-        submissions_count=len(
-            [submission for submission in user.submissions if not submission.is_hidden]
-        ),
-        questions_count=len(
-            [question for question in user.questions if not question.is_hidden]
-        ),
-        articles_count=len(
-            [article for article in user.articles if is_live_article(article)]
-        ),
-        created_at=user.created_at,
-        profile_view_times=view_times,
-        about_content=about_content,
-        profiles=[],
-        residency_topics=[schemas.Topic.from_orm(t) for t in user.residency_topics],
-        profession_topics=[schemas.Topic.from_orm(t) for t in user.profession_topics],
-        github_username=user.github_username,
-        twitter_username=user.twitter_username,
-        linkedin_url=user.linkedin_url,
-        homepage_url=user.homepage_url,
-        zhihu_url=user.zhihu_url,
-        subscribed_topics=[schemas.Topic.from_orm(t) for t in user.subscribed_topics],
-        work_exps=_get_work_exps(db, user),
-        edu_exps=_get_edu_exps(db, user),
-        contributions=contributions,
-    )
-
-
 @router.get("/{handle}", response_model=schemas.UserPublic)
 def get_user_public(
     *,
     ctx: RequestContext = Depends(deps.get_request_context),
     handle: StrippedNonEmptyBasicStr,
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
 ) -> Any:
     logger.debug("Call get_user_public")
-    db = ctx.get_db()
-    user = crud.user.get_by_handle(db, handle=handle)
-    if user is None or not user.is_active:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    # TODO turn it off 2025-07-23
-    view_times = 5  # view_counters.get_views(user.uuid, "profile")
-    if current_user_id is not None:
-        db.commit()
-    return _get_user_public(ctx, user, view_times)
+    return people_service.get_user_public(ctx, handle=handle)
 
 
 @router.get("/{uuid}/site-profiles/", response_model=List[schemas.Profile])
@@ -170,9 +58,7 @@ def get_user_questions(
     """
     Get a user's asked questions.
     """
-    return people_service.list_user_questions(
-        ctx, uuid=uuid, skip=skip, limit=limit
-    )
+    return people_service.list_user_questions(ctx, uuid=uuid, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/submissions/", response_model=List[schemas.Submission])
@@ -190,19 +76,7 @@ def get_user_submissions(
     """
     Get a user's submissions.
     """
-    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    return filter_not_none(
-        [
-            #submissions_service.submission_schema(ctx, submission)
-            submissions_service.submission_schema(ctx, submission)
-            for submission in user.submissions
-        ]
-    )[skip : skip + limit]
+    return people_service.list_user_submissions(ctx, uuid=uuid, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/articles/", response_model=List[schemas.ArticlePreview])
@@ -217,9 +91,7 @@ def get_user_articles(
         gt=0,
     ),
 ) -> Any:
-    return people_service.list_user_articles(
-        ctx, uuid=uuid, skip=skip, limit=limit
-    )
+    return people_service.list_user_articles(ctx, uuid=uuid, skip=skip, limit=limit)
 
 
 @router.get(
@@ -240,45 +112,25 @@ def get_user_answers(
     """
     Get a user's authored answers.
     """
-    author = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if author is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    return people_service.get_authored_answers_for_principal(ctx, author)[skip : skip + limit]
+    return people_service.list_user_answers(ctx, uuid=uuid, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/work-exps/", response_model=List[schemas.UserWorkExperience])
 def get_user_work_exps(
     *,
-    db: Session = Depends(deps.get_db),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
-    current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    user = crud.user.get_by_uuid(db, uuid=uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    return _get_work_exps(db, user)
+    return people_service.list_user_work_exps(ctx, uuid=uuid)
 
 
 @router.get("/{uuid}/edu-exps/", response_model=List[schemas.UserEducationExperience])
 def get_user_edu_exps(
     *,
-    db: Session = Depends(deps.get_db),
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
-    current_user_id: int = Depends(deps.get_current_user_id),
 ) -> Any:
-    user = crud.user.get_by_uuid(db, uuid=uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    return _get_edu_exps(db, user)
+    return people_service.list_user_edu_exps(ctx, uuid=uuid)
 
 
 @router.get("/{uuid}/followers/", response_model=List[schemas.UserPreview])
@@ -293,13 +145,7 @@ def get_user_followers(
         gt=0,
     ),
 ) -> Any:
-    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    return people_service.get_followers(ctx, user, skip=skip, limit=limit)
+    return people_service.list_user_followers(ctx, uuid=uuid, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/followed/", response_model=List[schemas.UserPreview])
@@ -314,13 +160,7 @@ def get_user_followed(
         gt=0,
     ),
 ) -> Any:
-    user = crud.user.get_by_uuid(ctx.get_db(), uuid=uuid)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The user doesn't exist in the system.",
-        )
-    return people_service.get_followed(ctx, user, skip=skip, limit=limit)
+    return people_service.list_user_followed(ctx, uuid=uuid, skip=skip, limit=limit)
 
 
 @router.get("/{uuid}/related/", response_model=List[schemas.UserPreview])
@@ -329,5 +169,4 @@ def get_related(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     uuid: str,
 ) -> Any:
-    target_user = unwrap(crud.user.get_by_uuid(ctx.get_db(), uuid=uuid))
-    return people_service.get_related_users(ctx, target_user)
+    return people_service.list_related_users(ctx, uuid=uuid)
