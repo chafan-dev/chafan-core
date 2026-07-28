@@ -34,7 +34,7 @@ from dotenv import load_dotenv  # isort:skip
 
 load_dotenv()  # isort:skip
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.services import reputation as rep
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.validators import (
@@ -132,7 +132,7 @@ def _get_or_create_column(db, owner):
 
 def _get_or_create_known_question(db, site, author):
     existing = (
-        db.query(crud.question.model)
+        db.query(models.Question)
         .filter_by(site_id=site.id, title=KNOWN_QUESTION_TITLE)
         .first()
     )

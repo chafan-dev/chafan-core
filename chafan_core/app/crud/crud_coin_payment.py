@@ -37,7 +37,9 @@ def get_with_event_json_and_payee_id(
     db: Session, *, event_json: str, payee_id: int
 ) -> Optional[CoinPayment]:
     return (
-        db.query(CoinPayment).filter_by(event_json=event_json, payee_id=payee_id).first()
+        db.query(CoinPayment)
+        .filter_by(event_json=event_json, payee_id=payee_id)
+        .first()
     )
 
 
