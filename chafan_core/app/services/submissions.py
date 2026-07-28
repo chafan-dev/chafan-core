@@ -26,6 +26,28 @@ def submission_schema(ctx, submission: models.Submission):
     return responders.submission.submission_schema_from_orm(ctx, submission)
 
 
+def get_readable_submission_http(ctx, uuid: str) -> models.Submission:
+    """Fetch submission if the principal may read it, else raise 400.
+
+    The read gate for every submission-scoped endpoint. Anything derived from a
+    submission (subscriptions, ...) must go through here so it can never end up
+    more permissive than the submission itself.
+    """
+    submission = crud.submission.get_by_uuid(ctx.get_db(), uuid=uuid)
+    if submission is None:
+        raise HTTPException_(
+            status_code=400,
+            detail="The submission doesn't exist in the system.",
+        )
+    check_user_in_site(
+        ctx.get_db(),
+        site=submission.site,
+        user_id=ctx.unwrapped_principal_id(),
+        op_type=OperationType.ReadSite,
+    )
+    return submission
+
+
 def recent_k_of_site(ctx, site: models.Site, k: int) -> List[schemas.Submission]:
     return filter_not_none(
         [submission_schema(ctx, s) for s in site.submissions]

@@ -16,12 +16,38 @@ from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.responders.archives import article_archive_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app.user_permission import article_read_allowed
+from chafan_core.app.user_permission import (
+    article_preview_read_allowed,
+    article_read_allowed,
+)
 from chafan_core.utils.base import ContentVisibility, HTTPException_
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 import chafan_core.app.responders as responders
 
 logger = logging.getLogger(__name__)
+
+
+def get_readable_article_preview_http(ctx, uuid: str) -> models.Article:
+    """Fetch article if the principal may see its preview, else raise 400/403.
+
+    The read gate for article-scoped endpoints that do not serve the body.
+    Gates on :func:`article_preview_read_allowed` rather than
+    :func:`article_read_allowed` because the caller is not handing back the
+    article body -- see the article asymmetry noted in the target-architecture
+    doc.
+
+    A denied read is reported as "doesn't exist" rather than 403 on purpose,
+    so the status cannot tell a stranger that an unpublished article exists.
+    """
+    article = crud.article.get_by_uuid(ctx.get_db(), uuid=uuid)
+    if article is None or not article_preview_read_allowed(
+        article, ctx.principal_id
+    ):
+        raise HTTPException_(
+            status_code=400,
+            detail="The article doesn't exist in the system.",
+        )
+    return article
 
 
 def get_article_by_uuid(
