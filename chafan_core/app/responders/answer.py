@@ -1,7 +1,7 @@
 from typing import Optional, Tuple
 import logging
 
-from chafan_core.app import crud, models, schemas, user_permission, view_counters
+from chafan_core.app import crud, models, schemas, user_permission
 from chafan_core.app.common import OperationType
 from chafan_core.app.responders._util import get_db, shaper
 from chafan_core.app.schemas.answer import AnswerInDBBase
@@ -94,7 +94,7 @@ def answer_schema_from_orm(
     d["bookmark_count"] = answer.bookmarkers.count()
     d["archives_count"] = len(answer.archives)
     d["bookmarked"] = bookmarked
-    d["view_times"] = view_counters.get_viewcount_answer(ctx, answer.id)
+    d["view_times"] = crud.viewcount.get_viewcount_answer(db, answer.id)
 
     if answer.is_published:
         body = answer.body

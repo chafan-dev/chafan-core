@@ -9,12 +9,13 @@ from typing import List, Optional, Tuple
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas, view_counters
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.recs.ranking import rank_submissions
 from chafan_core.app.responders.archives import submission_archive_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, UpvoteSubmissionInternal
+from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.utils.base import HTTPException_, filter_not_none
 import chafan_core.app.responders as responders
@@ -177,7 +178,7 @@ def bump_views(ctx, *, uuid: str) -> None:
             status_code=400,
             detail="The submission doesn't exist in the system.",
         )
-    view_counters.add_view_async(ctx, "submission", submission.id)
+    viewcounts_service.add_view_async(ctx, "submission", submission.id)
 
 
 def create_submission(

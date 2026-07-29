@@ -2,7 +2,7 @@ from typing import Optional
 import logging
 
 import chafan_core.app.responders as responders
-from chafan_core.app import models, schemas, user_permission, view_counters
+from chafan_core.app import crud, models, schemas, user_permission
 from chafan_core.app.common import OperationType
 from chafan_core.app.responders._util import get_db, shaper
 from chafan_core.app.schemas.richtext import RichText
@@ -17,8 +17,9 @@ def submission_schema_from_orm(
 ) -> Optional[schemas.Submission]:
     if submission.is_hidden:
         return None
+    db = get_db(ctx)
     if not user_permission.user_in_site(
-        get_db(ctx),
+        db,
         site=submission.site,
         user_id=ctx.principal_id,
         op_type=OperationType.ReadSite,
@@ -35,7 +36,7 @@ def submission_schema_from_orm(
     d["contributors"] = [
         ctx.preview_of_user(u) for u in submission.contributors
     ]
-    d["view_times"] = view_counters.get_viewcount_submission(ctx, submission.id)
+    d["view_times"] = crud.viewcount.get_viewcount_submission(db, submission.id)
     if submission.description is not None:
         d["desc"] = RichText(
             source=submission.description,

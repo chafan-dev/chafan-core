@@ -214,7 +214,8 @@ def get_user_public(ctx, *, handle: str) -> schemas.UserPublic:
             detail="The user doesn't exist in the system.",
         )
     # TODO turn it off 2025-07-23
-    view_times = 5  # view_counters.get_views(user.uuid, "profile")
+    # Hardcoded: profile views were never counted (no ViewCountProfile table).
+    view_times = 5
     return _user_public_schema(ctx, user, view_times)
 
 

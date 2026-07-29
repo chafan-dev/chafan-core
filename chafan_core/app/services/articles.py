@@ -10,12 +10,13 @@ import chafan_core
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas, view_counters
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.responders.archives import article_archive_schema_from_orm
 from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
 from chafan_core.app.schemas.richtext import RichText
+from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import (
     article_preview_read_allowed,
     article_read_allowed,
@@ -115,7 +116,7 @@ def bump_views(ctx, *, uuid: str) -> None:
             detail="The article doesn't exist in the system.",
         )
     assert isinstance(article, chafan_core.app.models.article.Article)
-    view_counters.add_view_async(ctx, "article", article.id)
+    viewcounts_service.add_view_async(ctx, "article", article.id)
 
 
 def delete_article(db: Session, *, uuid: str, principal_id: int) -> None:

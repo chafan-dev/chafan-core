@@ -1,7 +1,7 @@
 from typing import Optional
 import logging
 
-from chafan_core.app import crud, models, schemas, user_permission, view_counters
+from chafan_core.app import crud, models, schemas, user_permission
 from chafan_core.app.responders._util import get_db, shaper
 from chafan_core.app.schemas.article import ArticleInDB
 from chafan_core.app.schemas.richtext import RichText
@@ -57,7 +57,7 @@ def article_schema_from_orm(
     d["bookmarked"] = bookmarked
     d["author"] = mat.preview_of_user(article.author)
     d["upvoted"] = upvoted
-    d["view_times"] = view_counters.get_viewcount_article(ctx, article.id)
+    d["view_times"] = crud.viewcount.get_viewcount_article(db, article.id)
     d["archives_count"] = len(article.archives)
 
     if article.is_published:
