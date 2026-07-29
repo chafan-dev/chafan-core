@@ -1,12 +1,12 @@
 # Target Architecture
 
-**Status:** adopted; steps 0–3 landed, step 4 in progress | **Date:** 2026-07-15 | **Last reviewed:** 2026-07-28
+**Status:** adopted; steps 0–3 landed, step 4 in progress | **Date:** 2026-07-15 | **Last reviewed:** 2026-07-29
 
 Two parts: (1) the ideal structure of chafan-core, (2) the implementation plan to get there.
 
 Relationship to `chafan_backend_improve_v2/`: this draft does not replace the v2 proposals. It gives them a structural destination. Where a step below overlaps a v2 proposal, the proposal is referenced and stays the source of truth for its own details.
 
-## Progress at a glance (2026-07-28)
+## Progress at a glance (2026-07-29)
 
 | Step | Status | Landed in |
 |---|---|---|
@@ -14,15 +14,17 @@ Relationship to `chafan_backend_improve_v2/`: this draft does not replace the v2
 | 1. Materialize kill (per-resource) | **done** | #119, #137, #143, #144, #151 + intermediate commits |
 | 2. Dramatiq removal | **done** | `a5554a2`, `c04eda1`, #146 |
 | 3. Cache reduction / CachedLayer breakup | **done** | #124, #125, #147, #148, #149, #153 |
-| 4. Services + crud demotion | **in progress** | #155–#160; remaining work listed under step 4 |
+| 4. Services + crud demotion | **in progress** | #155–#163; items 1, 2, 5 done — items 3, 4, 6, 7, 8 remain |
 
-The five levels now exist as directories: `api/endpoints/` (40 files), `services/` (40 modules), `responders/` (14), `crud/` (29), and `infra/` (6). `cached_layer.py`, `materialize.py`, `data_broker.py`, `task.py`, `task_utils.py`, `simple_session.py`, `crud/base.py`, the Dramatiq broker and its 17 actors, `ReadSessionLocal`/`use_read_replica`, and the `*ForVisitor` schema family are all deleted. Both ratchets (`check_layer_imports.py`, `check_service_commits.py`) run in CI and are green.
+The five levels now exist as directories: `api/endpoints/` (40 files), `services/` (43 modules), `responders/` (14), `crud/` (30), and `infra/` (7). `cached_layer.py`, `materialize.py`, `data_broker.py`, `task.py`, `task_utils.py`, `simple_session.py`, `crud/base.py`, `app/search.py`, `app/view_counters.py`, the Dramatiq broker and its 17 actors, `ReadSessionLocal`/`use_read_replica`, and the `*ForVisitor` schema family are all deleted. Both ratchets (`check_layer_imports.py`, `check_service_commits.py`) run in CI and are green.
 
-**`CRUDBase` is gone** (#160): all 29 crud modules are plain functions, zero classes remain in `crud/`, and no crud module commits.
+**Both ratchet allowlists are now empty**, and `§1.3`'s single-transaction-boundary rule holds globally: `api/`, `services/` and `crud/` contain zero `db.commit()` calls. The only commit is the one in `api/deps.py` at request end.
 
-What is *not* yet true: `login.py` still carries business logic and holds the last four endpoint-level `db.commit()` calls; both `RequestContext` (193 lines) and `PrincipalView` (233) are larger than their target shape; and two superseded root modules survive. Details in step 4.
+**`CRUDBase` is gone** (#160): all 30 crud modules are plain functions, zero classes remain in `crud/`, and no crud module commits.
 
-**Caveat for readers and for anyone briefing an agent from this document:** between 2026-07-24 and 2026-07-28 the "remaining work" list below drifted out of step with the tree in ways that cost real time — it named three fat endpoints when `me.py` had already been refactored, said 27 `CRUDBase` inheritors when there were 23, and said to create a `services/people.py` that already existed. Verify each claim against the code before acting on it.
+What is *not* yet true: both `RequestContext` (193 lines) and `PrincipalView` (233) are larger than their target shape, the ratchet has not been widened beyond its original four rules, and naming residue from the dissolved modules is still visible throughout. Details in step 4.
+
+**Caveat for readers and for anyone briefing an agent from this document:** this file has drifted from the tree before, in ways that cost real time — it once named three fat endpoints when `me.py` had already been refactored, said 27 `CRUDBase` inheritors when there were 23, told a reader to create a `services/people.py` that already existed, and prescribed a destination for item 5 that would have violated the layering rules it defines. Verify each claim against the code before acting on it.
 
 ---
 
@@ -68,7 +70,7 @@ These were settled during the 2026-07 architecture review; they are inputs, not 
 - Parses/validates the request, resolves auth via `deps.py`, calls **one** service function, returns its schema.
 - May import: `services/`, `schemas/`, `deps`.
 - May NOT import: `crud`, `responders`, `models` internals, redis, or reach through objects (`x.materializer.y`).
-- At the time of writing, all 32 endpoint files imported `crud` directly and 28 reached into `cached_layer.materializer.*`. That traffic all moves behind service functions. *(As of 2026-07-24: 2 of 40 endpoint files still import `crud`/`responders`, both on the ratchet allowlist; no endpoint reaches through objects any more.)*
+- At the time of writing, all 32 endpoint files imported `crud` directly and 28 reached into `cached_layer.materializer.*`. That traffic all moves behind service functions. *(As of 2026-07-29: **zero** of 40 endpoint files import `crud`/`responders`, the ratchet allowlist is empty, and no endpoint reaches through objects. This bullet is now enforced rather than aspirational.)*
 
 ### Level 2 — `services/`
 
@@ -232,19 +234,18 @@ Item numbering is kept stable across revisions so PR descriptions can cite "Step
 
 1. ~~**Delete `CRUDBase`.**~~ **Done (#160).** See §1.4.
 
-2. **The last fat endpoint: `login.py` (543 lines).** *In progress.*
-   - `me.py` was already thin before this item was written; the doc was wrong to list it. `people.py` landed in #159, which also deleted its `db.commit()` at line 142 — dead residue whose subject (a view-count bump) had been commented out in `aa22c6a`.
-   - `login.py` holds **all four remaining endpoint-level `db.commit()` calls** (`:84,359,378,484`) and is therefore the last violation of §1.3's single-transaction-boundary rule. It is also the **only** remaining entry on either ratchet allowlist. Clearing it empties both and unblocks item 7.
-   - Only `:84` is a genuine behavior change: it commits a `user.flags += " activated"` mutation mid-function, before the audit log and token mint. Deferring it to one end-of-use-case commit is identical on the success path and differs only when a later step raises — which is the atomicity hole closing, as intended.
-   - `GET /unsubscribe` returns a raw `HTMLResponse` with `include_in_schema=False`. It is hit from email links, not the SPA, so no `response_model` protects it — preserve the HTML byte-for-byte.
+2. ~~**The fat endpoints.**~~ **Done.** `me.py` was already thin before this item was written; the doc was wrong to list it. `people.py` landed in #159, `login.py` (543 → 180 lines) in the PR that carries this edit. **Both ratchet allowlists are now empty and §1.3 holds globally.**
+   - `login.py` split into `services/auth.py`, `services/accounts.py`, `services/welcome_test.py`, plus additions to `services/forms.py`, `notifications.py`, `topics.py` and `link_preview.py`.
+   - Its four `db.commit()` calls are gone. Three were the last statement before a return, so no-ops; `:84` was the genuine change — it committed a `user.flags += " activated"` mutation before the audit log and token mint, so the flag now rolls back if a later step raises, which is the atomicity hole closing as intended.
+   - Two constraints discovered while preserving the contract, worth knowing before touching any endpoint: **endpoint function names are baked into OpenAPI `operationId` and `Body_*` schema names**, and **`get_request_context` is what emits a route's `security` block**. Renaming a handler or swapping its dependency changes the published spec even when the path, method and response model are untouched.
 
 3. **`RequestContext` is 193 lines, not the ~50 in §1.2.** It still carries schema-shaping and query delegation inherited from `CachedLayer`: `preview_of_user`, `preview_of_answer`, `site_schema_from_orm`, `channel_schema_from_orm`, `get_user_follows`, `get_site_by_subdomain`, `get_site_info`, `update_notification`, `get_follow_follow_fanout`, `get_user_contributions`, plus a `broker` property that returns `self`. Each uses a function-local import to dodge the cycle it would otherwise recreate — a reliable smell that the method is in the wrong layer. These should become direct service/responder calls at the call sites. (#159 removed one such delegation, `ctx.preview_of_user`, from the `people` path.)
 
 4. **`PrincipalView` (233 lines) is level-3 work sitting in level 5.** It is a ~30-method dispatch table from ORM object to schema, i.e. exactly what `responders/` is for, but it lives in `infra/`. Either relocate it to `responders/` or let call sites hit responders directly and delete it. Note the ratchet cannot currently catch this, because `infra/` has no outbound rule. Roughly 35 files touch `principal_view`/`as_principal`, so this is the broadest remaining diff — do it as one PR, and not concurrently with item 5.
 
-5. **Root-level modules superseded but not removed.** `app/view_counters.py` (59 lines) and `app/search.py` (80). *In progress.*
+5. ~~**Root-level modules superseded but not removed.**~~ **Done (#162).** `app/view_counters.py` and `app/search.py` are deleted.
 
-   **This item previously read "Fold each into its service." That instruction is wrong** — it would create layering violations, because both modules are called from *below* the service layer. The correct destinations, by caller:
+   **This item previously read "Fold each into its service." That instruction was wrong** — it would have created layering violations, because both modules are called from *below* the service layer. The destinations actually used, by caller:
 
    | Code | Callers | Destination |
    |---|---|---|
@@ -257,13 +258,14 @@ Item numbering is kept stable across revisions so PR descriptions can cite "Step
 
 6. **Naming residue from the dissolved modules.** `materialize_event` (6 hits / 4 files), `materialize_activity` (4/1), local variables named `materializer`/`mat` (4/2), and parameters still named `data_broker`/`broker` for what is now a `RequestContext` (~137 hits / 21 files). Cosmetic, but it is the last thing making the old architecture legible in the new one. **Schedule this alone and last** — it is a rename across most of `app/`, so it conflicts with every other in-flight change.
 
-7. **Widen the ratchet** once (2) lands and both allowlists are empty: add `services ↛ api`, `responders ↛ redis`, `api ↛ models`, and an outbound rule for `infra/`. Also make allowlist entries fail once empty, so they cannot silently regrow. `check_service_commits.py` already implements that last rule for its own ALLOWLIST (#157); `check_layer_imports.py` does not.
+7. **Widen the ratchet. Unblocked — item 2 is done and both allowlists are empty, so this is now the next thing to do.** Add `services ↛ api`, `responders ↛ redis`, `api ↛ models`, and an outbound rule for `infra/`. Also make allowlist entries fail once empty, so they cannot silently regrow: `check_service_commits.py` already implements that rule for its own ALLOWLIST (#157); `check_layer_imports.py` does not, and its allowlist is now an empty set that nothing defends.
 
 8. **Test the new layers.** 43 test files; only two reach into `services`/`responders`/`infra`/`user_permission` directly. Partly addressed:
    - #156 added archive-atomicity tests (rejected update must leave no orphan archive row) for **questions** and **submissions**. The case §1.3 actually names — **answer update** — is still untested, as are articles.
    - #158 added `tests/app/api/api_v1/test_me.py`, the first test file targeting a service module's permission behavior rather than an endpoint's happy path.
+   - **`login.py`'s refactor found that only 3 of its 11 routes had any coverage** (`/login/access-token`, `/check-token-validity/`, `/open-account`). The other 8 — including password recovery, reset, verification codes, and the welcome-test claim — were carried across on a throwaway before/after capture harness rather than committed tests. Turning that harness into a real `test_login.py` is the highest-value piece of this item: it is the authentication surface, and it is currently unguarded against regression.
 
-Suggested order: **2 → 7 → 3/4 → 5 → 6**, with 8 alongside whichever domain is being touched. Item 6 must be last.
+Suggested order: **7 → 3/4 → 6**, with 8 alongside whichever domain is being touched. Item 6 must be last.
 
 ### Read gates and derived schemas — a hazard worth naming (#158)
 
@@ -290,11 +292,19 @@ Topic subscriptions are deliberately left **ungated**: topics carry no site and 
 | 1. Materialize kill (per-resource, ~6 PRs) | M each | Medium | 0 | done |
 | 2. Dramatiq removal | M | Low–Medium | — (parallel to 1) | done |
 | 3. Cache reduction / CachedLayer breakup | L | High (proposal 13's gates apply) | mostly 1 | done |
-| 4. Services + crud demotion | ongoing | Low | 0–3 | in progress (items 1, 2-partial done) |
+| 4. Services + crud demotion | ongoing | Low | 0–3 | in progress (items 1, 2, 5 done) |
 
 Actual cost of steps 0–3: roughly 30 commits across PRs #119–#154, no DB migrations (v2 principle 7 held), one production behavior change caught in review (the responder permission stubs of step 0, which were a live bug rather than debt).
 
-Step 4 so far: #155–#160, still no DB migrations. **A second live authorization bug surfaced** (#158, the derived-schema gate miss above) — like step 0's, it was found while refactoring rather than by a report, and it was pre-existing rather than introduced. Two for two: this refactor keeps turning up real permission holes, which is an argument for finishing it rather than stopping at "good enough".
+Step 4 so far: #155–#163, still no DB migrations. The HTTP contract has been **byte-identical across every one of them** — the published OpenAPI spec on 2026-07-29 is unchanged from 2026-07-24, which is what made it safe to move this much code without touching the front-end.
+
+**The refactor keeps finding live bugs rather than introducing them.** Three so far, all pre-existing, none reported by a user:
+
+1. Step 0's responder permission stubs (`user_in_site` returning `True` for everyone).
+2. #158's derived-schema gate miss — see the section above.
+3. `@limiter.limit("1/minute")` on `POST /password-recovery/{email}` is **inert**, because it sits *above* `@router.post` and so decorates a function the router never registered. `/send-verification-code` has the same two decorators in the opposite order and rate-limits correctly. Demonstrated with a controlled comparison in one process from one IP: password-recovery reached the handler on all four consecutive calls, send-verification-code returned 429 from the second onward. Unauthenticated password-reset email flooding against any address. Preserved verbatim by the `login.py` refactor (behavior-neutral by design) and fixed separately.
+
+That is three for three, which is the argument for finishing this rather than stopping at "good enough" — the layering work is what makes these visible.
 
 ## Open questions — resolved
 
