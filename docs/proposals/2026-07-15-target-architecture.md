@@ -14,7 +14,7 @@ Relationship to `chafan_backend_improve_v2/`: this draft does not replace the v2
 | 1. Materialize kill (per-resource) | **done** | #119, #137, #143, #144, #151 + intermediate commits |
 | 2. Dramatiq removal | **done** | `a5554a2`, `c04eda1`, #146 |
 | 3. Cache reduction / CachedLayer breakup | **done** | #124, #125, #147, #148, #149, #153 |
-| 4. Services + crud demotion | **in progress** | #155–#163; items 1, 2, 5 done — items 3, 4, 6, 7, 8 remain |
+| 4. Services + crud demotion | **in progress** | #155–#164; items 1, 2, 5 done — items 3, 4, 6, 7, 8 remain, plus 9 and 10 added by the gap audit |
 
 The five levels now exist as directories: `api/endpoints/` (40 files), `services/` (43 modules), `responders/` (14), `crud/` (30), and `infra/` (7). `cached_layer.py`, `materialize.py`, `data_broker.py`, `task.py`, `task_utils.py`, `simple_session.py`, `crud/base.py`, `app/search.py`, `app/view_counters.py`, the Dramatiq broker and its 17 actors, `ReadSessionLocal`/`use_read_replica`, and the `*ForVisitor` schema family are all deleted. Both ratchets (`check_layer_imports.py`, `check_service_commits.py`) run in CI and are green.
 
@@ -23,6 +23,16 @@ The five levels now exist as directories: `api/endpoints/` (40 files), `services
 **`CRUDBase` is gone** (#160): all 30 crud modules are plain functions, zero classes remain in `crud/`, and no crud module commits.
 
 What is *not* yet true: both `RequestContext` (193 lines) and `PrincipalView` (233) are larger than their target shape, the ratchet has not been widened beyond its original four rules, and naming residue from the dissolved modules is still visible throughout. Details in step 4.
+
+**A structural gap audit on 2026-07-29** compared the tree against Part 1 rule by rule. Every rule the ratchets *enforce* holds. The gaps are all in rules the ratchets do not check, and two of them are places where this document describes a design that was not the one built:
+
+- **The transaction boundary is at level 1, not level 2** — §1.2 and §1.3 have been corrected. Services do not commit; `api/deps.py` commits once per request, and the commit ratchet forbids anything below it from committing.
+- **Responders do carry permission logic**, which §1.2 forbids and the #158 read-gate section endorses. Unresolved conflict, tracked as open question 7.
+- **Level 5 is a role, not a directory** — most of what §1.2 calls infra lives at `app/` root, not `app/infra/`.
+- **`recs/` and `metrics/` are outside the five-level model** entirely, and `recs/` is imported by six services and by `RequestContext`.
+- Live violations of unchecked rules: `crud/crud_audit_log.py` uses redis (level 4 forbids it), `api/.../ws.py` uses redis (level 1 forbids it).
+
+New items 9 and 10 collect the placement work; the two design conflicts are open questions 7 and 8.
 
 **Caveat for readers and for anyone briefing an agent from this document:** this file has drifted from the tree before, in ways that cost real time — it once named three fat endpoints when `me.py` had already been refactored, said 27 `CRUDBase` inheritors when there were 23, told a reader to create a `services/people.py` that already existed, and prescribed a destination for item 5 that would have violated the layering rules it defines. Verify each claim against the code before acting on it.
 
@@ -80,19 +90,37 @@ A service function owns the whole use case:
 
 1. permission check (via `user_permission.py`)
 2. reads/writes via `crud/`
-3. transaction boundary (services commit; nothing below them does)
+3. ~~transaction boundary (services commit; nothing below them does)~~ — **superseded, see below**
 4. cache get-or-set decisions (via `infra/cache.py`) for the few payloads that stay cached
 5. event/notification/webhook side effects — scheduled as post-response background work, not awaited
 6. shape the return value via `responders/`
 
-`user_permission.py` is the single home for access predicates (`question_read_allowed`, `user_in_site`, ...). Services call it; responders never do.
+**Correction (2026-07-29): the transaction boundary ended up at level 1, not level 2.** This paragraph originally said services commit. What was actually built is *one transaction per HTTP request*, opened and committed by `api/deps.py` (`:58,72,85`) — and `check_service_commits.py` now **forbids** services from committing at all. Zero services commit today.
+
+The practical difference is small, because a request almost always is one use case, and the atomicity guarantee that motivated the rule is stronger this way rather than weaker: nothing below level 1 can partially commit. Two consequences to know:
+
+- A use case needing **two independent transactions** in one request has nowhere to put the second. None exists today; if one appears it needs a deliberate escape hatch, not a stray `ctx.commit()`.
+- **Background work runs outside the request boundary** and must open its own (`infra/runtime.execute_with_broker`).
+
+`user_permission.py` is the single home for access predicates (`question_read_allowed`, `user_in_site`, ...). Services call it. **Responders also call it, contrary to the original rule** — see level 3.
 
 ### Level 3 — `responders/`
 
 - Pure shaping: ORM object in, Pydantic schema out. The caller has already decided the principal may see this object.
-- Allowed a db handle for cheap child lookups during shaping, but no permission logic, no redis, no mutation.
+- Allowed a db handle for cheap child lookups during shaping. No redis, no mutation. **On permission logic, see the unresolved conflict below.**
 - One responder per resource (D2 kills the `*ForVisitor` twins).
 - Absorbs everything worth keeping from `materialize.py`, then materialize dies.
+
+**Unresolved: this section and the #158 section disagree about permission logic in responders.**
+
+This bullet says responders carry none, and level 2 says "responders never" call `user_permission`. But `responders/article.py`, `answer.py`, `comment.py` and `question.py` all import it and call `article_read_allowed`, `answer_read_allowed`, `user_in_site` and friends — and the read-gate section added after #158 explicitly describes the responder gate as "a backstop, not the primary control", i.e. endorses what this bullet forbids.
+
+Both statements cannot stand. The two coherent positions:
+
+- **Defense in depth (what the code does).** Gate at fetch time in the service *and* re-check while shaping. #158 exists precisely because a route that skipped the responder skipped its gate, which argues the redundancy earns its keep. Cost: the predicate runs twice, and "the caller has already decided" stops being true, so responders need a db handle and principal id they would not otherwise want.
+- **Single gate (what §1.2 says).** Services gate, responders shape. Cleaner layering, and a responder can then be a pure function. Cost: every new read path must remember the gate, with no backstop — exactly the mistake #158 was.
+
+This should be decided rather than left to drift; it is tracked as open question 7. Until then, **do not "clean up" a responder by deleting its permission check** — that check is currently load-bearing.
 
 ### Level 4 — `crud/`
 
@@ -104,8 +132,19 @@ A service function owns the whole use case:
 
 - **`RequestContext`** (~50 lines): lazy db session + lazy redis + `principal_id` + `try_get_current_user()`. This is `DataBroker` and the rump of `CachedLayer` merged into one class. Constructed per-request by `deps.py`, passed down into services.
 - **`cache.py`**: `get_or_set(redis, key, type_, fetch, ttl)` plus the version-key invalidation scheme from proposal 13. A utility that services call — not a place code lives.
-- **`scheduler.py`**: the APScheduler instance and its job registrations, moved out of `main.py`.
+- **`scheduler.py`**: the APScheduler instance and its job registrations, moved out of `main.py`. **Done** — `infra/scheduler.py` exists and `main.py:46` only imports `set_up_scheduled_tasks`.
 - External clients: `email/`, `aws.py`, `mq.py` (ws push), outbound HTTP (link preview fetch).
+
+**Level 5 is a concept, not a directory.** `app/infra/` holds 7 files (`request_context.py`, `principal_view.py`, `cache.py`, `runtime.py`, `scheduler.py`, `search_index.py`), but most of what this section calls level 5 still sits at `app/` root: `aws.py`, `mq.py`, `security.py`, `limiter.py`, `limiter_middleware.py`, `common.py`, `ws_connections.py`, `model_utils.py`, `endpoint_utils.py`, `text_analysis.py`, `coins.py`, `email/`. Nothing enforces the boundary, because `infra/` has no outbound rule and no rule stops a higher level importing a root module directly. Either move them in or say plainly that level 5 is defined by role rather than path — but the current split means "is this infra?" cannot be answered by looking.
+
+### Not placed by this model at all
+
+Two `app/` directories fall outside the five levels and always have:
+
+- **`recs/`** (5 files, ~346 lines) — the recommendation engine. Imported by 6 services *and* by `RequestContext`. It behaves like a level-2 sibling that services call, but it is never named as one, so nothing constrains what it may import.
+- **`metrics/`** — an empty `__init__.py`. Either it is a placeholder for planned work or it should be deleted.
+
+`user_permission.py` also sits at root rather than inside a level, despite being called by both level 2 and level 3.
 
 ### Background work (crosses levels 2 and 5)
 
@@ -116,29 +155,35 @@ Two mechanisms only, both already in the codebase's vocabulary:
 
 ## 1.3 Worked example — the write path (create answer)
 
-Where does a write happen? Split across two levels: **crud owns the SQL statement, the service owns the use case and the transaction.** Endpoints and responders never write.
+Where does a write happen? Split across three levels: **crud owns the SQL statement, the service owns the use case, and `api/deps.py` owns the transaction.** Endpoints and responders never write.
+
+*(Updated 2026-07-29 to match what was built. Step 6 previously read `ctx.db.commit()` inside the service; the boundary is now one level up — see the correction under §1.2 level 2.)*
 
 ```
 POST /answers/                       api/endpoints/answers.py
+  │                                  ctx = Depends(deps.get_request_context)   ← transaction opens
   └─> services/answers.create_answer(ctx, answer_in, background_tasks)
         1. audit log                 crud.audit_log.create(...)
         2. fetch target              crud.question.get_by_uuid(db, ...)
         3. permission                user_permission.check_can_write_answer(db, user, question.site)
         4. business rules            writing-session check; "one answer per user per question"
         5. write                     crud.answer.create_with_author(db, ...)   ← db.add()/flush(), NO commit
-        6. commit                    ctx.db.commit()                           ← the one transaction boundary
-        7. side effects              background_tasks.add_task(services.answers.postprocess_new_answer, answer.id)
-        8. respond                   responders.answer.answer_schema_from_orm(...)
+        6. side effects              background_tasks.add_task(services.answers.postprocess_new_answer, answer.id)
+        7. respond                   responders.answer.answer_schema_from_orm(...)
+      ↩ back in deps.get_request_context:
+        8. commit                    ctx.commit()        ← the one transaction boundary, on success
+           on exception              ctx.rollback()
+           always                    ctx.close()         ← rolls back anything uncommitted
 ```
 
 The endpoint shrinks to: parse `AnswerCreate`, resolve auth deps, call `create_answer`, return the schema. (`BackgroundTasks` is request-scoped, so the endpoint injects it and passes it down — the one infra object that travels level 1 → 2.)
 
-Today's `create_answer` endpoint already performs steps 1–8 — it is a proto-service in the wrong layer. The structural change is not new steps but two relocations:
+When this was written, `create_answer` performed all of it inside the endpoint — a proto-service in the wrong layer. Both relocations are now done:
 
-- **The steps move from `api/` to `services/`** so HTTP concerns and business logic separate.
-- **The commit moves to exactly one place.** Today a single use case commits in three: inside crud methods (`CRUDBase.create`, `create_with_author` both call `db.commit()`), inline in endpoint bodies, and implicitly in `DataBroker.close()` at request end. A multi-write use case (e.g. answer update, which inserts an `Archive` then updates the `Answer`) is therefore not atomic — a failure between commits leaves a partial write. In the target, crud does `db.add()`/`db.flush()` only, the service commits once at the end, and `RequestContext.close()` rolls back anything uncommitted instead of committing it.
+- **The steps moved from `api/` to `services/`**, so HTTP concerns and business logic separate. Complete: zero endpoint files import `crud` or `responders`.
+- **The commit moved to exactly one place.** It used to happen in three: inside crud methods (`CRUDBase.create`, `create_with_author` both called `db.commit()`), inline in endpoint bodies, and implicitly in `DataBroker.close()` at request end. A multi-write use case — answer update, which inserts an `Archive` then updates the `Answer` — was therefore not atomic, and a failure between commits left a partial write. Today crud does `db.add()`/`db.flush()` only, nothing below level 1 commits at all (enforced by `check_service_commits.py`), and `RequestContext.close()` rolls back anything uncommitted instead of committing it.
 
-Migration note: crud methods lose their internal `db.commit()` as they're demoted to plain functions (step 4 of Part 2); until a crud module is demoted, its legacy commit behavior is tolerated.
+**This guarantee is only partly tested.** #156 pinned it for question and submission archives (a rejected update must leave no orphan archive row). Answer update — the example this section is built on — is still unverified, as are articles. See step 4 item 8.
 
 ## 1.4 What ceases to exist
 
@@ -260,12 +305,28 @@ Item numbering is kept stable across revisions so PR descriptions can cite "Step
 
 7. **Widen the ratchet. Unblocked — item 2 is done and both allowlists are empty, so this is now the next thing to do.** Add `services ↛ api`, `responders ↛ redis`, `api ↛ models`, and an outbound rule for `infra/`. Also make allowlist entries fail once empty, so they cannot silently regrow: `check_service_commits.py` already implements that rule for its own ALLOWLIST (#157); `check_layer_imports.py` does not, and its allowlist is now an empty set that nothing defends.
 
+   A 2026-07-29 audit found the following **already-live violations** of rules §1.2 states but nothing checks. Each new rule needs its exception decided before it can be turned on:
+   - **`crud ↛ redis`** — violated by `crud/crud_audit_log.py:48-53`, which calls `get_redis_cli()` for a one-hour dedup key. Level 4 says "no redis". Move it up to a service or accept it explicitly.
+   - **`api ↛ redis`** — violated by `api/api_v1/endpoints/ws.py`, which uses `get_redis_cli()` and `ws_connections`. Websockets are plausibly a real exception (a long-lived connection is not a request/response cycle), but the exception is currently undeclared rather than granted.
+   - **`api ↛ models`** — check before enabling; `ws.py` is the likely offender here too.
+   - **outbound rule for `infra/`** — cannot be written meaningfully until item 9 settles what level 5 *is*, since most of it lives outside `infra/`.
+
+   Worth folding in while here: the decorator/parameter audit written for #164, which checks that every `@limiter.limit` sits below its `@router.*` and that the handler takes a `response: Response`. Both properties are invisible at review time and silently disable the rate limit. That audit is currently a throwaway script; as a ratchet it would be ~30 lines.
+
 8. **Test the new layers.** 43 test files; only two reach into `services`/`responders`/`infra`/`user_permission` directly. Partly addressed:
    - #156 added archive-atomicity tests (rejected update must leave no orphan archive row) for **questions** and **submissions**. The case §1.3 actually names — **answer update** — is still untested, as are articles.
    - #158 added `tests/app/api/api_v1/test_me.py`, the first test file targeting a service module's permission behavior rather than an endpoint's happy path.
    - **`login.py`'s refactor found that only 3 of its 11 routes had any coverage** (`/login/access-token`, `/check-token-validity/`, `/open-account`). The other 8 — including password recovery, reset, verification codes, and the welcome-test claim — were carried across on a throwaway before/after capture harness rather than committed tests. Turning that harness into a real `test_login.py` is the highest-value piece of this item: it is the authentication surface, and it is currently unguarded against regression.
 
-Suggested order: **7 → 3/4 → 6**, with 8 alongside whichever domain is being touched. Item 6 must be last.
+9. **Place the code the model never placed.** Added 2026-07-29 from the gap audit; see §1.2 "Level 5 is a concept, not a directory" and "Not placed by this model at all". Four distinct pieces, none blocking but all making "which level is this?" unanswerable by inspection:
+   - **Level 5 is split** between `app/infra/` (7 files) and ~12 root modules the doc calls infra (`aws.py`, `mq.py`, `security.py`, `limiter.py`, `common.py`, `ws_connections.py`, `email/`, ...). Move them in, or state that level 5 is defined by role rather than path. Item 7's `infra/` outbound rule depends on this.
+   - **`recs/`** (5 files, ~346 lines) is outside the five levels but imported by 6 services *and* by `RequestContext`. Name it as a level-2 sibling and constrain its imports, or fold it into `services/`.
+   - **`user_permission.py`** sits at root while being called by both level 2 and level 3.
+   - **Dead or near-dead:** `app/metrics/` is an empty `__init__.py`. `app/email_utils.py` (97 lines) coexists with `app/email/utils.py`, its only importer being `chafan_core/scheduled/lib.py` — the same duplicate-module shape that `app/search.py` and `app/view_counters.py` had before #162. Check whether it is genuinely superseded, then delete or fold.
+
+10. **`services/` granularity has drifted past what §1.2 describes.** The doc names ~10 domain modules; there are 43. Not a violation — "one module per domain" is satisfied, and the split is generally sensible (`auth.py` / `accounts.py` / `welcome_test.py` came out of `login.py` deliberately). But §1.2's list now reads as a sample rather than a spec, and should either be relabelled as illustrative or regenerated.
+
+Suggested order: **7 → 3/4 → 9 → 6**, with 8 alongside whichever domain is being touched. Item 6 must be last (it renames across most of `app/`, so it conflicts with everything). Item 10 is documentation-only and can ride along with any of them.
 
 ### Read gates and derived schemas — a hazard worth naming (#158)
 
@@ -292,7 +353,7 @@ Topic subscriptions are deliberately left **ungated**: topics carry no site and 
 | 1. Materialize kill (per-resource, ~6 PRs) | M each | Medium | 0 | done |
 | 2. Dramatiq removal | M | Low–Medium | — (parallel to 1) | done |
 | 3. Cache reduction / CachedLayer breakup | L | High (proposal 13's gates apply) | mostly 1 | done |
-| 4. Services + crud demotion | ongoing | Low | 0–3 | in progress (items 1, 2, 5 done) |
+| 4. Services + crud demotion | ongoing | Low | 0–3 | in progress (items 1, 2, 5 done; 9–10 added 2026-07-29) |
 
 Actual cost of steps 0–3: roughly 30 commits across PRs #119–#154, no DB migrations (v2 principle 7 held), one production behavior change caught in review (the responder permission stubs of step 0, which were a live bug rather than debt).
 
@@ -320,3 +381,6 @@ That is three for three, which is the argument for finishing this rather than st
 4. `GET /people/{uuid}/related/` uses `unwrap()` on a missing user, producing `AssertionError` → 500, where every other `/people/` route returns 400. Preserved by #159 so the status code would not change silently, but it looks unintended.
 5. `crud_user.update` uses `exclude_none=True` where every other domain's update path uses `exclude_unset=True`. Because the old `CRUDUser.update` passed a dict to `super()`, the base's `exclude_unset` never actually applied to user updates; #160 inlined the real behavior verbatim rather than normalizing it. Normalizing would be a genuine behavior change, so it needs a decision.
 6. `main-test.yml` triggers only on `pull_request` to `main` and pushes to `better_ci` — so the test suite never runs on `main` itself. Only Static Analysis and Nix build do. Intentional?
+7. **Do responders keep their permission checks?** The central unresolved question from the 2026-07-29 gap audit — §1.2 level 3 forbids them, the #158 read-gate section endorses them as a backstop, and the code has them. Defense in depth is what #158 argues for and what prevented that bug class from being worse; single-gate is what the layering rule wants. Whichever wins, the loser's text must be deleted, because right now the document contradicts itself and a reader can justify either. **Until it is decided, do not remove a responder's permission check** — it is load-bearing.
+8. **Is one transaction per request the right boundary, or should services be able to own one?** §1.2 and §1.3 have been corrected to describe the per-request boundary that was built, but that was arrived at by ratchet enforcement rather than by a decision. Worth confirming deliberately, because it forecloses a use case that needs two independent transactions in one request. None exists today.
+9. The full test suite **flakes roughly 1 run in 4**, failing 2 tests (`test_create_user_existing_username` among them). Reproduced on `main` with no local changes, so it is not caused by any recent PR. Unconfirmed hypothesis: `Limiter(default_limits=["150/minute"])` in `app/limiter.py` combined with `TestClient` sending every request from a single IP, so a fast run exhausts a shared per-IP bucket and later tests get 429s. A suite that fails intermittently on the authentication path undermines the ratchets it is meant to back up — worth diagnosing under item 8.
