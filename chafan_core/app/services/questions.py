@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas, user_permission, view_counters
+from chafan_core.app import crud, models, schemas, user_permission
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.recs.ranking import rank_answers
@@ -17,6 +17,7 @@ from chafan_core.app.schemas.event import (
     InviteAnswerInternal,
     UpvoteQuestionInternal,
 )
+from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import check_user_in_site, user_in_site
 from chafan_core.utils.base import HTTPException_, filter_not_none
 import chafan_core.app.responders as responders
@@ -122,7 +123,7 @@ def get_question(ctx, *, uuid: str) -> schemas.Question:
 
 def bump_views(ctx, *, uuid: str) -> None:
     question = get_question_model_http(ctx.get_db(), uuid)
-    view_counters.add_view_async(ctx, "question", question.id)
+    viewcounts_service.add_view_async(ctx, "question", question.id)
 
 
 def get_question_subscription(

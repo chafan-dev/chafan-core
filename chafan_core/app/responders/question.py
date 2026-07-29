@@ -9,7 +9,7 @@ from chafan_core.app.common import OperationType
 from chafan_core.app.model_utils import get_live_answers_of_question
 from chafan_core.app.schemas.question import QuestionInDBBase, QuestionPreviewForSearch
 from chafan_core.app.schemas.richtext import RichText
-from chafan_core.app import user_permission, view_counters
+from chafan_core.app import crud, user_permission
 from chafan_core.utils.base import filter_not_none, map_
 
 
@@ -129,7 +129,7 @@ def question_schema_from_orm(
     d["author"] = mat.preview_of_user(question.author)
     d["editor"] = map_(question.editor, mat.preview_of_user)
     d["upvoted"] = upvoted
-    d["view_times"] = view_counters.get_viewcount_question(broker, question.id)
+    d["view_times"] = crud.viewcount.get_viewcount_question(db, question.id)
     d["answers_count"] = len(get_live_answers_of_question(question))
     if question.description is not None:
         d["desc"] = RichText(

@@ -14,6 +14,7 @@ from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.schemas.answer import AnswerModUpdate
 from chafan_core.app.schemas.event import EventInternal, UpvoteAnswerInternal
 from chafan_core.app.schemas.richtext import RichText
+from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import answer_read_allowed, check_user_in_site
 from chafan_core.utils.base import HTTPException_, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
@@ -196,15 +197,13 @@ def list_archives(
 
 
 def bump_views(ctx, *, uuid: str) -> None:
-    from chafan_core.app import view_counters
-
     answer = crud.answer.get_by_uuid(ctx.get_db(), uuid=uuid)
     if answer is None:
         raise HTTPException_(
             status_code=400,
             detail="The answer doesn't exist in the system.",
         )
-    view_counters.add_view_async(ctx, "answer", answer.id)
+    viewcounts_service.add_view_async(ctx, "answer", answer.id)
 
 
 def create_answer(

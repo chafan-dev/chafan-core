@@ -29,4 +29,5 @@ from . import crud_submission as submission
 from . import crud_submission_suggestion as submission_suggestion
 from . import crud_topic as topic
 from . import crud_user as user
+from . import crud_viewcount as viewcount
 from . import crud_webhook as webhook

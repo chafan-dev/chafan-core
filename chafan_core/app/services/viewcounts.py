@@ -1,10 +1,12 @@
-"""View-count Redis drain → Postgres."""
+"""View-count service: enqueue view bumps, then drain Redis → Postgres."""
 
 from __future__ import annotations
 
 from collections import Counter
 import logging
+from typing import Literal
 
+from chafan_core.app.infra import cache as infra_cache
 from chafan_core.app.infra.cache import BUMP_VIEW_COUNT_QUEUE_CACHE_KEY
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.infra.runtime import execute_with_broker
@@ -16,6 +18,19 @@ from chafan_core.app.models.viewcount import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def add_view_async(
+    ctx_or_none,  # accepts RequestContext or None; redis taken from infra when needed
+    object_type: Literal["question", "answer", "profile", "article", "submission"],
+    obj_id: int,
+) -> None:
+    """Enqueue a view bump. Prefer infra_cache; optional layer still accepted for callers."""
+    assert object_type in ["question", "answer", "article", "submission"]
+    redis_cli = None
+    if ctx_or_none is not None and hasattr(ctx_or_none, "get_redis"):
+        redis_cli = ctx_or_none.get_redis()
+    infra_cache.bump_view(object_type, obj_id, redis_cli)
 
 # TODO Should I move this function to another file? 2025-07-23
 def _add_viewcount_to_db(broker: RequestContext, key: str, count: int) -> None:
