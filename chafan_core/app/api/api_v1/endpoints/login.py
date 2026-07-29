@@ -1,32 +1,15 @@
 from typing import Any, List, Literal, Mapping
 
-import logging
-logger = logging.getLogger(__name__)
-
 from fastapi import APIRouter, Body, Depends, Request, Response
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from pydantic import TypeAdapter
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
-from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositReference
-from chafan_core.app.schemas.form import (
-    FormField,
-    MultipleChoicesField,
-    SingleChoiceField,
-    TextField,
-)
-from chafan_core.app.schemas.form_response import (
-    FormResponseField,
-    MultipleChoiceResponseField,
-    SingleChoiceResponseField,
-)
 from chafan_core.app.schemas.security import (
     LoginWithVerificationCode,
     VerificationCodeRequest,
@@ -36,7 +19,7 @@ from chafan_core.app.services import auth as auth_service
 from chafan_core.app.services import link_preview as link_preview_service
 from chafan_core.app.services import notifications as notifications_service
 from chafan_core.app.services import topics as topics_service
-from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import welcome_test as welcome_test_service
 from chafan_core.utils.validators import (
     CaseInsensitiveEmailStr,
     StrippedNonEmptyBasicStr,
@@ -168,57 +151,6 @@ def unsubscribe(
 </body>"""
 
 
-def compute_score_of_form_response(
-    form_response: models.FormResponse,
-) -> schemas.msg.Scores:
-    score = 0
-    full_score = 0
-    indexed_response_fields = {
-        f.unique_name: f
-        for f in TypeAdapter(List[FormResponseField]).validate_python(
-            form_response.response_fields
-        )
-    }
-    for form_field in TypeAdapter(List[FormField]).validate_python(
-        form_response.form.form_fields
-    ):
-        assert form_field.unique_name in indexed_response_fields
-        response_field = indexed_response_fields[form_field.unique_name]
-        if isinstance(form_field.field_type, TextField):
-            pass
-        elif isinstance(form_field.field_type, MultipleChoicesField):
-            assert isinstance(response_field.field_content, MultipleChoiceResponseField)
-            if form_field.field_type.correct_choices is not None:
-                assert form_field.field_type.score_per_correct_choice is not None
-                full_score += (
-                    len(form_field.field_type.correct_choices)
-                    * form_field.field_type.score_per_correct_choice
-                )
-                for select_choice in response_field.field_content.selected_choices:
-                    if select_choice in form_field.field_type.correct_choices:
-                        score += form_field.field_type.score_per_correct_choice
-                    else:
-                        score -= form_field.field_type.score_per_correct_choice
-        elif isinstance(form_field.field_type, SingleChoiceField):
-            assert isinstance(response_field.field_content, SingleChoiceResponseField)
-            if form_field.field_type.correct_choice is not None:
-                assert form_field.field_type.score is not None
-                full_score += form_field.field_type.score
-                if (
-                    response_field.field_content.selected_choice
-                    == form_field.field_type.correct_choice
-                ):
-                    score += form_field.field_type.score
-        else:
-            raise Exception(f"Unknown field: {form_field.field_type}")
-    if score < 0:
-        score = 0
-    return schemas.msg.Scores(
-        full_score=full_score,
-        score=score,
-    )
-
-
 # TODO Remove this api. put this test in backed
 @router.post(
     "/claim-welcome-test-rewards/{id}",
@@ -229,44 +161,7 @@ def claim_welcome_test_rewards(
     *,
     id: int,
 ) -> Any:
-    current_user = ctx.get_current_active_user()
-    db = ctx.get_db()
-    if current_user.claimed_welcome_test_rewards_with_form_response_id is not None:
-        raise HTTPException_(status_code=400, detail="Claimed.")
-    form_response = crud.form_response.get(db, id=id)
-    if form_response is None:
-        raise HTTPException_(status_code=400, detail="Invalid form response id.")
-    if form_response.form.uuid != settings.WELCOME_TEST_FORM_UUID:
-        raise HTTPException_(status_code=400, detail="Wrong form.")
-    if form_response.response_author_id != current_user.id:
-        raise HTTPException_(status_code=400, detail="Unauthorized.")
-    scores = compute_score_of_form_response(form_response)
-    if float(scores.score) < float(scores.full_score) * 0.6:
-        return schemas.msg.ClaimWelcomeTestScoreMsg(
-            success=False,
-            scores=scores,
-        )
-    current_user.claimed_welcome_test_rewards_with_form_response_id = id
-    crud.coin_deposit.make_deposit(
-        db,
-        obj_in=CoinDepositCreate(
-            payee_id=current_user.id,
-            amount=scores.score,
-            ref_id=CoinDepositReference(
-                action="welcome_test_rewards",
-                object_id=str(current_user.id),
-            ).json(),
-            comment="",
-        ),
-        authorizer_id=current_user.id,
-        payee=current_user,
-    )
-    db.add(current_user)
-    db.commit()
-    return schemas.msg.ClaimWelcomeTestScoreMsg(
-        success=True,
-        scores=scores,
-    )
+    return welcome_test_service.claim_welcome_test_rewards(ctx, form_response_id=id)
 
 
 @router.get("/category-topics/", response_model=List[schemas.Topic])

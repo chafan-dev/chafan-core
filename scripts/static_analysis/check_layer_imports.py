@@ -102,10 +102,11 @@ def main() -> int:
                 or mod.startswith("chafan_core.app.crud.")
                 or mod.startswith("chafan_core.app.responders")
             ):
-                # Temporary allowlist: large auth/profile modules still mid-migration.
-                allow = {
-                    "chafan_core/app/api/api_v1/endpoints/login.py",
-                }
+                # Temporary allowlist for endpoints still mid-migration.
+                # Now empty: every endpoint goes through services/. Entries may
+                # only ever be removed -- widening the ratchet (step 4, item 7)
+                # is separate scheduled work.
+                allow: set[str] = set()
                 msg = f"{rel}:{lineno}: api must not import {mod}"
                 if str(rel) in allow:
                     warnings.append(msg + " (allowlisted)")
