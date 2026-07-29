@@ -62,13 +62,13 @@ def login_with_verification_code_access_token(
     )
 
 
-# NOTE: @limiter.limit sits *above* @router.post here, so the router registered
-# the undecorated function and this limit never applies. Pre-existing; preserved
-# deliberately -- moving it would be a behavior change, not a refactor.
-@limiter.limit("1/minute")
 @router.post("/password-recovery/{email}", response_model=schemas.GenericResponse)
+@limiter.limit("1/minute")
 def recover_password(
-    request: Request, email: CaseInsensitiveEmailStr, db: Session = Depends(deps.get_db)
+    response: Response,
+    request: Request,
+    email: CaseInsensitiveEmailStr,
+    db: Session = Depends(deps.get_db),
 ) -> Any:
     """
     Password Recovery
