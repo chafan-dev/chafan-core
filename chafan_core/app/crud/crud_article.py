@@ -9,9 +9,9 @@ from chafan_core.app.crud.crud_activity import (
     create_article_activity,
     upvote_article_activity,
 )
+from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.article import Article, ArticleUpvotes
 from chafan_core.app.schemas.article import ArticleCreate, ArticleUpdate
-from chafan_core.app.search import do_search
 from chafan_core.utils.base import get_uuid
 
 

@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
 from chafan_core.app.crud.crud_activity import upvote_answer_activity
+from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.answer import Answer, Answer_Upvotes
 from chafan_core.app.models.user import User
 from chafan_core.app.schemas.answer import AnswerCreate, AnswerUpdate
-from chafan_core.app.search import do_search
 from chafan_core.utils.base import get_uuid
 
 

@@ -8,7 +8,7 @@ from whoosh.analysis.analyzers import FancyAnalyzer  # type: ignore
 from whoosh.analysis.analyzers import LanguageAnalyzer, StemmingAnalyzer
 from whoosh.index import create_in  # type: ignore
 
-from chafan_core.app.search import do_search, schemas
+from chafan_core.app.infra.search_index import do_search, schemas
 from chafan_core.utils.constants import indexed_object_T
 
 _TEST_SEARCH_INDEX_PREFIX = "/tmp/test_chafan_search/"

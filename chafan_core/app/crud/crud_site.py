@@ -5,9 +5,9 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import models
+from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.site import Site
 from chafan_core.app.schemas.site import SiteCreate, SiteUpdate
-from chafan_core.app.search import do_search
 from chafan_core.utils.base import get_uuid
 
 

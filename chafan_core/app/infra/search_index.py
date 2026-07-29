@@ -1,3 +1,10 @@
+"""Whoosh full-text index client (Level 5 infra).
+
+Owns the index schemas and the read path against the on-disk index at
+``settings.SEARCH_INDEX_FILESYSTEM_PATH``. The write/refresh side lives in
+``services/search.py``, which reuses the schemas defined here.
+"""
+
 import os
 from typing import List, Mapping, Optional
 

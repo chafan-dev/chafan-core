@@ -78,7 +78,7 @@ from whoosh.index import open_dir
 
 from chafan_core.app.config import settings
 from chafan_core.app.infra.runtime import execute_with_db
-from chafan_core.app.search import schemas as whoosh_schemas
+from chafan_core.app.infra.search_index import schemas as whoosh_schemas
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.constants import indexed_object_T
 
