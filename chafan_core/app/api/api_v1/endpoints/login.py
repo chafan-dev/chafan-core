@@ -41,6 +41,7 @@ from chafan_core.app.schemas.security import (
 )
 from chafan_core.app.services import accounts as accounts_service
 from chafan_core.app.services import auth as auth_service
+from chafan_core.app.services import notifications as notifications_service
 from chafan_core.app.infra.runtime import execute_with_db
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import HTTPException_
@@ -161,14 +162,9 @@ def unsubscribe(
     type: Literal["unread_notifications"],
     unsubscribe_token: str,
 ) -> Any:
-    user = crud.user.get_by_email(db, email=email)
-    if user is None:
-        raise HTTPException_(status_code=400, detail="Invalid link")
-    if user.unsubscribe_token != unsubscribe_token:
-        raise HTTPException_(status_code=400, detail="Invalid link")
-    if type == "unread_notifications":
-        user.enable_deliver_unread_notifications = False
-    db.commit()
+    notifications_service.unsubscribe_by_email_token(
+        db, email=email, type=type, unsubscribe_token=unsubscribe_token
+    )
     return """<!doctype html>
 <html>
 <head>
