@@ -1,16 +1,11 @@
-import datetime
-import json
 from typing import Any, List, Literal, Mapping
-from urllib.parse import urlparse
 
 import logging
 logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Body, Depends, Request, Response
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from parsel.selector import Selector
 from pydantic import TypeAdapter
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
@@ -18,9 +13,6 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.common import (
-    get_redis_cli,
-)
 from chafan_core.app.config import settings
 from chafan_core.app.limiter import limiter
 from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositReference
@@ -41,9 +33,9 @@ from chafan_core.app.schemas.security import (
 )
 from chafan_core.app.services import accounts as accounts_service
 from chafan_core.app.services import auth as auth_service
+from chafan_core.app.services import link_preview as link_preview_service
 from chafan_core.app.services import notifications as notifications_service
-from chafan_core.app.infra.runtime import execute_with_db
-from chafan_core.db.session import SessionLocal
+from chafan_core.app.services import topics as topics_service
 from chafan_core.utils.base import HTTPException_
 from chafan_core.utils.validators import (
     CaseInsensitiveEmailStr,
@@ -277,56 +269,17 @@ def claim_welcome_test_rewards(
     )
 
 
-# TODO Remove or modify this api. Should not depend on redis directly
 @router.get("/category-topics/", response_model=List[schemas.Topic])
 def get_category_topics() -> Any:
-    redis = get_redis_cli()
-    key = "chafan:category-topics"
-    value = redis.get(key)
-    if value is not None:
-        return TypeAdapter(List[schemas.Topic]).validate_json(value)
-
-    def runnable(db: Session) -> List[schemas.Topic]:
-        data = [schemas.Topic.from_orm(t) for t in crud.topic.get_category_topics(db)]
-        redis.set(
-            key, json.dumps(jsonable_encoder(data)), ex=datetime.timedelta(days=1)
-        )
-        return data
-
-    data = execute_with_db(SessionLocal(), runnable)
-    assert data is not None
-    return data
-
-
-_HOSTNAMES_FOR_LINK_PREVIEW = set(
-    ["www.flickr.com", "github.com", "twitter.com", "www.zhihu.com"]
-)
+    return topics_service.get_category_topics()
 
 
 @router.get("/link-preview/", response_model=Mapping[str, str])
 def get_link_preview(
-    ctx: RequestContext = Depends(deps.get_request_context), *, url: str
+    # `ctx` is unused, but removing it would drop this operation's
+    # OAuth2PasswordBearer security entry from the OpenAPI document.
+    ctx: RequestContext = Depends(deps.get_request_context),
+    *,
+    url: str,
 ) -> Any:
-    parsed = urlparse(url)
-    if parsed.hostname not in _HOSTNAMES_FOR_LINK_PREVIEW:
-        raise HTTPException_(
-            status_code=400,
-            detail="Invalid hostname for link preview.",
-        )
-    from chafan_core.app.services import link_preview
-
-    response_text = link_preview.request_text(url)
-    if not response_text:
-        raise HTTPException_(
-            status_code=400,
-            detail="Unavailable link preview.",
-        )
-    s = Selector(text=response_text)
-    properties = {}
-    for e in s.xpath("//meta"):
-        if "property" in e.attrib and "content" in e.attrib:
-            properties[e.attrib["property"]] = e.attrib["content"]
-    title = s.xpath("//title/text()").extract_first()
-    if title:
-        properties["title"] = title
-    return properties
+    return link_preview_service.get_link_preview(url)
