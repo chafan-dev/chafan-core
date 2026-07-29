@@ -1,12 +1,11 @@
 import datetime
 import json
 from typing import Any, List, Literal, Mapping, Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 import logging
 logger = logging.getLogger(__name__)
 
-import requests
 from fastapi import APIRouter, Body, Depends, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import HTMLResponse
@@ -16,27 +15,17 @@ from pydantic import TypeAdapter
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas, security
+from chafan_core.app import crud, models, schemas
 from chafan_core.app.api import deps
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.common import (
     check_email,
-    client_ip,
     get_redis_cli,
 )
 from chafan_core.app.security import (
-    check_token_validity_impl,
-    generate_password_reset_token,
-    verify_password_reset_token,
-    create_digit_verification_code,
-    register_digit_verification_code,
     check_digit_verification_code,
 )
 from chafan_core.app.config import settings
-from chafan_core.app.email.utils import (
-    send_reset_password_email,
-    send_verification_code_email,
-)
 from chafan_core.app.limiter import limiter
 from chafan_core.app.responders.user import user_schema_from_orm
 from chafan_core.app.schemas.coin_deposit import CoinDepositCreate, CoinDepositReference
@@ -56,8 +45,7 @@ from chafan_core.app.schemas.security import (
     LoginWithVerificationCode,
     VerificationCodeRequest,
 )
-
-from chafan_core.app.security import get_password_hash
+from chafan_core.app.services import auth as auth_service
 from chafan_core.app.infra.runtime import execute_with_db
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import HTTPException_
@@ -68,43 +56,6 @@ from chafan_core.utils.validators import (
 )
 
 router = APIRouter()
-
-# The user's authentication MUST be passed when calling this function
-def _login_user(db: Session, *, request: Request, user: models.User) -> schemas.Token:
-    if not crud.user.is_active(user):
-        raise HTTPException_(status_code=400, detail="Inactive user")
-    access_token_expires = datetime.timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-    if user.flags is None:
-        user.flags = ""
-    # TODO This should be moved to another component
-    if "activated" not in user.flags.split():
-        user.flags += " activated"  # Used to decide whether to resend invitation email
-    db.commit()
-    ipaddr = client_ip(request)
-    crud.audit_log.create_with_user(
-        db, ipaddr=ipaddr, user_id=user.id, api="create access token"
-    )
-    return schemas.Token(
-        access_token=security.create_access_token(
-            user.id, expires_delta=access_token_expires
-        ),
-        token_type="bearer",
-    )
-
-
-def _verify_hcaptcha(hcaptcha_token: str) -> None:
-    r = requests.post(
-        "https://hcaptcha.com/siteverify",
-        data={
-            "sitekey": settings.HCAPTCHA_SITEKEY,
-            "secret": settings.HCAPTCHA_SECRET,
-            "response": hcaptcha_token,
-        },
-    )
-    if not r.ok or not r.json()["success"]:
-        raise HTTPException_(status_code=400, detail="Incorrect hCaptcha")
 
 
 @router.post("/login/access-token", response_model=schemas.Token)
@@ -117,17 +68,12 @@ def login_access_token(
     """
     OAuth2 compatible token login, get an access token for future requests
     """
-    email = CaseInsensitiveEmailStr._validate(form_data.username)  # type: ignore
-
-    user = crud.user.authenticate(
-        db, email=email, password=SecretStr(form_data.password)
+    return auth_service.login_with_password(
+        db,
+        request=request,
+        username=form_data.username,
+        password=form_data.password,
     )
-    if not user:
-        raise HTTPException_(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-    return _login_user(db, request=request, user=user)
 
 
 @router.post(
@@ -141,32 +87,9 @@ def login_with_verification_code_access_token(
     db: Session = Depends(deps.get_db),
     login_in: LoginWithVerificationCode,
 ) -> Any:
-    redis_cli = get_redis_cli()
-    phone_number_str = login_in.phone_number.format_e164()
-    key = f"chafan:verification-code:{phone_number_str}"
-    value = redis_cli.get(key)
-    raise HTTPException_(
-        status_code=400,
-        detail="login with verification code is blocked",
+    return auth_service.login_with_verification_code(
+        db, request=request, login_in=login_in
     )
-    if value is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="The verification code is not present in the system.",
-        )
-    if value != login_in.code:
-        raise HTTPException_(
-            status_code=400,
-            detail="Invalid verification code.",
-        )
-    redis_cli.delete(key)
-    user = crud.user.get_by_phone_number(db, phone_number=login_in.phone_number)
-    if user is None:
-        raise HTTPException_(
-            status_code=400,
-            detail="No such account.",
-        )
-    return _login_user(db, request=request, user=user)
 
 
 # TODO should remove out of api
@@ -204,6 +127,9 @@ def pay_reward_for_invitation(
     return None
 
 
+# NOTE: @limiter.limit sits *above* @router.post here, so the router registered
+# the undecorated function and this limit never applies. Pre-existing; preserved
+# deliberately -- moving it would be a behavior change, not a refactor.
 @limiter.limit("1/minute")
 @router.post("/password-recovery/{email}", response_model=schemas.GenericResponse)
 def recover_password(
@@ -212,19 +138,7 @@ def recover_password(
     """
     Password Recovery
     """
-    user = crud.user.get_by_email(db, email=email) #Optional[User]
-
-    if not user:
-        raise HTTPException_(
-            status_code=404,
-            detail="The user with this email does not exist in the system.",
-        )
-    crud.audit_log.create_with_user(
-        db, ipaddr=client_ip(request), user_id=user.id, api=f"Password reset email sent to {email}"
-    )
-    password_reset_token = generate_password_reset_token(email=email)
-    send_reset_password_email(email=user.email, token=password_reset_token)
-    return schemas.GenericResponse()
+    return auth_service.recover_password(db, request=request, email=email)
 
 
 @router.post("/send-verification-code", response_model=schemas.GenericResponse)
@@ -233,26 +147,9 @@ def send_verification_code(
     response: Response, request: Request, *, request_in: VerificationCodeRequest,
     db: Session = Depends(deps.get_db)
 ) -> Any:
-
-    logger.info(str(request_in))
-    logger.info("sending verification")
-    if request_in.email is None:
-        raise HTTPException_(
-            status_code=422,
-            detail="Email not provided",
-        )
-    # TODO audit log should support user_id is NULL. 2025-Jul-06
-    crud.audit_log.create_with_user(
-        db, ipaddr=client_ip(request), user_id=1, api="send_verification_code to email " + request_in.email
+    return auth_service.send_verification_code(
+        db, request=request, request_in=request_in
     )
-    code = create_digit_verification_code(6)
-    send_verification_code_email(email=request_in.email, code=code)
-    register_digit_verification_code(request_in.email, code)
-    # We may switch to trio + hypercorn in future 2025-Jul-06
-    #async with trio.open_nursery() as nursery:
-    #    nursery.start_soon(send_verification_code_email,email=request_in.email, code=code)
-    #    nursery.start_soon(register_digit_verification_code, request_in.email, code)
-    return schemas.GenericResponse()
 
 
 @router.post("/open-account", response_model=schemas.User)
@@ -324,9 +221,7 @@ def check_token_validity(
     """
     Check JWT token validity
     """
-    q = parse_qs(body)
-    token = q["token"][0]
-    return schemas.GenericResponse(success=check_token_validity_impl(token))
+    return auth_service.check_token_validity(body=body)
 
 
 @router.post("/reset-password/", response_model=schemas.GenericResponse)
@@ -338,26 +233,7 @@ def reset_password(
     """
     Reset password
     """
-    check_password(new_password)
-    email = verify_password_reset_token(token)
-    if not email:
-        raise HTTPException_(status_code=400, detail="Invalid token")
-    user = crud.user.get_by_email(db, email=email)
-    if not user:
-        raise HTTPException_(
-            status_code=404,
-            detail="The user with this email does not exist in the system.",
-        )
-    elif not crud.user.is_active(user):
-        raise HTTPException_(status_code=400, detail="Inactive user")
-    crud.audit_log.create_with_user(
-        db, ipaddr="0.0.0.0", user_id=user.id, api="Reset password with token"
-    )
-    hashed_password = get_password_hash(new_password)
-    user.hashed_password = hashed_password
-    db.add(user)
-    db.commit()
-    return schemas.GenericResponse()
+    return auth_service.reset_password(db, token=token, new_password=new_password)
 
 
 @router.get("/unsubscribe", response_class=HTMLResponse, include_in_schema=False)
