@@ -9,10 +9,10 @@ from chafan_core.app.crud.crud_activity import (
     create_submission_activity,
     upvote_submission_activity,
 )
+from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.submission import Submission, SubmissionUpvotes
 from chafan_core.app.models.topic import Topic
 from chafan_core.app.schemas.submission import SubmissionCreate, SubmissionUpdate
-from chafan_core.app.search import do_search
 from chafan_core.utils.base import get_uuid
 
 
