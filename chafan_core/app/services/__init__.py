@@ -41,6 +41,7 @@ from chafan_core.app.services import (
     viewcounts,
     webhook_delivery,
     webhooks,
+    welcome_test,
 )
 
 __all__ = [
@@ -84,4 +85,5 @@ __all__ = [
     "viewcounts",
     "webhook_delivery",
     "webhooks",
+    "welcome_test",
 ]

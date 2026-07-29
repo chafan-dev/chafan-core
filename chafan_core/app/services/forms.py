@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import List
 
+from pydantic import TypeAdapter
 from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, models, schemas
@@ -96,6 +97,57 @@ def validate_form_response(
             )
         else:
             raise Exception(f"Unknown field: {form_field.field_type}")
+
+
+def compute_score_of_form_response(
+    form_response: models.FormResponse,
+) -> schemas.msg.Scores:
+    score = 0
+    full_score = 0
+    indexed_response_fields = {
+        f.unique_name: f
+        for f in TypeAdapter(List[FormResponseField]).validate_python(
+            form_response.response_fields
+        )
+    }
+    for form_field in TypeAdapter(List[FormField]).validate_python(
+        form_response.form.form_fields
+    ):
+        assert form_field.unique_name in indexed_response_fields
+        response_field = indexed_response_fields[form_field.unique_name]
+        if isinstance(form_field.field_type, TextField):
+            pass
+        elif isinstance(form_field.field_type, MultipleChoicesField):
+            assert isinstance(response_field.field_content, MultipleChoiceResponseField)
+            if form_field.field_type.correct_choices is not None:
+                assert form_field.field_type.score_per_correct_choice is not None
+                full_score += (
+                    len(form_field.field_type.correct_choices)
+                    * form_field.field_type.score_per_correct_choice
+                )
+                for select_choice in response_field.field_content.selected_choices:
+                    if select_choice in form_field.field_type.correct_choices:
+                        score += form_field.field_type.score_per_correct_choice
+                    else:
+                        score -= form_field.field_type.score_per_correct_choice
+        elif isinstance(form_field.field_type, SingleChoiceField):
+            assert isinstance(response_field.field_content, SingleChoiceResponseField)
+            if form_field.field_type.correct_choice is not None:
+                assert form_field.field_type.score is not None
+                full_score += form_field.field_type.score
+                if (
+                    response_field.field_content.selected_choice
+                    == form_field.field_type.correct_choice
+                ):
+                    score += form_field.field_type.score
+        else:
+            raise Exception(f"Unknown field: {form_field.field_type}")
+    if score < 0:
+        score = 0
+    return schemas.msg.Scores(
+        full_score=full_score,
+        score=score,
+    )
 
 
 def create_form_response(

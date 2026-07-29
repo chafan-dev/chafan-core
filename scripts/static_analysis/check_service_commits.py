@@ -40,11 +40,9 @@ BOUNDARY_FILES = {
 
 # Files permitted to keep a commit, keyed by path rather than path:line so a
 # moved line cannot silently re-arm the exemption. Must only ever shrink.
-ALLOWLIST: set[str] = {
-    # Mid-migration: the last endpoint holding business logic. It also sits
-    # on check_layer_imports.py's allowlist; clearing it clears both.
-    "chafan_core/app/api/api_v1/endpoints/login.py",
-}
+# Empty: endpoints/login.py was the last entry, and clearing it cleared both
+# this and check_layer_imports.py's allowlist. Nothing may be added back.
+ALLOWLIST: set[str] = set()
 
 
 def iter_py_files(base: Path):
