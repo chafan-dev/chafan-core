@@ -10,6 +10,11 @@ if TYPE_CHECKING:
 
 
 class Activity(Base):
+    """A published event: what happened, and where it may be seen.
+
+    Subject-oriented, carries the payload. See docs/glossary.md.
+    """
+
     id = Column(Integer, primary_key=True, index=True)
     site_id = Column(Integer, ForeignKey("site.id"), index=True)
     site: Optional["Site"] = relationship("Site", foreign_keys=[site_id])  # type: ignore

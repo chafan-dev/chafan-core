@@ -10,6 +10,12 @@ if TYPE_CHECKING:
 
 
 class Notification(Base):
+    """A directed delivery of one event to one receiver, with read state.
+
+    Re-serializes the event rather than referencing an Activity. See
+    docs/glossary.md.
+    """
+
     id = Column(Integer, primary_key=True, index=True)
     receiver_id = Column(Integer, ForeignKey("user.id"), nullable=False, index=True)
     receiver = relationship("User", back_populates="notifications")
