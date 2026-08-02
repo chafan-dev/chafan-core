@@ -14,15 +14,15 @@ def site_rss_xml(ctx, *, subdomain: str) -> str:
         raise HTTPException_(status_code=404, detail="No such site " + subdomain)
     if not site.public_readable:
         raise HTTPException_(status_code=405, detail="Not allowed " + subdomain)
-    activities = get_site_activities(ctx, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
-    return build_rss(activities, site)
+    contents = get_site_activities(ctx, site, settings.LIMIT_RSS_RESPONSE_ITEMS)
+    return build_rss(contents, site)
 
 
 def full_site_rss_xml(ctx, *, passcode: str) -> str:
     code = settings.DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE
     if code is None or code == "" or code != passcode:
         raise HTTPException_(status_code=405, detail="Not allowed ")
-    activities = get_site_activities(
+    contents = get_site_activities(
         ctx, None, settings.LIMIT_RSS_ADMIN_TOOL_FULL_SITE_ITEMS, True
     )
-    return build_rss(activities, site=None)
+    return build_rss(contents, site=None)

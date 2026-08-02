@@ -1,8 +1,5 @@
 from chafan_core.app.infra.request_context import RequestContext
-from typing import Dict, List, NamedTuple, Optional, Set, Any
-import sentry_sdk
-import json
-from sqlalchemy.orm import Session
+from typing import Dict, List, NamedTuple, Optional, Set
 
 from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
@@ -10,24 +7,16 @@ from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.schemas.activity import UserFeedSettings
 from chafan_core.app.schemas.event import (
     AnswerQuestionInternal,
-    CommentAnswerInternal,
-    CommentArticleInternal,
-    CommentQuestionInternal,
-    CommentSubmissionInternal,
     CreateArticleInternal,
     CreateQuestionInternal,
-    CreateSubmissionInternal,
     EventInternal,
-    FollowUserInternal,
-    ReplyCommentInternal,
-    SubscribeArticleColumnInternal,
-    UpvoteAnswerInternal,
-    UpvoteArticleInternal,
-    UpvoteQuestionInternal,
-    UpvoteSubmissionInternal,
 )
-from chafan_core.app.infra.runtime import execute_with_broker, execute_with_db
-from chafan_core.db.session import SessionLocal
+from chafan_core.app.services.activity_policy import (
+    ALWAYS_PUBLIC_EVENT_VERBS,
+    Audience,
+    feed_audience_of,
+)
+from chafan_core.app.infra.runtime import execute_with_broker
 from chafan_core.utils.base import map_, unwrap
 
 import logging
@@ -42,13 +31,29 @@ class ActivityDistributionInfo(NamedTuple):
 
 
 def lookup_activity_receiver_list(broker: RequestContext, activity: models.Activity)->ActivityDistributionInfo:
+    """Resolve who receives a Feed row for ``activity``.
+
+    The audience per verb comes from :data:`activity_policy.POLICY`; see that
+    module for the full matrix and for the v1 rules that are recorded there
+    but not yet applied.
+    """
     try:
         event = EventInternal.parse_raw(activity.event_json)
     except Exception:
         logger.error("failed to parse Event " + activity.event_json)
         return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
-    # TODO We need to consider different types of events 2025-07-20
     logger.info(f"get event: {event}")
+    audience = feed_audience_of(event.content.verb)
+    if audience is None:
+        # No verb reaching fan-out today has a null audience; if one does, the
+        # policy table is the place to add it.
+        logger.warning(
+            "no feed audience for verb %s; activity %s not fanned out",
+            event.content.verb,
+            activity.id,
+        )
+        return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
+    assert audience is Audience.SUBJECT_FOLLOWERS, audience
     assert hasattr(event.content, "subject_id")
     read_db = broker.get_db()
     subject = crud.user.get(read_db, id=event.content.subject_id)
@@ -81,115 +86,6 @@ def new_activity_into_feed(broker: RequestContext, activity:models.Activity) -> 
                 )
             )
 
-
-
-# TODO This is the v1 api. To be removed. 2025-07-19
-def get_activity_dist_info(
-    read_db: Session, activity: models.Activity
-) -> ActivityDistributionInfo:
-    receivers: Dict[int, models.User] = {}
-    subject_user_uuid = None
-    try:
-        event = EventInternal.parse_raw(activity.event_json)
-    except Exception:
-        sentry_sdk.capture_message(
-            f"Failed to materialize event: {activity.event_json}",
-        )
-        return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
-
-    if hasattr(event.content, "subject_id"):
-        subject = crud.user.get(read_db, id=event.content.subject_id)
-        assert subject is not None
-        subject_user_uuid = subject.uuid
-        for follower in subject.followers:
-            receivers[follower.id] = follower
-    if isinstance(event.content, CreateQuestionInternal):
-        question = crud.question.get(read_db, id=event.content.question_id)
-        assert question is not None
-        for profile in question.site.profiles:
-            if profile.owner_id != event.content.subject_id:
-                receivers[profile.owner_id] = profile.owner
-    elif isinstance(event.content, CreateSubmissionInternal):
-        pass
-    elif isinstance(event.content, UpvoteSubmissionInternal):
-        pass
-    elif isinstance(event.content, CommentSubmissionInternal):
-        pass
-    elif isinstance(event.content, CreateArticleInternal):
-        article = crud.article.get(read_db, id=event.content.article_id)
-        assert article is not None
-        for user in article.article_column.subscribers:
-            if user.id != event.content.subject_id:
-                receivers[user.id] = user
-    elif isinstance(event.content, AnswerQuestionInternal):
-        answer = crud.answer.get(read_db, id=event.content.answer_id)
-        assert answer is not None
-        for user in answer.question.subscribers:
-            if user.id != event.content.subject_id:
-                receivers[user.id] = user
-    elif isinstance(event.content, UpvoteAnswerInternal):
-        answer = crud.answer.get(read_db, id=event.content.answer_id)
-        assert answer is not None
-        for answer_upvote in read_db.query(models.Answer_Upvotes).filter_by(
-            answer_id=answer.id
-        ):
-            if answer_upvote.voter_id in receivers:
-                del receivers[answer_upvote.voter_id]
-        if answer.author_id in receivers:
-            del receivers[answer.author_id]
-    elif isinstance(event.content, UpvoteQuestionInternal):
-        question = crud.question.get(read_db, id=event.content.question_id)
-        assert question is not None
-        for question_upvote in read_db.query(models.QuestionUpvotes).filter_by(
-            question_id=question.id
-        ):
-            if question_upvote.voter_id in receivers:
-                del receivers[question_upvote.voter_id]
-        if question.author_id in receivers:
-            del receivers[question.author_id]
-    elif isinstance(event.content, UpvoteArticleInternal):
-        article = crud.article.get(read_db, id=event.content.article_id)
-        assert article is not None
-        for article_upvote in read_db.query(models.ArticleUpvotes).filter_by(
-            article_id=article.id
-        ):
-            if article_upvote.voter_id in receivers:
-                del receivers[article_upvote.voter_id]
-        if article.author_id in receivers:
-            del receivers[article.author_id]
-    elif isinstance(event.content, SubscribeArticleColumnInternal):
-        article_column = crud.article_column.get(
-            read_db, id=event.content.article_column_id
-        )
-        assert article_column is not None
-        for user in article_column.subscribers:
-            if user.id in receivers:
-                del receivers[user.id]
-        if article_column.owner_id in receivers:
-            del receivers[article_column.owner_id]
-    elif isinstance(event.content, CommentQuestionInternal):
-        pass
-    elif isinstance(event.content, CommentAnswerInternal):
-        pass
-    elif isinstance(event.content, CommentArticleInternal):
-        pass
-    elif isinstance(event.content, ReplyCommentInternal):
-        pass
-    elif isinstance(event.content, FollowUserInternal):
-        if event.content.user_id in receivers:
-            del receivers[event.content.user_id]
-        removed_receiver_ids = []
-        for receiver in receivers.values():
-            if receiver.followed.filter_by(id=event.content.user_id).first():  # type: ignore
-                removed_receiver_ids.append(receiver.id)
-        for i in removed_receiver_ids:
-            del receivers[i]
-    else:
-        sentry_sdk.capture_message(f"Unknown event: {event}")
-        return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
-    return ActivityDistributionInfo(
-        receiver_ids=set(receivers.keys()), subject_user_uuid=subject_user_uuid
-    )
 
 
 def is_blocked(
@@ -273,22 +169,23 @@ def get_site_activities(
     site,
     limit: int,
     all_sites = False) -> List[BaseCrudModel]:
+    """The content (questions/answers/articles) behind a site's recent activities."""
     db = ctx.get_db()
     if (site is None) and (not all_sites):
         raise ValueError("site not found ")
     if (not all_sites) and (not site.public_readable):
         raise ValueError("site not allowed ")
-    feeds = db.query(models.Activity)
+    activities = db.query(models.Activity)
     if not all_sites:
-        feeds = feeds.filter_by(site_id=site.id)
-    feeds = feeds.order_by(models.Activity.id.desc()).limit(limit)
-    activities = []
-    for feed in feeds:
-        obj = get_content_from_eventjson(ctx, feed.event_json)
+        activities = activities.filter_by(site_id=site.id)
+    activities = activities.order_by(models.Activity.id.desc()).limit(limit)
+    contents = []
+    for activity in activities:
+        obj = get_content_from_eventjson(ctx, activity.event_json)
         if obj is not None:
             assert isinstance(obj, BaseCrudModel)
-            activities.append(obj)
-    return activities
+            contents.append(obj)
+    return contents
 
 def get_activities_v2(
     *,
@@ -366,11 +263,6 @@ def get_activities( # TODO to remove this function
         return data
     else:
         return []
-
-
-ALWAYS_PUBLIC_EVENT_VERBS = set(
-    ["create_article", "comment_article", "upvote_article", "follow_article_column"]
-)
 
 
 def _is_public_activity(activity: schemas.Activity) -> bool:

@@ -12,6 +12,11 @@ if TYPE_CHECKING:
 
 
 class Feed(Base):
+    """Delivery of one Activity to one receiver.
+
+    Receiver-oriented index, not a payload. See docs/glossary.md.
+    """
+
     id = Column(Integer, primary_key=True, index=True)
     receiver_id = Column(Integer, ForeignKey("user.id"), index=True, nullable=False)
     receiver = relationship("User", foreign_keys=[receiver_id])
