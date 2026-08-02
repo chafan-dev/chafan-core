@@ -22,8 +22,6 @@ from chafan_core.app.recs.indexing import (
     compute_interesting_users_ids_for_visitor_user,
 )
 from chafan_core.app.schemas.event import (
-    AcceptAnswerSuggestEditInternal,
-    AcceptSubmissionSuggestionInternal,
     AnswerQuestionInternal,
     AnswerUpdateInternal,
     CommentAnswerInternal,
@@ -33,7 +31,6 @@ from chafan_core.app.schemas.event import (
     CreateAnswerSuggestEditInternal,
     CreateArticleInternal,
     CreateQuestionInternal,
-    CreateSubmissionInternal,
     CreateSubmissionSuggestionInternal,
     EditQuestionInternal,
     EventInternal,
@@ -308,16 +305,9 @@ def postprocess_new_submission(submission_id: int) -> None:
     def runnable(broker: RequestContext) -> None:
         submission = crud.submission.get(broker.get_db(), id=submission_id)
         assert submission is not None
-        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        event_json = EventInternal(
-            created_at=utc_now,
-            content=CreateSubmissionInternal(
-                subject_id=submission.author.id,
-                submission_id=submission.id,
-            ),
-        ).json()
-        # TODO event to feed? 2025-Sep-14
-
+        # NOTE: crud.submission.create_with_author already wrote the Activity for
+        # this submission, but nothing fans it out. See activity_policy.POLICY
+        # ["create_submission"]. TODO event to feed? 2025-Sep-14
         rep.award_submission_created(broker.get_db(), submission.author, submission)
         postprocess_submission_common(submission)
         for webhook in submission.site.webhooks:
@@ -363,14 +353,8 @@ def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> N
             db, id=submission_suggestion_id
         )
         assert submission_suggestion is not None
-        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        event_json = EventInternal(
-            created_at=utc_now,
-            content=AcceptSubmissionSuggestionInternal(
-                subject_id=submission_suggestion.author.id,
-                submission_suggestion_id=submission_suggestion.id,
-            ),
-        ).json()
+        # NOTE: no accept_submission_suggestion event is delivered anywhere.
+        # See activity_policy.POLICY["accept_submission_suggestion"].
         rep.award_submission_suggestion_accepted(
             db, submission_suggestion.author, submission_suggestion
         )
@@ -410,14 +394,8 @@ def postprocess_accept_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
             db, id=answer_suggest_edit_id
         )
         assert answer_suggest_edit is not None
-        utc_now = get_utc_now()
-        event_json = EventInternal(
-            created_at=utc_now,
-            content=AcceptAnswerSuggestEditInternal(
-                subject_id=answer_suggest_edit.author.id,
-                answer_suggest_edit_id=answer_suggest_edit.id,
-            ),
-        ).json()
+        # NOTE: no accept_answer_suggest_edit event is delivered anywhere.
+        # See activity_policy.POLICY["accept_answer_suggest_edit"].
         rep.award_answer_suggest_accepted(
             db, answer_suggest_edit.author, answer_suggest_edit
         )
