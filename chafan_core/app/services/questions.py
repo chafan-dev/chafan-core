@@ -21,6 +21,7 @@ from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import check_user_in_site, user_in_site
 from chafan_core.utils.base import HTTPException_, filter_not_none
 import chafan_core.app.responders as responders
+from chafan_core.app.services import events
 
 
 def get_question_model(db: Session, uuid: str) -> Optional[models.Question]:
@@ -345,10 +346,9 @@ def invite_answer(ctx, *, uuid: str, user_uuid: str) -> None:
         op_type=OperationType.WriteSiteQuestion,
     )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-    crud.notification.create_with_content(
+    events.distribute(
         ctx.broker,
-        receiver_id=invited_user.id,
-        event=EventInternal(
+        EventInternal(
             created_at=utc_now,
             content=InviteAnswerInternal(
                 subject_id=ctx.unwrapped_principal_id(),
@@ -411,6 +411,16 @@ def upvote_question(ctx, *, uuid: str) -> schemas.QuestionUpvotes:
                 ),
                 payer=current_user,
                 payee=question.author,
+            )
+            events.distribute(
+                ctx,
+                EventInternal(
+                    created_at=utc_now,
+                    content=UpvoteQuestionInternal(
+                        subject_id=current_user.id,
+                        question_id=question.id,
+                    ),
+                ),
             )
         db.refresh(question)
     valid_upvotes = (

@@ -19,6 +19,8 @@ from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.utils.base import HTTPException_, filter_not_none
 import chafan_core.app.responders as responders
+from chafan_core.app.schemas.event import CreateSubmissionInternal
+from chafan_core.app.services import events
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +215,16 @@ def create_submission(
     new_submission = crud.submission.create_with_author(
         db, obj_in=submission_in, author_id=author.id
     )
+    events.distribute(
+        ctx,
+        EventInternal(
+            created_at=new_submission.created_at,
+            content=CreateSubmissionInternal(
+                subject_id=new_submission.author_id,
+                submission_id=new_submission.id,
+            ),
+        ),
+    )
     data = submission_schema(ctx, new_submission)
     assert data is not None
     return new_submission, data
@@ -405,6 +417,16 @@ def upvote_submission(ctx, *, uuid: str) -> schemas.SubmissionUpvotes:
                 ),
                 payer=current_user,
                 payee=submission.author,
+            )
+            events.distribute(
+                ctx,
+                EventInternal(
+                    created_at=utc_now,
+                    content=UpvoteSubmissionInternal(
+                        subject_id=current_user.id,
+                        submission_id=submission.id,
+                    ),
+                ),
             )
         db.refresh(submission)
     valid_upvotes = (

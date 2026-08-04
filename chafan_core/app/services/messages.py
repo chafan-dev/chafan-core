@@ -8,6 +8,8 @@ from chafan_core.app import crud, schemas
 from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.user_permission import check_user_in_channel
 from chafan_core.utils.base import HTTPException_
+from chafan_core.app.schemas.event import EventInternal, CreateMessageInternal
+from chafan_core.app.services import events
 
 
 def get_message(ctx, message_id: int) -> schemas.Message:
@@ -34,6 +36,18 @@ def create_message(ctx, *, message_in: schemas.MessageCreate) -> schemas.Message
         ctx,
         obj_in=message_in,
         author=current_user,
+    )
+    # CHANNEL_MEMBERS minus Exclusion.SUBJECT reproduces the sender skip that
+    # crud.message.create_with_author used to do inline.
+    events.distribute(
+        ctx,
+        EventInternal(
+            created_at=message.created_at,
+            content=CreateMessageInternal(
+                subject_id=current_user.id,
+                channel_id=channel.id,
+            ),
+        ),
     )
     return misc_responder.message_schema_from_orm(ctx.principal_view, message)
 

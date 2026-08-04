@@ -8,10 +8,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
 
 from chafan_core.app.config import settings
-from chafan_core.app.crud.crud_activity import (
-    follow_user_activity,
-    subscribe_article_column_activity,
-)
 from chafan_core.app.models.answer import Answer
 from chafan_core.app.models.article import Article
 from chafan_core.app.models.article_column import ArticleColumn
@@ -182,14 +178,6 @@ def add_follower(db: Session, *, db_obj: User, follower: User) -> User:
         db_obj.followers.append(follower)
         db.flush()
         db.refresh(db_obj)
-        db.add(
-            follow_user_activity(
-                follower=follower,
-                followed=db_obj,
-                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-            )
-        )
-        db.flush()
     return db_obj
 
 
@@ -247,13 +235,6 @@ def subscribe_article_column(
 ) -> User:
     if article_column not in db_obj.subscribed_article_columns:
         db_obj.subscribed_article_columns.append(article_column)
-        db.add(
-            subscribe_article_column_activity(
-                user=db_obj,
-                article_column=article_column,
-                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-            )
-        )
         db.flush()
         db.refresh(db_obj)
     return db_obj

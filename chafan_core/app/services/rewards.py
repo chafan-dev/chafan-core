@@ -22,6 +22,7 @@ from chafan_core.app.schemas.reward import (
 )
 from chafan_core.app.user_permission import can_read_answer, user_in_site
 from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import events
 
 
 def list_rewards(ctx) -> List[schemas.Reward]:
@@ -72,10 +73,9 @@ def create_reward(ctx, *, reward_in: RewardCreate) -> schemas.Reward:
                 reward_id=reward.id,
             )
     if reward_event is not None:
-        crud.notification.create_with_content(
+        events.distribute(
             ctx,
-            receiver_id=receiver.id,
-            event=EventInternal(
+            EventInternal(
                 created_at=reward.created_at,
                 content=reward_event,
             ),
@@ -145,10 +145,9 @@ def claim_reward(ctx, *, reward_id: int) -> schemas.Reward:
                 reward_id=reward.id,
             )
     if reward_event is not None:
-        crud.notification.create_with_content(
+        events.distribute(
             ctx,
-            receiver_id=reward.giver.id,
-            event=EventInternal(
+            EventInternal(
                 created_at=utc_now,
                 content=reward_event,
             ),

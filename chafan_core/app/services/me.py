@@ -27,6 +27,8 @@ from chafan_core.app.services import sites as sites_service
 from chafan_core.app.services import submissions as submissions_service
 from chafan_core.utils.base import HTTPException_
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
+from chafan_core.app.schemas.event import SubscribeArticleColumnInternal
+from chafan_core.app.services import events
 
 
 def get_me(ctx) -> schemas.User:
@@ -254,21 +256,30 @@ def follow_user(ctx, *, uuid: str) -> schemas.UserFollows:
             status_code=400,
             detail="The followed_user doesn't exist in the system.",
         )
+    already_following = current_user in followed_user.followers
     followed_user = crud.user.add_follower(
         db, db_obj=followed_user, follower=current_user
     )
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-    crud.notification.create_with_content(
-        ctx,
-        receiver_id=followed_user.id,
-        event=EventInternal(
-            created_at=utc_now,
-            content=FollowUserInternal(
-                subject_id=current_user.id,
-                user_id=followed_user.id,
-            ),
+    follow_event = EventInternal(
+        created_at=utc_now,
+        content=FollowUserInternal(
+            subject_id=current_user.id,
+            user_id=followed_user.id,
         ),
     )
+    # The two sinks do not share a condition here: the followed user is
+    # notified even on a repeat follow, while the Activity is written only for
+    # a new one. That asymmetry is pre-existing -- see 3b.
+    events.distribute(
+        ctx, follow_event, sinks=frozenset({events.Sink.NOTIFICATION})
+    )
+    if not already_following:
+        events.distribute(
+            ctx,
+            follow_event,
+            sinks=frozenset({events.Sink.ACTIVITY, events.Sink.FEED}),
+        )
     return schemas.UserFollows(
         user_uuid=uuid,
         followers_count=followed_user.followers.count(),
@@ -569,9 +580,21 @@ def subscribe_article_column(
             status_code=400,
             detail="The article_column doesn't exist in the system.",
         )
+    already_subscribed = article_column in current_user.subscribed_article_columns
     current_user = crud.user.subscribe_article_column(
         db, db_obj=current_user, article_column=article_column
     )
+    if not already_subscribed:
+        events.distribute(
+            ctx,
+            EventInternal(
+                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                content=SubscribeArticleColumnInternal(
+                    subject_id=current_user.id,
+                    article_column_id=article_column.id,
+                ),
+            ),
+        )
     return schemas.UserArticleColumnSubscription(
         article_column_uuid=article_column.uuid,
         subscription_count=article_column.subscribers.count(),
