@@ -7,6 +7,7 @@ point of deriving from the event is that the ids resolve.
 """
 
 import datetime
+from typing import Set
 
 import pytest
 from sqlalchemy.orm import Session
@@ -18,6 +19,7 @@ from chafan_core.app.schemas.event import (
     AnswerQuestionInternal,
     CommentQuestionInternal,
     CreateQuestionInternal,
+    CreateSiteNeedApprovalInternal,
     EventInternal,
     FollowUserInternal,
     UpvoteQuestionInternal,
@@ -283,6 +285,114 @@ def test_comment_activity_requires_shared_to_timeline(ctx) -> None:
     )
     assert activity is not None
     assert activity.site_id == site.id
+
+
+def _boom(ctx: RequestContext, content: object) -> Set[int]:
+    raise RuntimeError("audience gone")
+
+
+def test_unresolvable_feed_audience_does_not_lose_the_activity(
+    ctx: RequestContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A broken resolver costs the fan-out, not the event or the caller's writes."""
+    db = ctx.get_db()
+    author = _user(db)
+    follower = _user(db)
+    author.followers.append(follower)
+    site = _site(db, moderator=author)
+    question = _question(db, author_id=author.id, site=site)
+    db.flush()
+    # Stands in for the domain-adjacent write that precedes distribute in
+    # postprocess_new_article -- the reputation award that used to be rolled
+    # back when an audience blew up.
+    prior_id = question.id
+
+    monkeypatch.setitem(events._RESOLVERS, Audience.SUBJECT_FOLLOWERS, _boom)
+
+    activity = events.distribute(
+        ctx,
+        EventInternal(
+            created_at=_now(),
+            content=CreateQuestionInternal(
+                subject_id=author.id, question_id=question.id
+            ),
+        ),
+    )
+
+    assert activity is not None, "the event still happened; it must still be recorded"
+    assert db.query(models.Feed).filter_by(activity_id=activity.id).count() == 0
+    assert crud.question.get(db, id=prior_id) is not None
+
+
+def test_unresolvable_notify_audience_does_not_raise(
+    ctx: RequestContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db = ctx.get_db()
+    answerer = _user(db)
+    db.flush()
+    before = db.query(models.Notification).count()
+
+    monkeypatch.setitem(events._RESOLVERS, Audience.QUESTION_AUTHOR, _boom)
+
+    activity = events.distribute(
+        ctx,
+        EventInternal(
+            created_at=_now(),
+            content=AnswerQuestionInternal(subject_id=answerer.id, answer_id=0),
+        ),
+    )
+
+    assert activity is not None
+    assert db.query(models.Notification).count() == before
+
+
+def test_missing_superuser_delivers_to_nobody(
+    ctx: RequestContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The concrete assert this change removes: crud.user.get_superuser."""
+    db = ctx.get_db()
+    subject = _user(db)
+    db.flush()
+    before = db.query(models.Notification).count()
+
+    monkeypatch.setattr(crud.user, "try_get_superuser", lambda db: None)
+
+    events.distribute(
+        ctx,
+        EventInternal(
+            created_at=_now(),
+            content=CreateSiteNeedApprovalInternal(subject_id=subject.id, channel_id=1),
+        ),
+    )
+
+    assert db.query(models.Notification).count() == before
+
+
+def test_failed_push_still_writes_the_notification(
+    ctx: RequestContext, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Redis blip loses the realtime ping, not the row behind it."""
+    db = ctx.get_db()
+    follower = _user(db)
+    followed = _user(db)
+    db.flush()
+    before = db.query(models.Notification).count()
+
+    def _push_boom(ctx: RequestContext, *, notif: models.Notification) -> None:
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr(events, "push_notification", _push_boom)
+
+    events.distribute(
+        ctx,
+        EventInternal(
+            created_at=_now(),
+            content=FollowUserInternal(subject_id=follower.id, user_id=followed.id),
+        ),
+        sinks=frozenset({events.Sink.NOTIFICATION}),
+    )
+
+    assert db.query(models.Notification).count() == before + 1
 
 
 def test_unknown_verb_is_dropped_not_raised(ctx) -> None:

@@ -30,6 +30,11 @@ the domain write, does not decide *whether* an event occurred (conditions like
 Delivery is not visibility. A ``Feed`` row grants nothing -- ``materialize_*``
 runs the full responder permission check per receiver at read time. A wrong
 audience yields an item that silently does not render, not a leak.
+
+Failure is contained. Because it writes into the caller's transaction, a
+delivery problem here -- an audience that cannot be resolved, a Redis push that
+fails -- is logged and skipped rather than raised, so it cannot roll back the
+domain writes the caller already made. See :func:`_resolve`.
 """
 
 from __future__ import annotations
@@ -236,7 +241,11 @@ def _site_moderator(ctx: RequestContext, c: object) -> Set[int]:
 
 
 def _superuser(ctx: RequestContext, c: object) -> Set[int]:
-    return {crud.user.get_superuser(ctx.get_db()).id}
+    superuser = crud.user.try_get_superuser(ctx.get_db())
+    if superuser is None:
+        logger.warning("no superuser; delivering to nobody")
+        return set()
+    return {superuser.id}
 
 
 def _reward_receiver(ctx: RequestContext, c: object) -> Set[int]:
@@ -278,11 +287,32 @@ _RESOLVERS: Dict[Audience, Callable[[RequestContext, object], Set[int]]] = {
 
 
 def _resolve(ctx: RequestContext, audience: Audience, content: object) -> Set[int]:
+    """Resolve an audience to receiver ids, degrading to nobody on failure.
+
+    A resolver walks relationships that the event's ids only *probably* reach:
+    a deleted column, a site with no moderator, a superuser row that is missing
+    in this deployment. None of that should propagate, because ``distribute``
+    writes into the caller's transaction -- an audience that cannot be resolved
+    would otherwise roll back the domain-adjacent writes the caller already
+    made, such as the reputation award and webhook delivery that precede
+    ``distribute`` in ``postprocess_new_article``.
+
+    Losing a fan-out is recoverable and visible in the log; losing the caller's
+    transaction is neither.
+    """
     resolver = _RESOLVERS.get(audience)
     if resolver is None:
         logger.warning("no resolver for audience %s; delivering to nobody", audience)
         return set()
-    return resolver(ctx, content)
+    try:
+        return resolver(ctx, content)
+    except Exception:
+        logger.exception(
+            "could not resolve audience %s for %s; delivering to nobody",
+            audience,
+            getattr(content, "verb", content),
+        )
+        return set()
 
 
 def _apply_exclusions(
@@ -382,7 +412,17 @@ def notify_users(
                 event_json=event.json(),
             ),
         )
-        push_notification(ctx, notif=notification)
+        # Same reasoning as _resolve: the row is durable in the caller's
+        # transaction and the receiver will see it on their next load. A Redis
+        # blip must not undo that, nor the caller's other writes.
+        try:
+            push_notification(ctx, notif=notification)
+        except Exception:
+            logger.exception(
+                "could not push notification %s to user %s; row still written",
+                notification.id,
+                receiver_id,
+            )
 
 
 # --------------------------------------------------------------------------
