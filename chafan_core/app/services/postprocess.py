@@ -390,7 +390,6 @@ def postprocess_new_article(article_id: int) -> None:
         )
         rep.award_article_created(broker.get_db(), article.author, article)
         events.distribute(broker, event_internal)
-        # TODO FIXME TABLE activitity 里同一篇文章有两条记录。看起来无害就先不管了 2025-aug-04
 
     execute_with_broker(runnable)
 
@@ -401,11 +400,10 @@ def postprocess_updated_article(article_id: int, was_published: bool) -> None:
         assert article is not None and article.is_published
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         if not was_published:
-            # NOTE: Since is_published will not be reverted, thus this should only be delivered once
-            # TODO: Implement the update subscription logic
-            # Activity only: this path has never fanned out or notified, and
-            # widening it here would not be a neutral change. 3b deletes this
-            # emitter outright -- it is one of create_article's three.
+            # The draft-to-published transition *is* the publication, so it
+            # distributes exactly like postprocess_new_article. is_published is
+            # never reverted, so this fires at most once per article -- and an
+            # article that took this route never fires the other one.
             events.distribute(
                 broker,
                 EventInternal(
@@ -415,7 +413,6 @@ def postprocess_updated_article(article_id: int, was_published: bool) -> None:
                         article_id=article.id,
                     ),
                 ),
-                sinks=frozenset({events.Sink.ACTIVITY}),
             )
 
     execute_with_broker(runnable)

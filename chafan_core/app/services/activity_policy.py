@@ -21,7 +21,7 @@ four sinks:
 
 Until now, the rules governing those four sinks lived in four disconnected
 places: the (dead) ``feed_impl.get_activity_dist_info``, the followers-only
-``feed_impl.lookup_activity_receiver_list``, ``feed_impl``'s
+``feed_impl.lookup_activity_receiver_list`` (both since deleted), ``feed_impl``'s
 ``ALWAYS_PUBLIC_EVENT_VERBS``, and 21 hand-written ``create_with_content``
 call sites spread over ``crud_message`` and six ``services`` modules. Nothing
 enforced that a verb was handled consistently, or handled at all.
@@ -35,8 +35,7 @@ fields that merely *describe* it.
 
 Authoritative — the code reads these and behaves accordingly:
 
-* :attr:`EventPolicy.feed_audience` — ``events.distribute`` and
-  ``feed_impl.lookup_activity_receiver_list``.
+* :attr:`EventPolicy.feed_audience` — ``events.distribute``.
 * :attr:`EventPolicy.always_public` — ``feed_impl._is_public_activity``.
 * :attr:`EventPolicy.writes_activity`, :attr:`EventPolicy.notifies` and
   :attr:`EventPolicy.notify_exclusions` — ``events.distribute``.
@@ -136,9 +135,9 @@ class EventPolicy:
     verb: str
 
     # -- authoritative ----------------------------------------------------
-    #: Audience receiving a ``Feed`` row when this verb is fanned out. ``None``
-    #: means no fan-out happens for this verb today.
-    feed_audience: Optional[Audience] = None
+    #: Audiences receiving a ``Feed`` row when this verb is fanned out, unioned.
+    #: Empty means no fan-out happens for this verb today.
+    feed_audience: Tuple[Audience, ...] = ()
     #: Visible in the random/discovery feed regardless of site readability.
     always_public: bool = False
 
@@ -173,7 +172,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     EventPolicy(
         "create_question",
         writes_activity=True,
-        feed_audience=Audience.SUBJECT_FOLLOWERS,
+        feed_audience=(Audience.SUBJECT_FOLLOWERS,),
         emitted_by=("services.postprocess.postprocess_new_question",),
         unapplied_feed_audience=(Audience.SITE_MEMBERS,),
         unapplied_exclusions=(Exclusion.SUBJECT,),
@@ -181,7 +180,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     EventPolicy(
         "answer_question",
         writes_activity=True,
-        feed_audience=Audience.SUBJECT_FOLLOWERS,
+        feed_audience=(Audience.SUBJECT_FOLLOWERS,),
         notifies=(Audience.QUESTION_AUTHOR,),
         notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_answer",),
@@ -191,21 +190,23 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     EventPolicy(
         "create_article",
         writes_activity=True,
-        feed_audience=Audience.SUBJECT_FOLLOWERS,
+        feed_audience=(
+            Audience.SUBJECT_FOLLOWERS,
+            Audience.ARTICLE_COLUMN_SUBSCRIBERS,
+        ),
         always_public=True,
         notifies=(Audience.ARTICLE_COLUMN_SUBSCRIBERS,),
         emitted_by=(
-            "crud.crud_article.create_with_author",
             "services.postprocess.postprocess_new_article",
             "services.postprocess.postprocess_updated_article",
         ),
-        unapplied_feed_audience=(Audience.ARTICLE_COLUMN_SUBSCRIBERS,),
         unapplied_exclusions=(Exclusion.SUBJECT,),
         note=(
-            "Three emitters, so publishing one article writes two or three "
-            "Activity rows; only postprocess_new_article fans out. "
-            "create_with_author writes unconditionally, including for drafts. "
-            "Column subscribers get a notification but no feed entry."
+            "Two emitters, one per publication route: created-published goes "
+            "through postprocess_new_article, draft-then-published through "
+            "postprocess_updated_article. They are mutually exclusive per "
+            "article because is_published is never reverted, so a published "
+            "article has exactly one Activity and a draft has none."
         ),
     ),
     EventPolicy(
@@ -426,16 +427,3 @@ assert len(POLICY) == len(_POLICIES), "duplicate verb in _POLICIES"
 ALWAYS_PUBLIC_EVENT_VERBS: frozenset[str] = frozenset(
     p.verb for p in _POLICIES if p.always_public
 )
-
-
-def feed_audience_of(verb: str) -> Audience | None:
-    """Audience for ``verb``'s fan-out, or ``None`` if it is not fanned out.
-
-    Returns ``None`` for a verb absent from :data:`POLICY` as well;
-    ``scripts/check.py`` guarantees that cannot happen for a verb reachable
-    through ``EventInternal``.
-    """
-    policy = POLICY.get(verb)
-    if policy is None:
-        return None
-    return policy.feed_audience

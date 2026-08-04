@@ -465,14 +465,18 @@ def distribute(
         db.flush()
 
     if Sink.FEED in sinks and activity is not None and policy.feed_audience:
-        receivers = _resolve(ctx, policy.feed_audience, content)
-        deliver(ctx, activity, receivers)
+        feed_receivers: Set[int] = set()
+        for audience in policy.feed_audience:
+            feed_receivers |= _resolve(ctx, audience, content)
+        deliver(ctx, activity, feed_receivers)
 
     if Sink.NOTIFICATION in sinks and policy.notifies:
-        receivers: Set[int] = set()
+        notify_receivers: Set[int] = set()
         for audience in policy.notifies:
-            receivers |= _resolve(ctx, audience, content)
-        receivers = _apply_exclusions(receivers, policy.notify_exclusions, content)
-        notify_users(ctx, event, receivers)
+            notify_receivers |= _resolve(ctx, audience, content)
+        notify_receivers = _apply_exclusions(
+            notify_receivers, policy.notify_exclusions, content
+        )
+        notify_users(ctx, event, notify_receivers)
 
     return activity
