@@ -167,6 +167,15 @@ def get_superuser(db: Session) -> User:
     return user
 
 
+def try_get_superuser(db: Session) -> Optional[User]:
+    """Like :func:`get_superuser`, but ``None`` instead of an assertion.
+
+    For callers that must not take down their transaction over a missing
+    superuser -- see ``services.events._superuser``.
+    """
+    return db.query(User).filter_by(is_superuser=True).first()
+
+
 def try_get_visitor_user(db: Session) -> Optional[User]:
     if not settings.VISITOR_USER_ID:
         return None
