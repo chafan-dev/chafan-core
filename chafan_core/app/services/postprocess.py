@@ -9,11 +9,7 @@ from sqlalchemy.orm.session import Session
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.config import settings
-from chafan_core.app.services.feed_impl import new_activity_into_feed
-from chafan_core.app.crud.crud_activity import (
-    create_answer_activity,
-    create_article_activity,
-)
+from chafan_core.app.services import events
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.recs.indexing import (
     compute_interesting_questions_ids_for_normal_user,
@@ -51,7 +47,6 @@ from chafan_core.app.services.webhook_delivery import (
 )
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import get_utc_now
-from chafan_core.app.models.activity import Activity
 import chafan_core.app.services.reputation as rep
 
 
@@ -72,15 +67,15 @@ def notify_mentioned_users(
             comment_id=comment.id,
         ),
     )
+    receiver_ids = set()
     for handle in user_handles:
         user = crud.user.get_by_handle(broker.get_db(), handle=handle)
         if user is None:
             continue
-        crud.notification.create_with_content(
-            broker,
-            receiver_id=user.id,
-            event=event,
-        )
+        receiver_ids.add(user.id)
+    # The one audience events.distribute cannot resolve: the handles come from
+    # the request payload, not from MentionedInCommentInternal.
+    events.notify_users(broker, event, receiver_ids)
 
 
 def get_comment_event(comment: models.Comment) -> Optional[EventInternal]:
@@ -143,60 +138,13 @@ def postprocess_new_comment(
         if mentioned:
             notify_mentioned_users(broker, comment, mentioned)
         event = get_comment_event(comment)
-        if event:
-            if (
-                comment.question is not None
-                and comment.author_id != comment.question.author_id
-            ):
-                crud.notification.create_with_content(
-                    broker,
-                    receiver_id=comment.question.author.id,
-                    event=event,
-                )
-            if (
-                comment.submission is not None
-                and comment.author_id != comment.submission.author_id
-            ):
-                crud.notification.create_with_content(
-                    broker,
-                    receiver_id=comment.submission.author.id,
-                    event=event,
-                )
-            if (
-                comment.answer is not None
-                and comment.author_id != comment.answer.author_id
-            ):
-                crud.notification.create_with_content(
-                    broker,
-                    receiver_id=comment.answer.author.id,
-                    event=event,
-                )
-            if (
-                comment.article is not None
-                and comment.author_id != comment.article.author_id
-            ):
-                crud.notification.create_with_content(
-                    broker,
-                    receiver_id=comment.article.author.id,
-                    event=event,
-                )
-            if (
-                comment.parent_comment is not None
-                and comment.author_id != comment.parent_comment.author_id
-            ):
-                crud.notification.create_with_content(
-                    broker,
-                    receiver_id=comment.parent_comment.author.id,
-                    event=event,
-                )
-        if shared_to_timeline and event is not None:
-            broker.get_db().add(
-                models.Activity(
-                    created_at=comment.updated_at,
-                    site_id=comment.site_id,
-                    event_json=event.json(),
-                )
-            )
+        if event is not None:
+            # The verb picks the notified author; Exclusion.SUBJECT reproduces
+            # the author_id != receiver_id guards. The Activity is written only
+            # when comment.shared_to_timeline, which distribute() derives, so
+            # the shared_to_timeline argument is now only a caller's record of
+            # what the request asked for.
+            events.distribute(broker, event)
 
     execute_with_broker(runnable)
 
@@ -214,13 +162,10 @@ def postprocess_comment_update(
         assert comment is not None
         event = get_comment_event(comment)
         if not was_shared_to_timeline and shared_to_timeline and event:
-            broker.get_db().add(
-                models.Activity(
-                    created_at=event.created_at,
-                    site_id=comment.site_id,
-                    event_json=event.json(),
-                )
-            )
+            # Activity only: the comment's author was already notified when the
+            # comment was created, and sharing it later must not notify again.
+            # A distinct verb would express this better -- see 3b.
+            events.distribute(broker, event, sinks=frozenset({events.Sink.ACTIVITY}))
         if mentioned:
             notify_mentioned_users(
                 broker,
@@ -243,24 +188,15 @@ def postprocess_new_question(question_id: int) -> None:
         question = crud.question.get(broker.get_db(), id=question_id)
         assert question is not None
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        event_json = EventInternal(
+        event = EventInternal(
             created_at=utc_now,
             content=CreateQuestionInternal(
                 subject_id=question.author.id,
                 question_id=question.id,
             ),
-        ).json()
+        )
         rep.award_question_created(broker.get_db(), question.author, question)
-
-        question_ac = models.Activity(
-                created_at=utc_now,
-                site_id=question.site_id,
-                event_json=event_json,
-            )
-        db = broker.get_db()
-        db.add(question_ac)
-        db.flush()
-        new_activity_into_feed(broker, question_ac)
+        events.distribute(broker, event)
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
             call_webhook(
@@ -280,18 +216,17 @@ def postprocess_updated_question(question_id: int) -> None:
         assert question is not None
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         assert question.editor_id is not None
-        if question.author_id != question.editor_id:
-            crud.notification.create_with_content(
-                broker,
-                receiver_id=question.author_id,
-                event=EventInternal(
-                    created_at=utc_now,
-                    content=EditQuestionInternal(
-                        subject_id=question.editor_id,
-                        question_id=question.id,
-                    ),
+        # Exclusion.SUBJECT drops the notification when the editor is the author.
+        events.distribute(
+            broker,
+            EventInternal(
+                created_at=utc_now,
+                content=EditQuestionInternal(
+                    subject_id=question.editor_id,
+                    question_id=question.id,
                 ),
-            )
+            ),
+        )
         postprocess_question_common(question)
 
     execute_with_broker(runnable)
@@ -337,12 +272,7 @@ def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None
         rep.award_submission_suggestion_created(
             broker.get_db(), submission_suggestion.author, submission_suggestion
         )
-
-        crud.notification.create_with_content(
-            broker,
-            receiver_id=submission_suggestion.submission.author_id,
-            event=event,
-        )
+        events.distribute(broker, event)
 
     execute_with_broker(runnable)
 
@@ -379,11 +309,7 @@ def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
         rep.award_answer_suggest_created(
             broker.get_db(), answer_suggest_edit.author, answer_suggest_edit
         )
-        crud.notification.create_with_content(
-            broker,
-            receiver_id=answer_suggest_edit.answer.author_id,
-            event=event,
-        )
+        events.distribute(broker, event)
 
     execute_with_broker(runnable)
 
@@ -419,37 +345,24 @@ def postprocess_new_answer(answer_id: int, was_published: bool) -> None:
         assert answer is not None and answer.is_published
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         if not was_published:
-            if answer.question.author.id != answer.author.id:
-                crud.notification.create_with_content(
-                    broker,
-                    event=EventInternal(
-                        created_at=utc_now,
-                        content=AnswerQuestionInternal(
-                            subject_id=answer.author.id, answer_id=answer.id
-                        ),
-                    ),
-                    receiver_id=answer.question.author.id,
-                )
-            answer_ac: Activity = create_answer_activity(
-                    answer=answer,
-                    site_id=answer.question.site.id,
-                    created_at=utc_now,
-                )
-            db = broker.get_db()
-            db.add(answer_ac)
-            db.flush()
-            new_activity_into_feed(broker, answer_ac)
-        for user in answer.bookmarkers:
-            crud.notification.create_with_content(
+            events.distribute(
                 broker,
-                event=EventInternal(
+                EventInternal(
                     created_at=utc_now,
-                    content=AnswerUpdateInternal(
+                    content=AnswerQuestionInternal(
                         subject_id=answer.author.id, answer_id=answer.id
                     ),
                 ),
-                receiver_id=user.id,
             )
+        events.distribute(
+            broker,
+            EventInternal(
+                created_at=utc_now,
+                content=AnswerUpdateInternal(
+                    subject_id=answer.author.id, answer_id=answer.id
+                ),
+            ),
+        )
         update_answer_keywords(answer)
         for webhook in answer.site.webhooks:
             call_webhook(
@@ -476,33 +389,36 @@ def postprocess_new_article(article_id: int) -> None:
             content=event,
         )
         rep.award_article_created(broker.get_db(), article.author, article)
-        for subscriber in article.article_column.subscribers:
-            crud.notification.create_with_content(
-                broker,
-                event=event_internal,
-                receiver_id=subscriber.id,
-            )
-        article_ac: Activity = create_article_activity(article=article, created_at=utc_now)
-        db = broker.get_db()
-        db.add(article_ac)
-        db.flush()
-        new_activity_into_feed(broker, article_ac)
+        events.distribute(broker, event_internal)
         # TODO FIXME TABLE activitity 里同一篇文章有两条记录。看起来无害就先不管了 2025-aug-04
 
     execute_with_broker(runnable)
 
 
 def postprocess_updated_article(article_id: int, was_published: bool) -> None:
-    def runnable(db: Session) -> None:
-        article = crud.article.get(db, id=article_id)
+    def runnable(broker: RequestContext) -> None:
+        article = crud.article.get(broker.get_db(), id=article_id)
         assert article is not None and article.is_published
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
         if not was_published:
             # NOTE: Since is_published will not be reverted, thus this should only be delivered once
             # TODO: Implement the update subscription logic
-            db.add(create_article_activity(article=article, created_at=utc_now))
+            # Activity only: this path has never fanned out or notified, and
+            # widening it here would not be a neutral change. 3b deletes this
+            # emitter outright -- it is one of create_article's three.
+            events.distribute(
+                broker,
+                EventInternal(
+                    created_at=utc_now,
+                    content=CreateArticleInternal(
+                        subject_id=article.author.id,
+                        article_id=article.id,
+                    ),
+                ),
+                sinks=frozenset({events.Sink.ACTIVITY}),
+            )
 
-    execute_with_db(SessionLocal(), runnable)
+    execute_with_broker(runnable)
 
 
 def postprocess_new_feedback(feedback_id: int) -> None:

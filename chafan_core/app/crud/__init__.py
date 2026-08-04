@@ -2,7 +2,6 @@
 
 # Each domain is a plain module of functions; the short aliases below keep the
 # historical `crud.<domain>.<fn>(db, ...)` call-site surface unchanged.
-from . import crud_activity as activity
 from . import crud_answer as answer
 from . import crud_answer_suggest_edit as answer_suggest_edit
 from . import crud_application as application

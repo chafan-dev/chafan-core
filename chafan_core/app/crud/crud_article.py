@@ -5,10 +5,6 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
-from chafan_core.app.crud.crud_activity import (
-    create_article_activity,
-    upvote_article_activity,
-)
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.article import Article, ArticleUpvotes
 from chafan_core.app.schemas.article import ArticleCreate, ArticleUpdate
@@ -59,13 +55,6 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
-    db.add(
-        create_article_activity(
-            article=db_obj,
-            created_at=utc_now,
-        )
-    )
-    db.flush()
     return db_obj
 
 
@@ -104,14 +93,6 @@ def upvote(db: Session, *, db_obj: Article, voter: models.User) -> Article:
         db_obj.upvotes_count += 1
         db.flush()
         db.refresh(db_obj)
-        db.add(
-            upvote_article_activity(
-                voter=voter,
-                article=db_obj,
-                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-            )
-        )
-        db.flush()
     elif article_upvote.cancelled:
         db_obj.upvotes_count += 1
         article_upvote.cancelled = False

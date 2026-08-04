@@ -24,6 +24,8 @@ from chafan_core.app.user_permission import (
 from chafan_core.utils.base import ContentVisibility, HTTPException_
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 import chafan_core.app.responders as responders
+from chafan_core.app.schemas.event import CreateArticleInternal
+from chafan_core.app.services import events
 
 logger = logging.getLogger(__name__)
 
@@ -232,6 +234,20 @@ def create_article(
     new_article = crud.article.create_with_author(
         ctx.get_db(), obj_in=article_in, author_id=current_user.id
     )
+    # Activity only, and unconditionally -- including for drafts. Both are
+    # what crud.article.create_with_author did before this moved up; neither
+    # is right, and 3b removes this emitter entirely.
+    events.distribute(
+        ctx,
+        EventInternal(
+            created_at=new_article.created_at,
+            content=CreateArticleInternal(
+                subject_id=new_article.author_id,
+                article_id=new_article.id,
+            ),
+        ),
+        sinks=frozenset({events.Sink.ACTIVITY}),
+    )
     data = article_schema(ctx, new_article)
     assert data is not None
     return new_article, data
@@ -415,6 +431,16 @@ def upvote_article(ctx, *, uuid: str) -> schemas.ArticleUpvotes:
             ),
             payer=current_user,
             payee=article.author,
+        )
+        events.distribute(
+            ctx,
+            EventInternal(
+                created_at=utc_now,
+                content=UpvoteArticleInternal(
+                    subject_id=current_user.id,
+                    article_id=article.id,
+                ),
+            ),
         )
     db.refresh(article)
     valid_upvotes = (

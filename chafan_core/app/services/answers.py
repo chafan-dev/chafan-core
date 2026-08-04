@@ -19,6 +19,7 @@ from chafan_core.app.user_permission import answer_read_allowed, check_user_in_s
 from chafan_core.utils.base import HTTPException_, get_utc_now, unwrap
 from chafan_core.utils.constants import MAX_ARCHIVE_PAGINATION_LIMIT
 import chafan_core.app.responders as responders
+from chafan_core.app.services import events
 
 logger = logging.getLogger(__name__)
 
@@ -445,10 +446,12 @@ def upvote_answer(ctx, *, uuid: str) -> schemas.AnswerUpvotes:
                 payer=current_user,
                 payee=answer.author,
             )
-            crud.notification.create_with_content(
+            # Activity (was in crud.answer.upvote) and the author's
+            # notification are the same event; both are gated on this being a
+            # first-time upvote, so one call covers them.
+            events.distribute(
                 ctx,
-                receiver_id=answer.author.id,
-                event=EventInternal(
+                EventInternal(
                     created_at=get_utc_now(),
                     content=UpvoteAnswerInternal(
                         subject_id=current_user.id,

@@ -1,13 +1,9 @@
-import datetime
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.models.notification import Notification
-from chafan_core.app.mq import push_notification
-from chafan_core.app.schemas.event import EventInternal
 from chafan_core.app.schemas.notification import NotificationCreate, NotificationUpdate
 
 
@@ -49,25 +45,6 @@ def create(db: Session, *, obj_in: NotificationCreate) -> Notification:
     db.flush()
     db.refresh(db_obj)
     return db_obj
-
-
-def create_with_content(
-    broker: RequestContext,
-    *,
-    event: EventInternal,
-    receiver_id: int,
-) -> Notification:
-    notification = create(
-        broker.get_db(),
-        obj_in=NotificationCreate(
-            receiver_id=receiver_id,
-            created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-            event_json=event.json(),
-        ),
-    )
-    # FIXME crud layer should not call higher level components. However, I'd leave it for now. 2025-Jul-11
-    push_notification(broker, notif=notification)
-    return notification
 
 
 def update(

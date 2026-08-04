@@ -11,6 +11,7 @@ from chafan_core.app.schemas.event import EventInternal, InviteJoinSiteInternal
 from chafan_core.app.services import sites as sites_service
 from chafan_core.app.user_permission import check_user_in_site
 from chafan_core.utils.base import HTTPException_
+from chafan_core.app.services import events
 
 
 def invite_user_to_site(ctx, *, user_invite_in: schemas.UserInvite) -> None:
@@ -49,10 +50,9 @@ def invite_user_to_site(ctx, *, user_invite_in: schemas.UserInvite) -> None:
                 db_obj=application,
                 obj_in=schemas.ApplicationUpdate(pending=False),
             )
-        crud.notification.create_with_content(
+        events.distribute(
             ctx,
-            receiver_id=invited_user.id,
-            event=EventInternal(
+            EventInternal(
                 created_at=utc_now,
                 content=InviteJoinSiteInternal(
                     subject_id=ctx.unwrapped_principal_id(),

@@ -38,18 +38,4 @@ def create_with_author(
     db.flush()
     db.refresh(db_obj)
     db_obj.channel.updated_at = utc_now
-    for member in db_obj.channel.members:
-        if member.id == author.id:
-            continue
-        crud.notification.create_with_content(
-            broker,
-            event=EventInternal(
-                created_at=utc_now,
-                content=CreateMessageInternal(
-                    subject_id=author.id,
-                    channel_id=db_obj.channel.id,
-                ),
-            ),
-            receiver_id=member.id,
-        )
     return db_obj

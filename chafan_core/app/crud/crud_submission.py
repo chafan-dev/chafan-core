@@ -5,10 +5,6 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
-from chafan_core.app.crud.crud_activity import (
-    create_submission_activity,
-    upvote_submission_activity,
-)
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.submission import Submission, SubmissionUpvotes
 from chafan_core.app.models.topic import Topic
@@ -50,14 +46,6 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
-    db.add(
-        create_submission_activity(
-            submission=db_obj,
-            site=db_obj.site,
-            created_at=utc_now,
-        )
-    )
-    db.flush()
     return db_obj
 
 
@@ -96,15 +84,6 @@ def upvote(db: Session, *, db_obj: Submission, voter: models.User) -> Submission
         db_obj.upvotes_count += 1
         db.flush()
         db.refresh(db_obj)
-        db.add(
-            upvote_submission_activity(
-                voter=voter,
-                site_id=db_obj.site_id,
-                submission=db_obj,
-                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-            )
-        )
-        db.flush()
     elif submission_upvote.cancelled:
         db_obj.upvotes_count += 1
         submission_upvote.cancelled = False

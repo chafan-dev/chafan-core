@@ -5,7 +5,6 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud
-from chafan_core.app.crud.crud_activity import upvote_answer_activity
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.answer import Answer, Answer_Upvotes
 from chafan_core.app.models.user import User
@@ -83,15 +82,6 @@ def upvote(db: Session, *, db_obj: Answer, voter: User) -> Answer:
         db_obj.upvotes_count += 1
         db.flush()
         db.refresh(db_obj)
-        db.add(
-            upvote_answer_activity(
-                voter=voter,
-                site_id=db_obj.site_id,
-                answer=db_obj,
-                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
-            )
-        )
-        db.flush()
     elif answer_upvote.cancelled:
         db_obj.upvotes_count += 1
         answer_upvote.cancelled = False

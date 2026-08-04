@@ -26,6 +26,7 @@ from chafan_core.app.schemas.site import SiteCreate
 from chafan_core.app.user_permission import check_user_in_site, user_in_site
 from chafan_core.utils.base import EntityType, HTTPException_, unwrap
 import chafan_core.app.responders as responders
+from chafan_core.app.services import events
 
 logger = logging.getLogger(__name__)
 
@@ -183,10 +184,9 @@ def create_site_for_user(ctx, *, site_in: schemas.SiteCreate) -> schemas.CreateS
             ),
         )
         utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        crud.notification.create_with_content(
+        events.distribute(
             ctx.broker,
-            receiver_id=admin.id,
-            event=EventInternal(
+            EventInternal(
                 created_at=utc_now,
                 content=CreateSiteNeedApprovalInternal(
                     subject_id=current_user.id,
@@ -417,10 +417,9 @@ def site_apply(ctx, *, uuid: str) -> schemas.SiteApplicationResponse:
             )
         return schemas.SiteApplicationResponse(auto_approved=True)
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-    crud.notification.create_with_content(
+    events.distribute(
         ctx,
-        receiver_id=site.moderator_id,
-        event=EventInternal(
+        EventInternal(
             created_at=utc_now,
             content=ApplyJoinSiteInternal(
                 subject_id=current_user.id,

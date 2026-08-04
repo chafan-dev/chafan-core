@@ -31,22 +31,21 @@ enforced that a verb was handled consistently, or handled at all.
 What is authoritative here, and what is only recorded
 -----------------------------------------------------
 This module is deliberately split between fields that *drive* behavior and
-fields that merely *describe* it. Consolidation came first; moving the
-remaining call sites behind a single ``emit()`` seam is a separate change.
+fields that merely *describe* it.
 
 Authoritative — the code reads these and behaves accordingly:
 
-* :attr:`EventPolicy.feed_audience` — consumed by
+* :attr:`EventPolicy.feed_audience` — ``events.distribute`` and
   ``feed_impl.lookup_activity_receiver_list``.
-* :attr:`EventPolicy.always_public` — consumed by
-  ``feed_impl._is_public_activity``.
+* :attr:`EventPolicy.always_public` — ``feed_impl._is_public_activity``.
+* :attr:`EventPolicy.writes_activity`, :attr:`EventPolicy.notifies` and
+  :attr:`EventPolicy.notify_exclusions` — ``events.distribute``.
 
-Descriptive — an audit of what the scattered call sites do today. Nothing
-reads these at runtime; they exist so the next change has a map instead of a
-grep, and so drift is visible in review:
+Descriptive — an audit of the call sites, read by nobody at runtime. They
+exist so the next change has a map instead of a grep, and so drift is visible
+in review:
 
-* :attr:`EventPolicy.writes_activity`, :attr:`EventPolicy.notifies`,
-  :attr:`EventPolicy.pays_coins`, :attr:`EventPolicy.emitted_by`.
+* :attr:`EventPolicy.pays_coins`, :attr:`EventPolicy.emitted_by`.
 
 Recorded but not applied:
 
@@ -148,6 +147,10 @@ class EventPolicy:
     writes_activity: bool = False
     #: Receivers of a ``Notification`` for this verb today.
     notifies: Tuple[Audience, ...] = ()
+    #: Exclusions subtracted from :attr:`notifies`. Unlike
+    #: :attr:`unapplied_exclusions` these *are* in force -- they reproduce the
+    #: ``author_id != receiver_id`` guards the notification call sites apply.
+    notify_exclusions: Tuple[Exclusion, ...] = ()
     #: Whether the event is used as a ``CoinPayment`` reason.
     pays_coins: bool = False
     #: Dotted references to the functions that construct this event. Empty
@@ -180,6 +183,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
         writes_activity=True,
         feed_audience=Audience.SUBJECT_FOLLOWERS,
         notifies=(Audience.QUESTION_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_answer",),
         unapplied_feed_audience=(Audience.QUESTION_SUBSCRIBERS,),
         unapplied_exclusions=(Exclusion.SUBJECT,),
@@ -216,6 +220,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
         "comment_question",
         writes_activity=True,
         notifies=(Audience.QUESTION_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_comment",),
         note="Activity only when the comment is shared to timeline; never fanned out.",
     ),
@@ -223,6 +228,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
         "comment_answer",
         writes_activity=True,
         notifies=(Audience.ANSWER_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_comment",),
         note="Activity only when the comment is shared to timeline; never fanned out.",
     ),
@@ -231,6 +237,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
         writes_activity=True,
         always_public=True,
         notifies=(Audience.ARTICLE_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_comment",),
         note="Activity only when the comment is shared to timeline; never fanned out.",
     ),
@@ -238,6 +245,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
         "comment_submission",
         writes_activity=True,
         notifies=(Audience.SUBMISSION_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_comment",),
         note="Activity only when the comment is shared to timeline; never fanned out.",
     ),
@@ -245,6 +253,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
         "reply_comment",
         writes_activity=True,
         notifies=(Audience.PARENT_COMMENT_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_new_comment",),
         note="Activity only when the comment is shared to timeline; never fanned out.",
     ),
@@ -323,6 +332,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     EventPolicy(
         "edit_question",
         notifies=(Audience.QUESTION_AUTHOR,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("services.postprocess.postprocess_updated_question",),
     ),
     EventPolicy(
@@ -337,8 +347,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     ),
     EventPolicy(
         "accept_submission_suggestion",
-        emitted_by=("services.postprocess.postprocess_accept_submission_suggestion",),
-        note="Emitter builds the event but discards it; nothing is delivered.",
+        note="No live emitter; the accept path awards reputation only.",
     ),
     EventPolicy(
         "create_answer_suggest_edit",
@@ -347,8 +356,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     ),
     EventPolicy(
         "accept_answer_suggest_edit",
-        emitted_by=("services.postprocess.postprocess_accept_answer_suggest_edit",),
-        note="Emitter builds the event but discards it; nothing is delivered.",
+        note="No live emitter; the accept path awards reputation only.",
     ),
     # -- sites, invitations, messages -------------------------------------
     EventPolicy(
@@ -384,6 +392,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     EventPolicy(
         "create_message",
         notifies=(Audience.CHANNEL_MEMBERS,),
+        notify_exclusions=(Exclusion.SUBJECT,),
         emitted_by=("crud.crud_message.create_with_author",),
     ),
     # -- rewards ----------------------------------------------------------
