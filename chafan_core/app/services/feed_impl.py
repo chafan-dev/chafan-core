@@ -1,5 +1,5 @@
 from chafan_core.app.infra.request_context import RequestContext
-from typing import Dict, List, NamedTuple, Optional, Set
+from typing import List, Optional
 
 from chafan_core.db.base_class import Base as BaseCrudModel
 from chafan_core.app import crud, models, schemas
@@ -11,81 +11,12 @@ from chafan_core.app.schemas.event import (
     CreateQuestionInternal,
     EventInternal,
 )
-from chafan_core.app.services.activity_policy import (
-    ALWAYS_PUBLIC_EVENT_VERBS,
-    Audience,
-    feed_audience_of,
-)
+from chafan_core.app.services.activity_policy import ALWAYS_PUBLIC_EVENT_VERBS
 from chafan_core.app.infra.runtime import execute_with_broker
 from chafan_core.utils.base import map_, unwrap
 
 import logging
 logger = logging.getLogger(__name__)
-
-
-class ActivityDistributionInfo(NamedTuple):
-    receiver_ids: Set[int]
-    subject_user_uuid: Optional[str]
-
-
-
-
-def lookup_activity_receiver_list(broker: RequestContext, activity: models.Activity)->ActivityDistributionInfo:
-    """Resolve who receives a Feed row for ``activity``.
-
-    The audience per verb comes from :data:`activity_policy.POLICY`; see that
-    module for the full matrix and for the v1 rules that are recorded there
-    but not yet applied.
-    """
-    try:
-        event = EventInternal.parse_raw(activity.event_json)
-    except Exception:
-        logger.error("failed to parse Event " + activity.event_json)
-        return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
-    logger.info(f"get event: {event}")
-    audience = feed_audience_of(event.content.verb)
-    if audience is None:
-        # No verb reaching fan-out today has a null audience; if one does, the
-        # policy table is the place to add it.
-        logger.warning(
-            "no feed audience for verb %s; activity %s not fanned out",
-            event.content.verb,
-            activity.id,
-        )
-        return ActivityDistributionInfo(receiver_ids=set(), subject_user_uuid=None)
-    assert audience is Audience.SUBJECT_FOLLOWERS, audience
-    assert hasattr(event.content, "subject_id")
-    read_db = broker.get_db()
-    subject = crud.user.get(read_db, id=event.content.subject_id)
-    assert subject is not None
-    subject_user_uuid = subject.uuid
-    receivers: Dict[int, models.User] = {}
-    for follower in subject.followers:
-        receivers[follower.id] = follower
-    # TODO didn't consider blocker setting 2025-07-19
-    return ActivityDistributionInfo(
-        receiver_ids=set(receivers.keys()), subject_user_uuid=subject_user_uuid
-    )
-
-def new_activity_into_feed(broker: RequestContext, activity:models.Activity) -> None:
-    logger.info("generating feed for activity "  + str(activity.id))
-    assert activity.id is not None
-    assert isinstance(activity.id, int)
-    receivers = lookup_activity_receiver_list(broker, activity)
-    write_db = broker.get_db()
-    for receiver_id in receivers.receiver_ids:
-        feed = write_db.query(models.Feed)  \
-            .filter_by(receiver_id=receiver_id, activity_id=activity.id) \
-            .first()
-        if feed is None:
-            write_db.add(
-                models.Feed(
-                    receiver_id=receiver_id,
-                    activity_id=activity.id,
-                    subject_user_uuid=receivers.subject_user_uuid,
-                )
-            )
-
 
 
 def is_blocked(
@@ -152,7 +83,17 @@ def retrieve_content(event: EventInternal, ctx) -> Optional[BaseCrudModel]:
             return None
         return answer
     if isinstance(c, CreateArticleInternal):
-        return articles_service.get_article_by_id(db, c.article_id)
+        article = articles_service.get_article_by_id(db, c.article_id)
+        if article is None:
+            return None
+        if article.is_deleted or (not article.is_published):
+            # This branch used to have no check at all, unlike the two above.
+            # Activity rows written for drafts before that emitter was removed
+            # are still in the table, and this is what keeps them from
+            # dereferencing here.
+            logger.warning("Skip a hidden article: " + str(article))
+            return None
+        return article
 
     logger.error(f"Not supported event type: {event}")
     return None #TODO throw exception

@@ -2,9 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud
+from chafan_core.app import crud, models
 from chafan_core.app.config import settings
+from chafan_core.app.schemas.event import EventInternal
 from chafan_core.tests.conftest import ensure_user_has_coins
+from chafan_core.tests.utils.utils import random_short_lower_string
 from chafan_core.utils.base import get_uuid
 
 
@@ -686,3 +688,153 @@ def test_delete_article_nonexistent(
     )
     assert r.status_code == 400
     assert "doesn't exist" in r.json()["detail"]
+
+
+# =============================================================================
+# Distribution Tests (3b-2)
+# =============================================================================
+
+
+def _create_article(
+    client: TestClient,
+    headers: dict,
+    column_uuid: str,
+    *,
+    is_published: bool,
+) -> str:
+    r = client.post(
+        f"{settings.API_V1_STR}/articles/",
+        headers=headers,
+        json={
+            "title": f"Distribution Article ({random_short_lower_string()})",
+            "content": {"source": "Body.", "editor": "tiptap"},
+            "article_column_uuid": column_uuid,
+            "is_published": is_published,
+            "writing_session_uuid": get_uuid(),
+            "visibility": "anyone",
+        },
+    )
+    r.raise_for_status()
+    return r.json()["uuid"]
+
+
+def _create_article_activities(db: Session, article_id: object) -> list:
+    """Activity rows announcing this specific article."""
+    found = []
+    for activity in db.query(models.Activity).all():
+        try:
+            content = EventInternal.parse_raw(str(activity.event_json)).content
+        except Exception:
+            continue
+        if (
+            getattr(content, "verb", None) == "create_article"
+            and getattr(content, "article_id", None) == article_id
+        ):
+            found.append(activity)
+    return found
+
+
+def test_published_article_announced_exactly_once(
+    client: TestClient,
+    db: Session,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    example_article_column_uuid: str,
+) -> None:
+    """Creating a published article used to write two Activity rows, not one.
+
+    create_article emitted one and postprocess_new_article emitted another.
+    """
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+
+    uuid = _create_article(
+        client, normal_user_token_headers, example_article_column_uuid,
+        is_published=True,
+    )
+
+    db.expire_all()
+    article = crud.article.get_by_uuid(db, uuid=uuid)
+    assert article is not None
+    assert len(_create_article_activities(db, article.id)) == 1
+
+
+def test_draft_is_not_announced_until_published(
+    client: TestClient,
+    db: Session,
+    normal_user_token_headers: dict,
+    normal_user_id: int,
+    moderator_user_token_headers: dict,
+    moderator_user_id: int,
+    normal_user_uuid: str,
+    example_article_column_uuid: str,
+) -> None:
+    """The draft path: no Activity while unpublished, full distribution after.
+
+    Publishing from a draft used to reach nobody -- the Activity was written at
+    draft time and the publish transition delivered to no feed and notified no
+    column subscriber.
+    """
+    ensure_user_has_coins(db, normal_user_id, coins=100)
+
+    # A follower (SUBJECT_FOLLOWERS) and a column subscriber
+    # (ARTICLE_COLUMN_SUBSCRIBERS). Same user here; both audiences must resolve.
+    r = client.post(
+        f"{settings.API_V1_STR}/me/follows/{normal_user_uuid}",
+        headers=moderator_user_token_headers,
+    )
+    assert r.status_code == 200, r.json()
+    r = client.post(
+        f"{settings.API_V1_STR}/me/article-column-subscriptions/{example_article_column_uuid}",
+        headers=moderator_user_token_headers,
+    )
+    assert r.status_code == 200, r.json()
+
+    uuid = _create_article(
+        client, normal_user_token_headers, example_article_column_uuid,
+        is_published=False,
+    )
+
+    db.expire_all()
+    article = crud.article.get_by_uuid(db, uuid=uuid)
+    assert article is not None
+    assert article.is_published is False
+    assert _create_article_activities(db, article.id) == [], (
+        "a draft must not reach the timeline"
+    )
+
+    notifications_before = (
+        db.query(models.Notification).filter_by(receiver_id=moderator_user_id).count()
+    )
+
+    r = client.put(
+        f"{settings.API_V1_STR}/articles/{uuid}",
+        headers=normal_user_token_headers,
+        json={
+            "updated_title": "Now Published",
+            "updated_content": {"source": "Body.", "editor": "tiptap"},
+            "is_draft": False,
+            "visibility": "anyone",
+        },
+    )
+    assert r.status_code == 200, r.json()
+
+    db.expire_all()
+    activities = _create_article_activities(db, article.id)
+    assert len(activities) == 1, "publishing announces the article exactly once"
+
+    feeds = (
+        db.query(models.Feed)
+        .filter(
+            models.Feed.receiver_id == moderator_user_id,
+            models.Feed.activity_id == activities[0].id,
+        )
+        .all()
+    )
+    assert feeds, "the published article did not fan out"
+
+    notifications_after = (
+        db.query(models.Notification).filter_by(receiver_id=moderator_user_id).count()
+    )
+    assert notifications_after > notifications_before, (
+        "column subscribers were not notified"
+    )

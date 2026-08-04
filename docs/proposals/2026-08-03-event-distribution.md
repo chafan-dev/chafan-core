@@ -1,6 +1,6 @@
 # Event distribution: one seam for Activity, Feed and Notification
 
-**Status:** 3a landed; 3b-1 done, 3b-2 next | **Date:** 2026-08-03 | **Last reviewed:** 2026-08-04
+**Status:** 3a and 3b landed; step 4 open | **Date:** 2026-08-03 | **Last reviewed:** 2026-08-04
 
 Step 3 of the activity/feed work. Step 1 (the per-verb policy table) and step 2
 (Tier 1 renames) landed in #166 as `ca23ef7`. Step 3a landed in #167 as
@@ -164,13 +164,21 @@ same sinks. Large diff, no behavior change.
 on its own merits. Split again on the same principle, so the safety net lands
 before the change that needs it:
 
-- **3b-1, containment.** `distribute()` degrades instead of raising when an
-  audience cannot be resolved. No audience changes, so nobody's feed or inbox
-  moves. Landed first because every later change is safer behind it.
+- **3b-1, containment. Landed in #168 (`d090b16`).** `distribute()` degrades
+  instead of raising when an audience cannot be resolved, and a failed Redis
+  push no longer discards the `Notification` row it was announcing. No audience
+  changes, so nobody's feed or inbox moved. Landed first because every later
+  change is safer behind it.
 - **3b-2, the article fixes.** The duplicate `create_article` emit, drafts
   writing activities, and column subscribers getting a notification but no feed
-  row. These are one story — publishing an article distributes it exactly once,
-  to everyone it should reach.
+  row. One story: publishing an article distributes it exactly once, to
+  everyone it should reach.
+
+After 3b-2 the rule is: **`create_article` is emitted at publication, never at
+creation.** Both routes to publication emit it — `postprocess_new_article` for
+created-published, `postprocess_updated_article` for draft-then-published — and
+they are mutually exclusive per article, so a published article has exactly one
+`Activity` and a draft has none.
 
 **No data migration.** Owner's call, 2026-08-04: tolerate what is already in the
 table and fix only new events. Duplicate rows are cosmetic and articles that
@@ -185,29 +193,36 @@ unavailable exactly where the diff is largest.
 
 Both found by reading the code before starting, 2026-08-04.
 
-**It is a double-emit, not a triple.** Every article lifecycle produces exactly
+**It is a double-emit, not a triple.** Every article lifecycle produced exactly
 two `Activity` rows, never three. `postprocess_new_article` runs only when the
 article is created published; `postprocess_updated_article` emits only when
 `not was_published`; `is_published` is never reverted. The two are therefore
-mutually exclusive per article, and the count is always `articles.create_article`
-plus exactly one of them. `activity_policy`'s note still says "two or three".
+mutually exclusive per article, and the count was always
+`articles.create_article` plus exactly one of them.
 
-**The draft path is worse than "drafts write activities".** An article created
-as a draft and published later gets *no distribution at all*: the Activity is
-written at draft time, and the publish transition is `sinks={ACTIVITY}` — no
-fan-out, no column-subscriber notification. The junk row is the smaller half of
+**The draft path was worse than "drafts write activities".** An article created
+as a draft and published later got *no distribution at all*: the Activity was
+written at draft time, and the publish transition was `sinks={ACTIVITY}` — no
+fan-out, no column-subscriber notification. The junk row was the smaller half of
 this bug.
 
-**`retrieve_content` has no `is_published` check** (`feed_impl.py`), unlike the
-answer branch beside it. Not reachable anonymously today: article activities
-carry `site_id=None` and the public RSS path filters by site, leaving only the
-passcode-gated `all_sites` tool. Latent, and cheap to close while 3b-2 is
-already in this file's blast radius.
+**`retrieve_content` had no `is_published` check**, unlike the answer branch
+beside it. Not reachable anonymously: article activities carry `site_id=None`
+and the public RSS path filters by site, leaving only the passcode-gated
+`all_sites` tool. Latent rather than live, but it is also what makes "no
+migration" safe — it is the gate the draft-time rows already in the table now
+fail.
 
-**Widening the feed audience needs a type change.** `EventPolicy.feed_audience`
-is a single `Optional[Audience]`. Reaching followers *and* column subscribers
-makes it a tuple, which touches every policy row, `distribute`, and the check
-script — the only part of 3b with real surface area.
+**Widening the feed audience needed a type change.** `EventPolicy.feed_audience`
+was a single `Optional[Audience]`; reaching followers *and* column subscribers
+makes it a tuple, touching every policy row and `distribute`.
+
+**The second fan-out implementation was already dead.**
+`feed_impl.new_activity_into_feed` and `lookup_activity_receiver_list` lost
+their last caller when 3a introduced `events.deliver`, and
+`lookup_activity_receiver_list` asserted `audience is SUBJECT_FOLLOWERS` — the
+one thing standing in the way of a multi-audience fan-out. Deleted, along with
+`activity_policy.feed_audience_of`, whose only remaining callers were tests.
 
 ## Implementation notes
 
@@ -219,16 +234,16 @@ assumed one verb reaches one set of sinks. It does not: the same verb reaches
 *different* sinks from different callers, so `distribute` takes a keyword-only
 `sinks` to narrow the destinations.
 
-| Site | Why |
-|---|---|
-| `postprocess_comment_update` | Sharing an existing comment to the timeline writes an Activity but must not re-notify the author, who was notified at creation. |
-| `postprocess_updated_article` | Has never fanned out or notified; widening it would not be neutral. |
-| `articles.create_article` | Same — the crud-level write had neither. |
-| `me.follow_user` | Notification is unconditional, Activity only on a *new* follow. Two calls. |
+| Site | Why | Status |
+|---|---|---|
+| `postprocess_comment_update` | Sharing an existing comment to the timeline writes an Activity but must not re-notify the author, who was notified at creation. | in force |
+| `me.follow_user` | Notification is unconditional, Activity only on a *new* follow. Two calls. | in force |
+| `postprocess_updated_article` | Had never fanned out or notified; widening it would not have been neutral. | removed by 3b-2 |
+| `articles.create_article` | Same — the crud-level write had neither. | removed by 3b-2 (emitter deleted) |
 
-Three of the four are `create_article`/comment duplication, i.e. the escape
-hatch is mostly compensating for the bugs 3b removes. Worth re-checking after
-3b whether it can be deleted.
+Half the uses were compensating for the article bugs, exactly as suspected, and
+went with them. The two that remain are real: a verb genuinely reaching
+different sinks from different callers. The escape hatch stays.
 
 **`follow_user` does not collapse to a single call**, contrary to the plan
 above. `upvote_answer` does — both its sinks share the `not upvoted_before`
@@ -264,6 +279,14 @@ and the module's only other callers were three readers used exclusively by
 
 **`postprocess_updated_article` needs converting** from `execute_with_db` to
 `execute_with_broker`, since `distribute` takes a `RequestContext`.
+
+**Reputation is still asymmetric between the two publication routes.** Found
+while doing 3b-2 and deliberately left alone: `postprocess_new_article` calls
+`rep.award_article_created`, `postprocess_updated_article` does not, so an
+article published from a draft earns its author nothing. It is the same shape
+of bug 3b-2 fixes for distribution, but reputation is not one of
+`distribute`'s sinks, so fixing it here would have meant widening the change
+past the sink boundary the whole design rests on. Worth its own small change.
 
 ## Also folded in (done in #167)
 

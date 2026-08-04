@@ -10,7 +10,6 @@ from chafan_core.app.services.activity_policy import (
     ALWAYS_PUBLIC_EVENT_VERBS,
     POLICY,
     Audience,
-    feed_audience_of,
 )
 
 # Verbatim from feed_impl.ALWAYS_PUBLIC_EVENT_VERBS before consolidation.
@@ -21,32 +20,36 @@ _LEGACY_ALWAYS_PUBLIC = {
     "follow_article_column",
 }
 
-# The only verbs whose Activity reaches new_activity_into_feed today, i.e. the
-# three postprocess paths that call it. Everything else writes an Activity (or
-# not) but is never fanned out.
-_LEGACY_FANNED_OUT = {"create_question", "answer_question", "create_article"}
+# The only verbs that are fanned out. Everything else writes an Activity (or
+# not) but never reaches a Feed row.
+_FANNED_OUT = {"create_question", "answer_question", "create_article"}
 
 
 def test_always_public_verbs_unchanged() -> None:
     assert set(ALWAYS_PUBLIC_EVENT_VERBS) == _LEGACY_ALWAYS_PUBLIC
 
 
-def test_fanned_out_verbs_resolve_to_subject_followers() -> None:
-    """The pre-consolidation fan-out delivered to the subject's followers."""
-    for verb in _LEGACY_FANNED_OUT:
-        assert feed_audience_of(verb) is Audience.SUBJECT_FOLLOWERS, verb
+def test_fanned_out_verbs_reach_subject_followers() -> None:
+    """Every fanned-out verb still reaches the audience v1 delivered to."""
+    for verb in _FANNED_OUT:
+        assert Audience.SUBJECT_FOLLOWERS in POLICY[verb].feed_audience, verb
+
+
+def test_create_article_also_reaches_column_subscribers() -> None:
+    """3b-2: subscribers used to get a notification with no feed row to match."""
+    assert POLICY["create_article"].feed_audience == (
+        Audience.SUBJECT_FOLLOWERS,
+        Audience.ARTICLE_COLUMN_SUBSCRIBERS,
+    )
+    assert Audience.ARTICLE_COLUMN_SUBSCRIBERS in POLICY["create_article"].notifies
 
 
 def test_other_verbs_have_no_feed_audience() -> None:
     """No verb gains a fan-out it did not have before."""
     for verb, policy in POLICY.items():
-        if verb in _LEGACY_FANNED_OUT:
+        if verb in _FANNED_OUT:
             continue
-        assert policy.feed_audience is None, verb
-
-
-def test_unknown_verb_has_no_feed_audience() -> None:
-    assert feed_audience_of("no_such_verb") is None
+        assert policy.feed_audience == (), verb
 
 
 def test_every_policy_is_keyed_by_its_own_verb() -> None:
@@ -64,6 +67,6 @@ def test_verbs_without_emitter_deliver_nothing() -> None:
         if policy.emitted_by:
             continue
         assert not policy.writes_activity, verb
-        assert policy.feed_audience is None, verb
+        assert policy.feed_audience == (), verb
         assert policy.notifies == (), verb
         assert not policy.pays_coins, verb

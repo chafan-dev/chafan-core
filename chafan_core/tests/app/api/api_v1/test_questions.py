@@ -673,9 +673,9 @@ def test_new_question_writes_activity_and_feed(
     """postprocess_new_question must persist both the Activity and its feed fanout.
 
     These run under execute_with_broker, which has no request boundary; the
-    Activity used to be committed mid-function before new_activity_into_feed
-    ran. Removing that commit means the flush alone has to assign activity.id,
-    and the single boundary at the end has to cover both writes.
+    Activity used to be committed mid-function before the fan-out ran. Removing
+    that commit means the flush alone has to assign activity.id, and the single
+    boundary at the end has to cover both writes.
     """
     ensure_user_in_site(
         client, db, normal_user_id, normal_user_uuid,
