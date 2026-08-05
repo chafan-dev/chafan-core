@@ -151,7 +151,8 @@ this work.
 Each is independently deployable and independently revertible. Steps 1–3 change
 no behavior at all.
 
-**1. Add the column.** Migration adding `activity.subject_user_id`, nullable,
+**1. Add the column. — done, `7a670908f3fa`.** Migration adding
+`activity.subject_user_id`, nullable,
 indexed, FK to `user.id`. Nothing reads or writes it yet. Covered by the
 migrations CI (#171, extended in #173): one head, builds from scratch, no
 model/migration drift, and a downgrade/upgrade round-trip across a *populated*
