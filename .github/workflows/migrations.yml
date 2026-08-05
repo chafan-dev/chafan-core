@@ -5,11 +5,15 @@ name: Migrations
 # database and then test the application; nothing checked the migrations as a
 # deliverable in their own right.
 #
-# Four things are checked. What is deliberately NOT checked is a full-history
-# downgrade: `alembic downgrade base` fails today on an unnamed ForeignKey
-# constraint in an old `channel` migration, and repairing 153 migrations to fix
-# that is its own project. The round-trip below covers the case that actually
-# matters in review -- can the migration THIS pull request adds be rolled back.
+# The second half of the job runs against a *populated* database, seeded from
+# smoke/dataset.py -- the same rows the e2e smoke suite uses. An empty database
+# is the easy case; migrations break on the ones that already hold data.
+#
+# What is deliberately NOT checked is a full-history downgrade: `alembic
+# downgrade base` fails today on an unnamed ForeignKey constraint in an old
+# `channel` migration, and repairing 153 migrations to fix that is its own
+# project. The round-trip below covers the case that actually matters in
+# review -- can the migration THIS pull request adds be rolled back.
 
 on:
   pull_request:
@@ -94,9 +98,31 @@ jobs:
           fi
         '
 
-    - name: Round-trip the migrations this PR adds
+    - name: Seed the dataset
+      # An empty database is the easy case. Migrations break on populated ones:
+      # a NOT NULL column with no default, a type change that existing values
+      # do not fit, a data migration with an off-by-one. Everything below this
+      # point runs against real rows -- the same rows the e2e smoke suite uses,
+      # from smoke/dataset.py, so one definition serves both and neither
+      # silently rots.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          export PYTHONPATH=$PWD
+          python scripts/initial_data.py
+          python -m smoke.dataset build --deep
+          python -m smoke.dataset verify --deep
+        '
+
+    - name: Round-trip the migrations this PR adds, across the data
       # Only the new ones. Downgrading further hits the broken old migrations
       # described at the top of this file.
+      #
+      # The upgrade at the end is the step that matters: by then the database
+      # holds rows, so this is the production path -- applying a new migration
+      # to a populated database -- rather than the empty-schema build above.
       run: |
         set -euo pipefail
         base="${{ github.event.pull_request.base.sha }}"
@@ -119,6 +145,22 @@ jobs:
           PYTHONPATH=\$PWD alembic downgrade -$added
           PYTHONPATH=\$PWD alembic upgrade head
         "
+
+    - name: Data survived the round-trip
+      # The point of the whole job. Checks content and foreign keys, not row
+      # counts -- a migration that drops a column or breaks an FK leaves every
+      # count untouched.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          export PYTHONPATH=$PWD
+          if ! python -m smoke.dataset verify --deep; then
+            echo "::error::a migration in this PR did not preserve existing data"
+            exit 1
+          fi
+        '
 
     - name: Schema matches the models after the round-trip
       # A downgrade that silently fails to undo its upgrade leaves the schema
