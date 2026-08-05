@@ -72,12 +72,49 @@ The addition is one column:
 activity.subject_user_id   -- nullable, FK to user.id, indexed
 ```
 
-Nullable because exactly one content type has no subject: `site_broadcast`. The
-other 31 of 32 `*Internal` content classes carry `subject_id`.
-
 The alternative — converting `event_json` to `JSONB` with an expression index —
 avoids the column but is a type migration on the largest table and yields no
 foreign key. Not worth it.
+
+### Why nullable
+
+An earlier draft of this plan said "nullable because `site_broadcast` has no
+subject". That was wrong, and checking it is what produced the rule below.
+`site_broadcast` has no live emitter and `writes_activity=False`, so it never
+reaches the `Activity` table at all. Checked mechanically against the policy
+table and the event schemas:
+
+> **Every one of the 15 verbs that writes an `Activity` carries `subject_id`.**
+> None are missing it.
+
+So on today's code the column would in fact always be populated. It is still
+declared nullable, for two reasons that have nothing to do with any verb:
+
+- **The deploy is two-phase.** Step 1 adds the column before step 3 fills it.
+  Between those, every existing row is null.
+- **Historical rows may not backfill.** The table holds rows written by code
+  that no longer exists. Any whose payload will not parse, or whose
+  `subject_id` points at a since-deleted user, cannot be filled and must be
+  allowed to stay null rather than block the migration.
+
+Tightening to `NOT NULL` is a later, separate decision, available once a
+backfill has run and `SELECT count(*) FROM activity WHERE subject_user_id IS
+NULL` is zero. Not part of this plan.
+
+### `site_broadcast`
+
+Low priority, and undecided between removal and refactor — so this plan does
+not try to make it correct. It only guarantees it cannot break anything, which
+costs nothing here because the null-tolerant design above already covers it:
+
+- a content object with no `subject_id` yields `None` from `_attr`, so step 2
+  writes a null and does not raise;
+- the backfill skips what it cannot parse rather than aborting (see step 3);
+- a null-subject row simply never appears in a subject query.
+
+If `site_broadcast` ever gains an emitter, the worst outcome is that its
+activities do not show on anyone's profile. That is a correctness gap in a
+component already slated for a decision, not an outage.
 
 ## The safety property, verified
 
@@ -114,8 +151,10 @@ Each is independently deployable and independently revertible. Steps 1–3 chang
 no behavior at all.
 
 **1. Add the column.** Migration adding `activity.subject_user_id`, nullable,
-indexed, FK to `user.id`. Nothing reads or writes it yet. Proven by the
-migrations CI added in #171: builds from scratch, no drift, round-trips.
+indexed, FK to `user.id`. Nothing reads or writes it yet. Covered by the
+migrations CI (#171, extended in #173): one head, builds from scratch, no
+model/migration drift, and a downgrade/upgrade round-trip across a *populated*
+database with the seeded rows verified afterwards.
 
 **2. Populate it on write.** `events.distribute` already derives the subject —
 `deliver()` resolves `subject_id` from the event content to set
@@ -132,6 +171,21 @@ one declined in 3b: that was refusing to **correct** wrong rows, this
 ```sql
 SELECT count(*) FROM activity;
 ```
+
+**It must skip, not abort.** A row whose payload will not parse, or whose
+`subject_id` names a user that no longer exists, is left null and logged. One
+unreadable row from some retired code path must not fail the migration for the
+whole table — the same reasoning as 3b-1, one layer down.
+
+The migrations CI exercises this for real: its seeded dataset builds
+`Activity` rows through `events.distribute`, so a backfill runs against genuine
+`event_json` and `verify` fails if it mangles them.
+
+Coverage is thin, though — the dataset distributes only `create_question` and
+`answer_question`, 2 of the 15 verbs that write activities. All 15 store
+`subject_id` the same way, so one extraction handles them all and the risk is
+lower than the count suggests, but broadening the seeded verbs before this step
+lands would make the test mean what it appears to mean.
 
 **4. Switch the read path.** `get_activities_v2` splits in two, because they
 were always two questions:
@@ -168,20 +222,26 @@ confirming before step 4 ships.
 
 Per step: full unit suite, byte-identical OpenAPI (the endpoint signature does
 not change at any point), both architecture ratchets, mypy flat, and the
-migrations CI from #171.
+migrations CI (#171, #173).
 
-Two tests the change should carry:
+Three tests the change should carry:
 
 - A user with **no followers and no column subscribers** has a non-empty
   profile timeline. This fails today and is the point of the change.
 - A viewer who cannot read a private site does **not** see the subject's
   activity from that site, even though the `Activity` row is now reachable by
   the query. Pins the safety property above.
+- An `Activity` whose payload has no resolvable subject is **skipped, not
+  fatal** — it backfills to null, writes to null, and is absent from subject
+  queries. Pins the containment described under "Why nullable".
 
 ## Open questions
 
 - **Backfill size.** Unknown without `count(*)` against production. It sets
   whether step 3 is a single statement or a batched script.
+- **Widen the seeded verbs before step 3?** The migrations CI dataset covers 2
+  of the 15 activity-writing verbs. Cheap to extend, and it is what makes the
+  backfill test load-bearing rather than decorative.
 - **Does the subject timeline want a site filter of its own?** Today the viewer
   gate is per item, applied after the fetch, so a subject with lots of activity
   in sites the viewer cannot read yields a short page rather than an empty one.
