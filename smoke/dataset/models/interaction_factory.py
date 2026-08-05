@@ -3,11 +3,11 @@
 Produces a realistic graph of interactions: users follow each other, upvote
 content they find useful, and comment on questions and articles.
 """
+
 from __future__ import annotations
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.schemas.richtext import RichText
-
 
 # ---------------------------------------------------------------------------
 # Follow graph -- who follows whom
@@ -194,15 +194,23 @@ def upvote_articles(db, users: dict, articles: dict) -> None:
 
 
 def create_comments(db, users: dict, questions: dict, articles: dict) -> None:
-    """Create all comments. Returns a mapping from key to Comment model."""
+    """Create all comments. Idempotent: skips a (parent, author, body) already present."""
     for c in COMMENTS:
         author = users[c["author"]]
         if "question" in c:
             parent = questions[c["question"]]
+            existing = (
+                db.query(models.Comment)
+                .filter_by(question_id=parent.id, author_id=author.id, body=c["body"])
+                .first()
+            )
+            if existing:
+                continue
             comment_in = schemas.CommentCreate(
                 content=RichText(
                     source=c["body"],
                     editor="tiptap",
+                    rendered_text=c["body"],
                 ),
                 question_uuid=parent.uuid,
                 shared_to_timeline=False,
@@ -215,10 +223,18 @@ def create_comments(db, users: dict, questions: dict, articles: dict) -> None:
             )
         elif "article" in c:
             parent = articles[c["article"]]
+            existing = (
+                db.query(models.Comment)
+                .filter_by(article_id=parent.id, author_id=author.id, body=c["body"])
+                .first()
+            )
+            if existing:
+                continue
             comment_in = schemas.CommentCreate(
                 content=RichText(
                     source=c["body"],
                     editor="tiptap",
+                    rendered_text=c["body"],
                 ),
                 article_uuid=parent.uuid,
                 shared_to_timeline=False,

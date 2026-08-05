@@ -3,38 +3,49 @@
 The Dataset dataclass holds the ids produced by build() so callers
 (scenarios, migration verify) can find their fixtures.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import Dict, Optional
 
 from chafan_core.app import models
 
 
 @dataclass
 class Dataset:
-    """What a build produced, for callers that need the ids."""
+    """What a build produced, for callers that need the ids.
 
-    # Original anchors
-    account_a: models.User
-    account_b: models.User
+    Keyed by the same string keys used in user_factory.USERS,
+    site_factory.COLUMNS, content_factory.QUESTIONS/ANSWERS/ARTICLES.
+    """
 
-    # Extended cast
+    users: Dict[str, models.User]
     site: models.Site
-    column_a: models.ArticleColumn
-    column_b: models.ArticleColumn
-    column_c: models.ArticleColumn
-    question_a: models.Question
-    question_b: models.Question
-    question_c: models.Question
-    question_d: models.Question
-    question_e: models.Question
-    question_f: models.Question
-    answer_a: Optional[models.Answer] = None
-    answer_b: Optional[models.Answer] = None
-    answer_c: Optional[models.Answer] = None
-    answer_d: Optional[models.Answer] = None
-    article_a: Optional[models.Article] = None
-    article_b: Optional[models.Article] = None
-    article_c: Optional[models.Article] = None
-    article_d: Optional[models.Article] = None
+    columns: Dict[str, models.ArticleColumn]
+    questions: Dict[str, models.Question]
+    answers: Dict[str, models.Answer]
+    articles: Dict[str, models.Article]
+
+    # Set by build(deep=True): account_b answering the known question, plus
+    # the Activity/Feed/Notification rows distributed from that event.
+    deep_answer: Optional[models.Answer] = field(default=None)
+
+    # Convenience aliases for the two original anchor accounts and their
+    # single "known" fixtures -- callers like smoke/seed.py only need one
+    # stable question/column/account pair to hand the e2e scenarios.
+    @property
+    def account_a(self) -> models.User:
+        return self.users["account_a"]
+
+    @property
+    def account_b(self) -> models.User:
+        return self.users["account_b"]
+
+    @property
+    def column(self) -> models.ArticleColumn:
+        return self.columns["column_a"]
+
+    @property
+    def question(self) -> models.Question:
+        return self.questions["question_a"]

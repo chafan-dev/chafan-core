@@ -3,10 +3,10 @@
 The site acts as a realistic community hub -- a technology-focused platform
 with distinct content sections (columns) for different types of posts.
 """
+
 from __future__ import annotations
 
 from chafan_core.app import crud, models, schemas
-from chafan_core.app.schemas.profile import ProfileCreate
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr, StrippedNonEmptyStr
 
 SITE_SUBDOMAIN = "smoke"
@@ -69,15 +69,6 @@ COLUMNS = [
 
 def _get_or_create_column(db, owner, spec: dict):
     """Get existing column or create a new one."""
-    existing = (
-        crud.article_column.get_by_name(db, name=spec["name"])
-        if hasattr(crud.article_column, "get_by_name")
-        else None
-    )
-    if existing:
-        return existing
-
-    # Check if owner already has a column with this name
     for col in getattr(owner, "article_columns", []) or []:
         if col.name == spec["name"]:
             return col
@@ -92,18 +83,19 @@ def _get_or_create_column(db, owner, spec: dict):
     )
 
 
-def build_site_and_columns(db, account_a) -> tuple:
-    """Create site, ensure memberships, create columns.
+def build_site_and_columns(db, users: dict, owner_key: str = "account_a") -> tuple:
+    """Create site, ensure every user has a membership, create columns.
 
-    Returns (site, column_a, column_b, column_c).
+    Returns (site, columns) where columns maps key -> ArticleColumn.
     """
-    site = _get_or_create_site(db, account_a)
-    for key in ["account_a", "account_b"]:
-        _ensure_membership(db, site, account_a)
+    owner = users[owner_key]
+    site = _get_or_create_site(db, owner)
+    for user in users.values():
+        _ensure_membership(db, site, user)
 
     columns = {}
     for spec in COLUMNS:
-        columns[spec["key"]] = _get_or_create_column(db, account_a, spec)
+        columns[spec["key"]] = _get_or_create_column(db, owner, spec)
 
     db.flush()
-    return site, columns["column_a"], columns["column_b"], columns["column_c"]
+    return site, columns

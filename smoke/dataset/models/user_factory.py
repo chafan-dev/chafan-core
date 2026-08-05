@@ -4,10 +4,10 @@ Produces a mix of superusers, power contributors, casual users, and lurkers.
 Each user gets a proper handle, full name, email, and bio that reads like
 a real community member profile.
 """
+
 from __future__ import annotations
 
-from chafan_core.app import crud, models, schemas
-from chafan_core.app.schemas.profile import ProfileCreate
+from chafan_core.app import crud, schemas
 from chafan_core.app.services.reputation import award_coins
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr, StrippedNonEmptyStr
 
@@ -111,18 +111,7 @@ def _get_or_create_user(db, spec: dict):
 def _ensure_coins(db, user) -> None:
     """Top up coins to TARGET_COINS if needed."""
     if user.remaining_coins < TARGET_COINS:
-        award_coins(
-            db, user, TARGET_COINS - user.remaining_coins, reason="smoke seed"
-        )
-
-
-def _ensure_profile(db, user) -> None:
-    """Create a profile with bio if one doesn't exist."""
-    existing = crud.profile.get_by_user_and_site(db, owner_id=user.id, site_id=None)
-    if existing:
-        existing.bio = user.bio  # type: ignore[attr-defined]
-        return
-    # Profile is tied to a site, so we'll set it later after site creation
+        award_coins(db, user, TARGET_COINS - user.remaining_coins, reason="smoke seed")
 
 
 def build_users(db) -> dict:
@@ -130,7 +119,7 @@ def build_users(db) -> dict:
     result = {}
     for spec in USERS:
         user = _get_or_create_user(db, spec)
-        user.bio = spec["bio"]  # type: ignore[attr-defined]
+        user.personal_introduction = spec["bio"]
         _ensure_coins(db, user)
         result[spec["key"]] = user
     db.flush()

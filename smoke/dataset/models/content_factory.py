@@ -5,13 +5,13 @@ articles across the three columns. Questions are asked by various users;
 answers come from different contributors. Articles are published in the
 Engineering and Quick Tips columns.
 """
+
 from __future__ import annotations
 
 from chafan_core.app import crud, models, schemas
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.utils.base import ContentVisibility, get_uuid
 from chafan_core.utils.validators import StrippedNonEmptyStr
-
 
 # ---------------------------------------------------------------------------
 # Question definitions -- realistic titles and topics
@@ -23,42 +23,36 @@ QUESTIONS = [
         "title": "How do you handle distributed transactions in a microservices architecture?",
         "body": "We're running a microservices setup with PostgreSQL databases per service. When a single user action needs to update data across two services, we currently use a two-phase commit, but it feels heavy. Has anyone found a better pattern? We're considering Saga patterns or outbox-based event sourcing. What's worked well for you at scale?",
         "author": "account_a",
-        "column": "column_a",
     },
     {
         "key": "question_b",
         "title": "What's the best way to debug memory leaks in Python web applications?",
         "body": "Our Flask application has been running for months and slowly consuming more and more RAM. We suspect a memory leak but aren't sure where to start. We've tried memory_profiler and tracemalloc, but the results are hard to interpret. What's your go-to toolkit for tracking down Python memory issues in production?",
         "author": "account_a",
-        "column": "column_b",
     },
     {
         "key": "question_c",
         "title": "Should we migrate from JWT to opaque tokens for our API auth?",
         "body": "We're building a new API and currently planning to use JWTs for authentication. However, a colleague pointed out that opaque tokens give us better revocation support. We're a small team and want to keep things simple. When does JWT start becoming problematic? Is there a rule of thumb?",
         "author": "account_b",
-        "column": "column_a",
     },
     {
         "key": "question_d",
         "title": "How do you structure a monorepo for multiple frontend applications?",
         "body": "Our company has 5 different web apps that share a lot of components, hooks, and utility functions. We're considering moving to a monorepo with Turborepo. What package structure have you found works best? Should all shared packages live in packages/, or is there a better convention?",
         "author": "user_e",
-        "column": "column_b",
     },
     {
         "key": "question_e",
         "title": "What's your approach to database seeding in CI/CD pipelines?",
         "body": "We want to seed our test database with realistic data on every CI run, but our current seed script takes 40 seconds and we need it faster. We're using PostgreSQL with a mix of SQL files and Python seed scripts. Any tips for speeding this up? We're also open to using test containers.",
         "author": "user_g",
-        "column": "column_b",
     },
     {
         "key": "question_f",
         "title": "How to handle feature flags across a multi-region deployment?",
         "body": "We deploy to three regions and currently manage feature flags with a centralized Redis store. When we flip a flag, the propagation delay between regions is noticeable. Should we use per-region flag stores with eventual consistency, or is there a better approach?",
         "author": "user_f",
-        "column": "column_a",
     },
 ]
 
@@ -170,7 +164,7 @@ ARTICLES = [
     },
     {
         "key": "article_c",
-        "title": "Our Journey from单体架构 to Microservices: A Post-Mortem",
+        "title": "Our Journey from Monolith to Microservices: A Post-Mortem",
         "body": (
             "Two years ago, we had a single monolithic Django application serving 100k daily "
             "users. Today, we run 12 microservices across Kubernetes. Here's what worked, what "
@@ -232,12 +226,7 @@ ARTICLES = [
 # ---------------------------------------------------------------------------
 
 
-def _check_site(site) -> None:
-    """No-op check_site callback for comment creation."""
-    pass
-
-
-def create_questions(db, users: dict, columns: dict, site) -> dict:
+def create_questions(db, users: dict, site) -> dict:
     """Create all questions. Returns a mapping from key to Question model."""
     result = {}
     for q in QUESTIONS:
@@ -300,7 +289,7 @@ def create_answers(db, users: dict, questions: dict) -> dict:
     return result
 
 
-def create_articles(db, users: dict, columns: dict, site) -> dict:
+def create_articles(db, users: dict, columns: dict) -> dict:
     """Create all articles. Returns a mapping from key to Article model."""
     result = {}
     for art in ARTICLES:
@@ -325,6 +314,7 @@ def create_articles(db, users: dict, columns: dict, site) -> dict:
                 content=RichText(
                     source=art["body"],
                     editor="tiptap",
+                    rendered_text=art["body"],
                 ),
                 article_column_uuid=column.uuid,
                 is_published=True,
