@@ -1,0 +1,174 @@
+name: Migrations
+
+# Tests the alembic migrations themselves, rather than using them as setup for
+# something else. The other workflows all run `alembic upgrade head` to build a
+# database and then test the application; nothing checked the migrations as a
+# deliverable in their own right.
+#
+# The second half of the job runs against a *populated* database, seeded from
+# smoke/dataset.py -- the same rows the e2e smoke suite uses. An empty database
+# is the easy case; migrations break on the ones that already hold data.
+#
+# What is deliberately NOT checked is a full-history downgrade: `alembic
+# downgrade base` fails today on an unnamed ForeignKey constraint in an old
+# `channel` migration, and repairing 153 migrations to fix that is its own
+# project. The round-trip below covers the case that actually matters in
+# review -- can the migration THIS pull request adds be rolled back.
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        # Full history: the round-trip step diffs against the base branch to
+        # find which migrations this PR adds.
+        fetch-depth: 0
+
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@main
+
+    - name: Setup Nix Cache
+      uses: DeterminateSystems/magic-nix-cache-action@main
+      with:
+        use-flakehub: false
+
+    - name: Exactly one head
+      # Two heads mean two migrations claim the same parent -- the usual result
+      # of two branches each adding one. Alembic will not upgrade past it, so
+      # catching it here beats catching it on deploy.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          count=$(PYTHONPATH=$PWD alembic heads | grep -c "(head)")
+          echo "heads: $count"
+          if [ "$count" -ne 1 ]; then
+            PYTHONPATH=$PWD alembic heads
+            echo "::error::expected exactly 1 head, found $count -- merge the branches with: alembic merge heads"
+            exit 1
+          fi
+        '
+
+    - name: Build the schema from scratch
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          psql -h localhost -p 5432 -U postgres -c "create database chafan_dev;"
+          PYTHONPATH=$PWD alembic upgrade head
+        '
+
+    - name: No drift between models and migrations
+      # `alembic check` autogenerates against the just-migrated database and
+      # fails if it would produce any operation -- i.e. if a model was changed
+      # without a matching migration, or a migration does not produce what the
+      # model declares.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          if ! PYTHONPATH=$PWD alembic check; then
+            echo "::error::models and migrations disagree -- generate one with: alembic revision --autogenerate -m <message>"
+            exit 1
+          fi
+        '
+
+    - name: Seed the dataset
+      # An empty database is the easy case. Migrations break on populated ones:
+      # a NOT NULL column with no default, a type change that existing values
+      # do not fit, a data migration with an off-by-one. Everything below this
+      # point runs against real rows -- the same rows the e2e smoke suite uses,
+      # from smoke/dataset.py, so one definition serves both and neither
+      # silently rots.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          export PYTHONPATH=$PWD
+          python scripts/initial_data.py
+          python -m smoke.dataset build --deep
+          python -m smoke.dataset verify --deep
+        '
+
+    - name: Round-trip the migrations this PR adds, across the data
+      # Only the new ones. Downgrading further hits the broken old migrations
+      # described at the top of this file.
+      #
+      # The upgrade at the end is the step that matters: by then the database
+      # holds rows, so this is the production path -- applying a new migration
+      # to a populated database -- rather than the empty-schema build above.
+      run: |
+        set -euo pipefail
+        base="${{ github.event.pull_request.base.sha }}"
+        if [ -z "$base" ]; then
+          base="$(git rev-parse HEAD~1 2>/dev/null || true)"
+        fi
+        if [ -z "$base" ]; then
+          echo "no base commit to compare against; skipping"
+          exit 0
+        fi
+        added=$(git diff --name-only --diff-filter=A "$base" HEAD -- alembic/versions/ \
+                | grep -c '\.py$' || true)
+        echo "migrations added by this change: $added"
+        if [ "$added" -eq 0 ]; then
+          exit 0
+        fi
+        set -a; source env.ci; set +a
+        nix develop --command bash -c "
+          set -euo pipefail
+          PYTHONPATH=\$PWD alembic downgrade -$added
+          PYTHONPATH=\$PWD alembic upgrade head
+        "
+
+    - name: Data survived the round-trip
+      # The point of the whole job. Checks content and foreign keys, not row
+      # counts -- a migration that drops a column or breaks an FK leaves every
+      # count untouched.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          export PYTHONPATH=$PWD
+          if ! python -m smoke.dataset verify --deep; then
+            echo "::error::a migration in this PR did not preserve existing data"
+            exit 1
+          fi
+        '
+
+    - name: Schema matches the models after the round-trip
+      # A downgrade that silently fails to undo its upgrade leaves the schema
+      # subtly wrong. Re-checking after coming back up catches that.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          PYTHONPATH=$PWD alembic check
+        '
