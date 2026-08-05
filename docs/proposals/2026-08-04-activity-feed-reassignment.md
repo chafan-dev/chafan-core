@@ -1,10 +1,11 @@
 # Activity as the event log, Feed as a receiver index
 
-**Status:** proposed | **Date:** 2026-08-04 | **Last reviewed:** 2026-08-04
+**Status:** proposed | **Date:** 2026-08-04 | **Last reviewed:** 2026-08-05
 
 Step 4, item 1 of the activity/feed work. Steps 1–3 landed in #166, #167, #168
 and #169; the seam they built (`services/events.py`) is what makes this
-tractable. Terminology is in [`docs/glossary.md`](../glossary.md).
+tractable. The migrations CI this plan's schema change relies on landed in #171
+and #173. Terminology is in [`docs/glossary.md`](../glossary.md).
 
 ## The problem
 
@@ -78,11 +79,11 @@ foreign key. Not worth it.
 
 ### Why nullable
 
-An earlier draft of this plan said "nullable because `site_broadcast` has no
-subject". That was wrong, and checking it is what produced the rule below.
-`site_broadcast` has no live emitter and `writes_activity=False`, so it never
-reaches the `Activity` table at all. Checked mechanically against the policy
-table and the event schemas:
+Not because some verb lacks a subject — the tempting answer, and the wrong one.
+`site_broadcast` is the only content type without `subject_id`, but it has no
+live emitter and `writes_activity=False`, so it never reaches the `Activity`
+table at all. Checked mechanically against the policy table and the event
+schemas:
 
 > **Every one of the 15 verbs that writes an `Activity` carries `subject_id`.**
 > None are missing it.
@@ -181,11 +182,13 @@ The migrations CI exercises this for real: its seeded dataset builds
 `Activity` rows through `events.distribute`, so a backfill runs against genuine
 `event_json` and `verify` fails if it mangles them.
 
-Coverage is thin, though — the dataset distributes only `create_question` and
-`answer_question`, 2 of the 15 verbs that write activities. All 15 store
-`subject_id` the same way, so one extraction handles them all and the risk is
-lower than the count suggests, but broadening the seeded verbs before this step
-lands would make the test mean what it appears to mean.
+Coverage is thin, though — `_build_deep` in
+[`smoke/dataset/__init__.py`](../../smoke/dataset/__init__.py) distributes only
+`create_question` and `answer_question`, 2 of the 15 verbs that write
+activities. All 15 store `subject_id` the same way, so one extraction handles
+them all and the risk is lower than the count suggests, but broadening the
+seeded verbs before this step lands would make the test mean what it appears to
+mean.
 
 **4. Switch the read path.** `get_activities_v2` splits in two, because they
 were always two questions:
@@ -198,6 +201,22 @@ were always two questions:
 The subject branch needs no dedup, no `limit * 2`, and works for a user with no
 audience. Both still materialize per viewer, so the gate above is unchanged.
 This is the step where the bug is fixed and the only one with a behavior change.
+
+**The identifier changes type here, which is easy to miss.** The API takes
+`subject_user_uuid: Optional[str]`
+([`endpoints/activities.py:47`](../../chafan_core/app/api/api_v1/endpoints/activities.py)),
+and `Feed.subject_user_uuid` is a `CHAR` column, so today the parameter reaches
+the query unchanged. `Activity.subject_user_id` is an integer FK, so the subject
+branch has to resolve the uuid to a user first. Two consequences worth deciding
+deliberately rather than discovering:
+
+- a uuid that names no user returns an **empty timeline**, not an error — it is
+  a reader asking about somebody who is gone, not a malformed request;
+- that lookup is one extra query per call, which is why it belongs in the
+  subject branch only and not above the split.
+
+Keeping the API parameter a uuid is deliberate: it is the public identifier and
+changing it would break clients for no gain.
 
 **5. Delete the dead v1.** `get_activities` has no callers and is already marked
 `# TODO to remove this function`. Same category as `new_activity_into_feed`,
@@ -239,9 +258,9 @@ Three tests the change should carry:
 
 - **Backfill size.** Unknown without `count(*)` against production. It sets
   whether step 3 is a single statement or a batched script.
-- **Widen the seeded verbs before step 3?** The migrations CI dataset covers 2
-  of the 15 activity-writing verbs. Cheap to extend, and it is what makes the
-  backfill test load-bearing rather than decorative.
+- **Widen the seeded verbs before step 3?** `_build_deep` covers 2 of the 15
+  activity-writing verbs. Cheap to extend, and it is what makes the backfill
+  test load-bearing rather than decorative.
 - **Does the subject timeline want a site filter of its own?** Today the viewer
   gate is per item, applied after the fetch, so a subject with lots of activity
   in sites the viewer cannot read yields a short page rather than an empty one.
