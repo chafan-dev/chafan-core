@@ -56,13 +56,22 @@ jobs:
         "
 
     - name: Run unit tests
+      # Everything directly under tests/app/, by subtraction rather than by
+      # name: the subdirectories below have their own steps, and anything else
+      # added there should run without also having to be listed here.
+      # test_activity_policy.py and test_events_distribute.py arrived in #167
+      # and had never run in CI, because this step named its files one by one.
       run: |
         set -a
         source env.ci
         set +a
         nix develop --command bash -c "
           set -e
-          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-unit.xml chafan_core/tests/app/test_search.py chafan_core/tests/app/test_feed.py chafan_core/tests/app/test_user_permission.py -v
+          PYTHONPATH=\$PWD pytest --cov=chafan_core/app --cov-report=xml:coverage-unit.xml -v \
+            chafan_core/tests/app/ \
+            --ignore=chafan_core/tests/app/api \
+            --ignore=chafan_core/tests/app/crud \
+            --ignore=chafan_core/tests/app/email
         "
 
     - name: Upload coverage

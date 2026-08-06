@@ -1,6 +1,6 @@
 # Activity as the event log, Feed as a receiver index
 
-**Status:** proposed | **Date:** 2026-08-04 | **Last reviewed:** 2026-08-05
+**Status:** proposed | **Date:** 2026-08-04 | **Last reviewed:** 2026-08-06
 
 Step 4, item 1 of the activity/feed work. Steps 1–3 landed in #166, #167, #168
 and #169; the seam they built (`services/events.py`) is what makes this
@@ -151,18 +151,29 @@ this work.
 Each is independently deployable and independently revertible. Steps 1–3 change
 no behavior at all.
 
-**1. Add the column. — done, `7a670908f3fa`.** Migration adding
+**1. Add the column. — done, `7a670908f3fa`, applied to production 2026-08-06.**
+Migration adding
 `activity.subject_user_id`, nullable,
 indexed, FK to `user.id`. Nothing reads or writes it yet. Covered by the
 migrations CI (#171, extended in #173): one head, builds from scratch, no
 model/migration drift, and a downgrade/upgrade round-trip across a *populated*
 database with the seeded rows verified afterwards.
 
-**2. Populate it on write.** `events.distribute` already derives the subject —
-`deliver()` resolves `subject_id` from the event content to set
-`Feed.subject_user_uuid`. The same derivation sets the new column when the
-`Activity` is constructed. New rows are complete from here on; old rows are
-still null.
+**2. Populate it on write. — done, #178.** `events.distribute` already derived the
+subject — `deliver()` resolved `subject_id` from the event content to set
+`Feed.subject_user_uuid`. That derivation is now `events._subject_user_of`,
+called once when the `Activity` is constructed and passed to `deliver`, so the
+two columns cannot disagree: one lookup answers both. New rows are complete
+from here on; old rows are still null.
+
+Two tests pin it: `Activity.subject_user_id` and `Feed.subject_user_uuid` name
+the same user, and a `subject_id` whose user no longer exists writes a null
+rather than raising a foreign key violation into the caller's transaction.
+
+Both live in `test_events_distribute.py`, which — along with
+`test_activity_policy.py` — had never run in CI: the unit-tests job named its
+files one by one and was last touched in #155, before #167 added them. That
+step now takes everything directly under `tests/app/`, by subtraction.
 
 **3. Backfill.** Parse `event_json` for every row where `subject_user_id IS
 NULL`, extract `subject_id`, write it. Batched and idempotent, so it can be run,
@@ -253,7 +264,8 @@ Three tests the change should carry:
   the query. Pins the safety property above.
 - An `Activity` whose payload has no resolvable subject is **skipped, not
   fatal** — it backfills to null, writes to null, and is absent from subject
-  queries. Pins the containment described under "Why nullable".
+  queries. Pins the containment described under "Why nullable". The *writes to
+  null* half landed with step 2; the other two halves belong to steps 3 and 4.
 
 ## Open questions
 

@@ -127,6 +127,25 @@ def _comment_of(ctx: RequestContext, c: object) -> Optional[models.Comment]:
     return crud.comment.get(db, id=cid) if cid is not None else None
 
 
+def _subject_user_of(ctx: RequestContext, c: object) -> Optional[models.User]:
+    """The user the event is *about*, or None if it cannot be resolved.
+
+    One derivation for two sinks: ``Activity.subject_user_id`` and
+    ``Feed.subject_user_uuid`` are the same fact, and resolving it twice is how
+    they would drift apart.
+
+    None is a real answer, not an error. A content model with no ``subject_id``
+    yields None, and so does a ``subject_id`` naming a user that no longer
+    exists -- an event that has already happened must still be recorded, so both
+    columns are nullable rather than the write failing. See
+    docs/proposals/2026-08-04-activity-feed-reassignment.md, "Why nullable".
+    """
+    subject_id = _attr(c, "subject_id")
+    if subject_id is None:
+        return None
+    return crud.user.get(ctx.get_db(), id=subject_id)
+
+
 # --------------------------------------------------------------------------
 # Site derivation. Reproduces the site_id each call site passed by hand.
 # --------------------------------------------------------------------------
@@ -164,10 +183,7 @@ def _site_id_of(ctx: RequestContext, c: object) -> Optional[int]:
 
 
 def _subject_followers(ctx: RequestContext, c: object) -> Set[int]:
-    subject_id = _attr(c, "subject_id")
-    if subject_id is None:
-        return set()
-    subject = crud.user.get(ctx.get_db(), id=subject_id)
+    subject = _subject_user_of(ctx, c)
     if subject is None:
         return set()
     return {follower.id for follower in subject.followers}
@@ -358,22 +374,24 @@ def _activity_precondition(ctx: RequestContext, c: object) -> bool:
 
 
 def deliver(
-    ctx: RequestContext, activity: models.Activity, receiver_ids: Set[int]
+    ctx: RequestContext,
+    activity: models.Activity,
+    receiver_ids: Set[int],
+    *,
+    subject: Optional[models.User],
 ) -> None:
     """Write one Feed row per receiver.
 
     The single place fan-out happens, so that swapping fan-out-on-write for a
     read-time join stays a change to one function.
+
+    ``subject`` is passed in rather than re-derived from ``activity.event_json``
+    because :func:`distribute` has already resolved it for the Activity column.
+    It is required and may be None -- see :func:`_subject_user_of`.
     """
     assert activity.id is not None
     db = ctx.get_db()
-    subject_user_uuid = None
-    event = EventInternal.parse_raw(activity.event_json)
-    subject_id = _attr(event.content, "subject_id")
-    if subject_id is not None:
-        subject = crud.user.get(db, id=subject_id)
-        if subject is not None:
-            subject_user_uuid = subject.uuid
+    subject_user_uuid = subject.uuid if subject is not None else None
     for receiver_id in receiver_ids:
         existing = (
             db.query(models.Feed)
@@ -450,16 +468,19 @@ def distribute(
         return None
 
     activity: Optional[models.Activity] = None
+    subject: Optional[models.User] = None
     if (
         Sink.ACTIVITY in sinks
         and policy.writes_activity
         and _activity_precondition(ctx, content)
     ):
         db = ctx.get_db()
+        subject = _subject_user_of(ctx, content)
         activity = models.Activity(
             created_at=event.created_at,
             site_id=_site_id_of(ctx, content),
             event_json=event.json(),
+            subject_user_id=subject.id if subject is not None else None,
         )
         db.add(activity)
         db.flush()
@@ -468,7 +489,7 @@ def distribute(
         feed_receivers: Set[int] = set()
         for audience in policy.feed_audience:
             feed_receivers |= _resolve(ctx, audience, content)
-        deliver(ctx, activity, feed_receivers)
+        deliver(ctx, activity, feed_receivers, subject=subject)
 
     if Sink.NOTIFICATION in sinks and policy.notifies:
         notify_receivers: Set[int] = set()

@@ -10,6 +10,7 @@ import datetime
 from typing import Set
 
 import pytest
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from chafan_core.app.infra.request_context import RequestContext
@@ -125,6 +126,63 @@ def test_create_question_writes_activity_with_site_and_fans_out(ctx) -> None:
     feeds = db.query(models.Feed).filter_by(activity_id=activity.id).all()
     assert {f.receiver_id for f in feeds} == {follower.id}
     assert _activities_for(db, "create_question", max_id)
+
+
+def test_activity_and_feed_agree_on_the_subject(ctx: RequestContext) -> None:
+    """One derivation, two sinks: the Activity column and the Feed column.
+
+    Activity.subject_user_id is what step 4 will query subject timelines by, so
+    it has to name the same user Feed.subject_user_uuid has always named.
+    """
+    db = ctx.get_db()
+    author = _user(db)
+    follower = _user(db)
+    author.followers.append(follower)
+    site = _site(db, moderator=author)
+    question = _question(db, author_id=author.id, site=site)
+    db.flush()
+
+    activity = events.distribute(
+        ctx,
+        EventInternal(
+            created_at=_now(),
+            content=CreateQuestionInternal(
+                subject_id=author.id, question_id=question.id
+            ),
+        ),
+    )
+
+    assert activity is not None
+    assert activity.subject_user_id == author.id
+    db.flush()
+    feeds = db.query(models.Feed).filter_by(activity_id=activity.id).all()
+    assert [f.subject_user_uuid for f in feeds] == [author.uuid]
+
+
+def test_vanished_subject_writes_null_not_an_error(ctx: RequestContext) -> None:
+    """The containment behind the nullable column.
+
+    An event that has already happened must still be recorded. A subject_id
+    naming a user that is gone resolves to None and the row is written with a
+    null subject -- rather than a foreign key violation taking down the
+    caller's transaction along with it.
+    """
+    db = ctx.get_db()
+    followed = _user(db)
+    db.flush()
+    missing_id = (db.query(func.max(models.User.id)).scalar() or 0) + 1
+
+    activity = events.distribute(
+        ctx,
+        EventInternal(
+            created_at=_now(),
+            content=FollowUserInternal(subject_id=missing_id, user_id=followed.id),
+        ),
+        sinks=frozenset({events.Sink.ACTIVITY}),
+    )
+
+    assert activity is not None, "the event happened; it must still be recorded"
+    assert activity.subject_user_id is None
 
 
 def test_no_notification_for_create_question(ctx) -> None:
