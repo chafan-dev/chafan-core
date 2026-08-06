@@ -1,7 +1,7 @@
 from typing import Literal, Optional
 
 import sentry_sdk
-from pydantic import AnyHttpUrl
+from pydantic import AnyHttpUrl, ValidationError
 from pydantic.types import SecretStr
 from pydantic_settings import BaseSettings
 from sentry_sdk.integrations.redis import RedisIntegration
@@ -79,19 +79,12 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
-        # Read `.env` from the working directory, so that every entrypoint
-        # picks it up -- the app, alembic, the scripts. Before this, only the
-        # handful of scripts that call `load_dotenv()` themselves did, and
-        # `alembic upgrade head` (which does not) failed on a machine whose
-        # configuration lived entirely in `.env`. Real environment variables
-        # still win over the file.
-        env_file = ".env"
-        # A dotenv file is shell configuration, not just app configuration: it
-        # is also `source`d to set PGPASSWORD, PGOPTIONS and friends (see
-        # env.ci). Unlike real environment variables, keys read from the file
-        # are passed to the model as inputs, so without this an unrelated key
-        # in `.env` would fail startup with `extra_forbidden`.
-        extra = "ignore"
+        # Deliberately no `env_file`: settings come from the environment and
+        # nothing else. Deployments keep their configuration in a file outside
+        # the checkout, sourced before the process starts, because it holds
+        # secrets that must not live in a tracked directory. A `.env` fallback
+        # would be a second place for those same secrets to end up -- inside
+        # the repository -- so there is none. See the README.
 
     ### Limit settings
     VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
@@ -122,7 +115,22 @@ class Settings(BaseSettings):
 
 setting_keys = set(Settings.schema()["properties"].keys())
 
-settings = Settings()
+try:
+    settings = Settings()
+except ValidationError as e:
+    # Pydantic says which settings are missing, but not the reason they are
+    # usually missing. Since configuration comes from the environment only,
+    # the common cause is a config file that was sourced without being
+    # exported: plain `source env.ci` sets shell variables, and a child
+    # process -- alembic, pytest, uvicorn -- never sees those. The symptom is
+    # this error with `input_value={}`, several frames away from the mistake.
+    raise RuntimeError(
+        f"{e}\n\n"
+        "Settings are read from environment variables only; there is no .env "
+        "fallback.\n"
+        "If the values are in a file, export them while sourcing it:\n"
+        "    set -a; source env.ci; set +a\n"
+    ) from e
 
 if settings.SENTRY_DSN:
     sentry_sdk.init(

@@ -35,10 +35,6 @@ from __future__ import annotations
 
 import datetime
 
-from dotenv import load_dotenv  # isort:skip
-
-load_dotenv()  # isort:skip
-
 from chafan_core.app import crud
 from chafan_core.app import models as app_models
 from chafan_core.app import schemas

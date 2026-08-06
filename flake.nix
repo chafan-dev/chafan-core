@@ -18,7 +18,6 @@
           ps.alembic
           ps.uvicorn
           ps.fastapi
-          ps.python-dotenv
           ps.apscheduler
           ps.slowapi
           ps.shortuuid
