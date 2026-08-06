@@ -1,7 +1,7 @@
 from __future__ import with_statement
 
-#from dotenv import load_dotenv  # isort:skip
-#load_dotenv()  # isort:skip
+# No load_dotenv() here: `Settings` reads `.env` itself (see
+# chafan_core/app/config.py), so importing it below is enough.
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
