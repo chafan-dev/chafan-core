@@ -175,32 +175,67 @@ Both live in `test_events_distribute.py`, which — along with
 files one by one and was last touched in #155, before #167 added them. That
 step now takes everything directly under `tests/app/`, by subtraction.
 
-**3. Backfill.** Parse `event_json` for every row where `subject_user_id IS
-NULL`, extract `subject_id`, write it. Batched and idempotent, so it can be run,
-interrupted, and re-run. Note this is a *different* kind of migration from the
-one declined in 3b: that was refusing to **correct** wrong rows, this
-**derives** a column from data that is already right. Size it first:
+**3. Backfill. — done, `scripts/backfill_activity_subject.py`.** Parse
+`event_json` for every row where `subject_user_id IS NULL`, extract
+`subject_id`, write it. Batched and idempotent, so it can be run, interrupted,
+and re-run. Note this is a *different* kind of migration from the one declined
+in 3b: that was refusing to **correct** wrong rows, this **derives** a column
+from data that is already right.
 
-```sql
-SELECT count(*) FROM activity;
-```
+A script rather than a migration, deliberately: it keeps a potentially long
+`UPDATE` out of the migration chain, and an interrupted run is resumed by
+running it again rather than by a downgrade. It is meant to be deleted once
+production has no null subjects left.
+
+### What production actually looks like
+
+Measured 2026-08-06, and it settles most of what this section used to leave
+open:
+
+| | |
+|---|---|
+| rows | 412 (344 kB), oldest 2025-07-06 |
+| `subject_user_id` populated | 0 — step 2 was merged but **not yet deployed** |
+| payloads that will not parse | 0 |
+| payloads with no `subject_id` | 0 |
+| subjects naming a deleted user | 0 |
+| verbs present | 10 of the 15 |
+
+At 412 rows this is a single statement that finishes instantly; the batching
+exists for the table this becomes, not the table it is. Every row is readable
+and every subject resolves, so the skip paths below are — today — defensive
+rather than load-bearing. They stay, because "today" is the wrong thing to
+build a data migration on.
+
+Because step 2 is not deployed yet, **run the script after that deploy**, or
+run it again afterwards: anything written while the old code is still live
+lands with a null subject.
 
 **It must skip, not abort.** A row whose payload will not parse, or whose
 `subject_id` names a user that no longer exists, is left null and logged. One
 unreadable row from some retired code path must not fail the migration for the
 whole table — the same reasoning as 3b-1, one layer down.
 
-The migrations CI exercises this for real: its seeded dataset builds
-`Activity` rows through `events.distribute`, so a backfill runs against genuine
-`event_json` and `verify` fails if it mangles them.
+This is also why the extraction is Python rather than
+`event_json::jsonb -> 'content' ->> 'subject_id'` in SQL: the cast raises on
+the first malformed row and takes the whole statement with it, and
+`pg_input_is_valid` is PostgreSQL 16+ while production is 14.
 
-Coverage is thin, though — `_build_deep` in
-[`smoke/dataset/__init__.py`](../../smoke/dataset/__init__.py) distributes only
-`create_question` and `answer_question`, 2 of the 15 verbs that write
-activities. All 15 store `subject_id` the same way, so one extraction handles
-them all and the risk is lower than the count suggests, but broadening the
-seeded verbs before this step lands would make the test mean what it appears to
-mean.
+### How it is tested
+
+The migrations CI owns the only populated database in CI, which is what a
+backfill needs — but since step 2 the seed writes `subject_user_id` on every
+row, so running the script there as-is would find nothing to do and pass
+without proving anything. The job nulls the column first to recreate the state
+production is in, then asserts the script restores a fingerprint of exactly
+what `events.distribute` wrote.
+
+That construction also dissolves what this section used to flag as thin
+coverage. The test no longer depends on how many verbs `_build_deep` seeds,
+because it never names a verb: it compares the backfill's output against the
+application's own writes, whatever those happen to be. Widening the seeded
+verbs is still worth doing for its own sake, but it is no longer a
+prerequisite here.
 
 **4. Switch the read path.** `get_activities_v2` splits in two, because they
 were always two questions:
@@ -230,9 +265,10 @@ deliberately rather than discovering:
 Keeping the API parameter a uuid is deliberate: it is the public identifier and
 changing it would break clients for no gain.
 
-**5. Delete the dead v1.** `get_activities` has no callers and is already marked
-`# TODO to remove this function`. Same category as `new_activity_into_feed`,
-which #169 deleted.
+**5. Delete the dead v1. — done, #180.** `get_activities` had no callers and was
+already marked `# TODO to remove this function`. Same category as
+`new_activity_into_feed`, which #169 deleted. It was also the last caller of
+`execute_with_broker` in `feed_impl`.
 
 **6. Deferred — drop `feed.subject_user_uuid`.** Destructive DDL, and
 contingent on step 4 item 2 (fan-out-on-write vs read-time resolution): under
@@ -269,11 +305,12 @@ Three tests the change should carry:
 
 ## Open questions
 
-- **Backfill size.** Unknown without `count(*)` against production. It sets
-  whether step 3 is a single statement or a batched script.
-- **Widen the seeded verbs before step 3?** `_build_deep` covers 2 of the 15
-  activity-writing verbs. Cheap to extend, and it is what makes the backfill
-  test load-bearing rather than decorative.
+- ~~**Backfill size.**~~ Answered 2026-08-06: 412 rows, 344 kB. Step 3 is a
+  script for the shape of the job, not for the size of it.
+- ~~**Widen the seeded verbs before step 3?**~~ No longer a prerequisite — the
+  backfill test compares against what `events.distribute` wrote rather than
+  against a fixed list of verbs, so it is load-bearing at any seed width. Still
+  worth doing on its own merits.
 - **Does the subject timeline want a site filter of its own?** Today the viewer
   gate is per item, applied after the fetch, so a subject with lots of activity
   in sites the viewer cannot read yields a short page rather than an empty one.

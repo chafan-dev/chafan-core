@@ -172,3 +172,43 @@ jobs:
           set -euo pipefail
           PYTHONPATH=$PWD alembic check
         '
+
+    - name: Backfill round-trips activity.subject_user_id
+      # This job owns the only populated database in CI, which is what a
+      # backfill needs. Since #178 the seed writes subject_user_id on every
+      # row, so running the script as-is would find nothing and pass without
+      # proving anything -- the column is nulled first to recreate the state
+      # production is actually in, and the assertion is that the script puts
+      # back exactly what events.distribute wrote.
+      run: |
+        set -euo pipefail
+        set -a; source env.ci; set +a
+        nix develop --command bash -c '
+          set -euo pipefail
+          export PYTHONPATH=$PWD
+          # chr(58)/chr(44)/chr(45) stand in for : , and - so this stays free of
+          # the single quotes that would end the surrounding bash -c string.
+          fingerprint="select md5(string_agg(id || chr(58) || coalesce(subject_user_id::text, chr(45)), chr(44) order by id)) from activity"
+          before_fp=$(psql "$DATABASE_URL" -tAc "$fingerprint")
+          before=$(psql "$DATABASE_URL" -tAc "select count(subject_user_id) from activity")
+          if [ "$before" -eq 0 ]; then
+            echo "::error::the seed left no populated subjects; this step would prove nothing"
+            exit 1
+          fi
+          psql "$DATABASE_URL" -c "update activity set subject_user_id = null;"
+
+          python scripts/backfill_activity_subject.py --dry-run
+          wrote=$(psql "$DATABASE_URL" -tAc "select count(subject_user_id) from activity")
+          if [ "$wrote" -ne 0 ]; then
+            echo "::error::--dry-run wrote to the database"
+            exit 1
+          fi
+
+          python scripts/backfill_activity_subject.py
+          after_fp=$(psql "$DATABASE_URL" -tAc "$fingerprint")
+          if [ "$before_fp" != "$after_fp" ]; then
+            echo "::error::backfill did not restore what events.distribute wrote"
+            exit 1
+          fi
+          python -m smoke.dataset verify --deep
+        '
