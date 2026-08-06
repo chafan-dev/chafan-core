@@ -79,6 +79,19 @@ class Settings(BaseSettings):
 
     class Config:
         case_sensitive = True
+        # Read `.env` from the working directory, so that every entrypoint
+        # picks it up -- the app, alembic, the scripts. Before this, only the
+        # handful of scripts that call `load_dotenv()` themselves did, and
+        # `alembic upgrade head` (which does not) failed on a machine whose
+        # configuration lived entirely in `.env`. Real environment variables
+        # still win over the file.
+        env_file = ".env"
+        # A dotenv file is shell configuration, not just app configuration: it
+        # is also `source`d to set PGPASSWORD, PGOPTIONS and friends (see
+        # env.ci). Unlike real environment variables, keys read from the file
+        # are passed to the model as inputs, so without this an unrelated key
+        # in `.env` would fail startup with `extra_forbidden`.
+        extra = "ignore"
 
     ### Limit settings
     VISITORS_READ_ARTICLE_LIMIT: int = 100 #previous 5
