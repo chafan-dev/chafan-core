@@ -11,7 +11,6 @@ from chafan_core.app.schemas.event import (
     CreateQuestionInternal,
     EventInternal,
 )
-from chafan_core.app.services.activity_policy import ALWAYS_PUBLIC_EVENT_VERBS
 from chafan_core.app.infra.runtime import execute_with_broker
 from chafan_core.utils.base import map_, unwrap
 
@@ -139,7 +138,16 @@ def get_activities_v2(
     db = ctx.get_db()
     receiver = crud.user.get(db, id=receiver_user_id)
     assert receiver is not None
-    # TODO feed_settings not supported yet
+    # TODO: honor receiver.feed_settings.blocked_origins here. `is_blocked` and
+    # the two /activities/settings endpoints are still live, so a user can mute
+    # a site, see the setting persist, and keep seeing that site -- this branch
+    # is where that promise is dropped. The now-dead v1 `get_activities` below
+    # shows the three lines it takes. Not switched on blind: anyone holding a
+    # mute from before the v2 rewrite would silently lose feed content on
+    # deploy, so size it first with
+    #   SELECT count(*) FROM "user" WHERE feed_settings IS NOT NULL
+    #     AND feed_settings::jsonb -> 'blocked_origins' <> '[]'::jsonb;
+    # and decide between restoring the feature and deleting it.
     feeds = db.query(models.Feed)
     if subject_user_uuid is not None:
         feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
@@ -151,7 +159,7 @@ def get_activities_v2(
     activities = []
     activity_ids = set()
     for feed in feeds:
-        feed_settings = None # TODO not supported yed
+        feed_settings = None  # TODO: see the blocked_origins note above.
         if feed.activity_id in activity_ids:
             continue
         activity = materialize_activity(
@@ -204,46 +212,6 @@ def get_activities( # TODO to remove this function
         return data
     else:
         return []
-
-
-def _is_public_activity(activity: schemas.Activity) -> bool:
-    if activity.site and activity.site.public_readable:
-        return True
-    return activity.event.content.verb in ALWAYS_PUBLIC_EVENT_VERBS
-
-
-def get_random_activities(
-    *, receiver_user_id: int, before_activity_id: Optional[int], limit: int
-) -> List[schemas.Activity]:
-    id_bucket = receiver_user_id % 10
-
-    def runnable(broker: RequestContext) -> List[schemas.Activity]:
-        db = broker.get_db()
-        stream = db.query(models.Activity)
-        if before_activity_id is not None:
-            stream = stream.filter(models.Activity.id < before_activity_id)
-        stream = stream.filter(models.Activity.id % 10 != id_bucket).order_by(
-            models.Activity.id.desc()
-        )
-        activities: List[schemas.Activity] = []
-        for activity in stream:
-            materialized_activity = materialize_activity(
-                broker, activity, receiver_user_id, None
-            )
-            if len(activities) >= limit:
-                break
-            if materialized_activity and _is_public_activity(materialized_activity):
-                activities.append(materialized_activity)
-        return activities
-
-    data = execute_with_broker(runnable)
-    if data:
-        return data
-    else:
-        return []
-
-
-CACHE_REWIND_SIZE = 1000
 
 
 

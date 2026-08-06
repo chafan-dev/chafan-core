@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List, Optional
 
 from chafan_core.app import schemas
-from chafan_core.app.services.feed_impl import get_activities_v2, get_random_activities
-
-import logging
+from chafan_core.app.services import feed_fill
+from chafan_core.app.services.feed_impl import get_activities_v2
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +30,17 @@ def get_user_activity(
         subject_user_uuid=subject_user_uuid,
     )
 
-    insufficient = limit - len(activities)
-    tolerate_order = before_activity_id is None
-    if random:
-        tolerate_order = True
+    if subject_user_uuid is not None:
+        # A profile timeline is a record of what one user did. Padding it with
+        # somebody else's activity would make it say something untrue, so a
+        # short one stays short.
+        return activities
 
-    if tolerate_order and insufficient > 0 and subject_user_uuid is None:
-        extra_activities = get_random_activities(
-            receiver_user_id=current_user_id,
-            before_activity_id=before_activity_id,
-            limit=limit,
-        )
-        activities.extend(extra_activities)
-
-    return activities
+    return feed_fill.top_up(
+        ctx,
+        activities,
+        receiver_id=current_user_id,
+        limit=limit,
+        before_activity_id=before_activity_id,
+        random=random,
+    )
