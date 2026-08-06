@@ -25,10 +25,6 @@ import json
 import os
 import pathlib
 
-from dotenv import load_dotenv  # isort:skip
-
-load_dotenv()  # isort:skip
-
 from chafan_core.db.session import SessionLocal
 from smoke.dataset import ACCOUNTS, build
 

@@ -28,17 +28,21 @@ export PYTHONPATH="$PWD"
 
 ### Configure environment
 
-Settings are read from the environment; `.env` in the repository root is read too, and real environment variables win over it. See `chafan_core/app/config.py` for the full list of settings and their defaults.
+Settings are read from **environment variables, and nothing else** — there is no `.env` support, deliberately. Deployments keep their configuration in a file outside the checkout, because it holds secrets that must not sit in a tracked directory; a `.env` inside the repository would be a second place for those to end up. See `chafan_core/app/config.py` for the full list of settings and their defaults.
 
 Only three have no default and must be set: `DATABASE_URL`, `REDIS_URL`, and `SERVER_HOST`.
 
-The quickest start is to copy `env.ci` — the configuration CI runs against, so it is known to work — and edit it:
+The quickest start is `env.ci` — the configuration CI runs against, so it is known to work. Copy it, edit it, and **export it while sourcing**:
 
 ```bash
-cp env.ci .env
+cp env.ci env.dev
+$EDITOR env.dev
+set -a; source env.dev; set +a
 ```
 
-A minimal `.env` of your own:
+`set -a` is the part that matters. A plain `source env.dev` sets shell variables without exporting them, so `alembic`, `pytest` and `uvicorn` — separate processes — see nothing, and fail with `Field required` and `input_value={}`. Every environment step in `.github/workflows/` is written this way for the same reason.
+
+A minimal configuration of your own:
 
 ```
 SERVER_HOST=http://dev.cha.fan:4582

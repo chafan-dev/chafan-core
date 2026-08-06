@@ -5,9 +5,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 import logging
 
-from dotenv import load_dotenv  # isort:skip
-load_dotenv()  # isort:skip
-
 from chafan_core.db.init_db import init_db
 from chafan_core.db.session import SessionLocal
 

@@ -1,7 +1,8 @@
 from __future__ import with_statement
 
-# No load_dotenv() here: `Settings` reads `.env` itself (see
-# chafan_core/app/config.py), so importing it below is enough.
+# No load_dotenv() here, and none anywhere else: configuration comes from the
+# environment, which the caller is expected to have exported before running
+# alembic. See chafan_core/app/config.py.
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
