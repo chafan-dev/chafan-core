@@ -1,11 +1,17 @@
 # Activity as the event log, Feed as a receiver index
 
-**Status:** proposed | **Date:** 2026-08-04 | **Last reviewed:** 2026-08-06
+**Status:** implemented — steps 1–5 shipped, step 6 deferred | **Date:** 2026-08-04 | **Last reviewed:** 2026-08-08
 
 Step 4, item 1 of the activity/feed work. Steps 1–3 landed in #166, #167, #168
 and #169; the seam they built (`services/events.py`) is what makes this
 tractable. The migrations CI this plan's schema change relies on landed in #171
 and #173. Terminology is in [`docs/glossary.md`](../glossary.md).
+
+**Done as of 2026-08-08**, in #174, #178, #180, #183 and #184, with the backfill
+run against production by hand. Only step 6 is outstanding, and it is
+deliberately blocked on a decision this plan does not make. What is left, and
+what this work turned up on the way, is under
+[Follow-ups](#follow-ups) at the end.
 
 ## The problem
 
@@ -265,7 +271,7 @@ SELECT id, subject_user_id FROM activity ORDER BY id DESC LIMIT 1;
 A null there means the deploy did not take and the `UPDATE` needs a second run
 once it has.
 
-**4. Switch the read path. — done.** `get_activities_v2` split in two, because
+**4. Switch the read path. — done, #183.** `get_activities_v2` split in two, because
 they were always two questions:
 
 | Query | Reads | Ordered by |
@@ -316,8 +322,10 @@ allowed to see, rather than only what happened to be delivered to somebody.
 For an active user with followers the result is nearly identical, minus the
 duplicates. For a user with no followers it goes from empty to complete.
 
-This is the intended fix, but it is a visible product change and worth
-confirming before step 4 ships.
+This is the intended fix, but it is a visible product change. Confirmed with the
+owner before #183 shipped; at fewer than ten active users it reaches
+essentially everyone, so it is worth a look at a real profile after the deploy
+rather than only in tests.
 
 ## Verification
 
@@ -325,27 +333,114 @@ Per step: full unit suite, byte-identical OpenAPI (the endpoint signature does
 not change at any point), both architecture ratchets, mypy flat, and the
 migrations CI (#171, #173).
 
-Three tests the change should carry:
+The three tests this plan asked for, and where they ended up — all in
+[`test_feed.py`](../../chafan_core/tests/app/test_feed.py) unless noted:
 
 - A user with **no followers and no column subscribers** has a non-empty
-  profile timeline. This fails today and is the point of the change.
+  profile timeline — `test_profile_is_complete_without_an_audience`. Verified
+  to fail on the parent commit and pass on #183, so it demonstrates the fix
+  rather than asserting it.
 - A viewer who cannot read a private site does **not** see the subject's
   activity from that site, even though the `Activity` row is now reachable by
-  the query. Pins the safety property above.
-- An `Activity` whose payload has no resolvable subject is **skipped, not
-  fatal** — it backfills to null, writes to null, and is absent from subject
-  queries. Pins the containment described under "Why nullable". The *writes to
-  null* half landed with step 2; the other two halves belong to steps 3 and 4.
+  the query — `test_private_site_activity_stays_hidden`. Pins the safety
+  property above.
+- An `Activity` with no resolvable subject is **skipped, not fatal**, in all
+  three phases: it writes null
+  (`test_vanished_subject_writes_null_not_an_error`, in
+  [`test_events_distribute.py`](../../chafan_core/tests/app/test_events_distribute.py)),
+  backfills to null
+  (the `UPDATE` leaves it alone, since `->>` yields SQL `NULL` and matches no
+  user), and is absent from subject queries
+  (`test_activity_without_a_subject_is_absent`).
 
-## Open questions
+End to end, `smoke/scenarios/s10_feed_fanout.py` (#184) covers the same split
+against a live server: A follows B, B posts a question, an answer, an article
+and a comment, and A receives the three verbs that fan out while the comment
+reaches only B's profile.
 
-- ~~**Backfill size.**~~ Answered 2026-08-06: 412 rows, 344 kB. A single
-  statement.
-- **Widen the seeded verbs?** `_build_deep` covers 2 of the 15
-  activity-writing verbs. No longer a prerequisite for step 3, which is now a
-  hand-run statement rather than tested code, but still worth doing on its own
-  merits.
-- **Does the subject timeline want a site filter of its own?** Today the viewer
-  gate is per item, applied after the fetch, so a subject with lots of activity
-  in sites the viewer cannot read yields a short page rather than an empty one.
-  Acceptable, but it is a pagination wrinkle worth knowing about.
+Two things that made the e2e honest and are easy to lose:
+
+- **The padding can make a delivery test vacuous.** `feed_fill.top_up` fills a
+  short feed from recent public activity site-wide, so B's posts appear in A's
+  feed even with delivery broken. `top_up` returns early on any request
+  carrying `before_activity_id`, so s10 passes one and reads delivery alone.
+- **The old XFAIL was misdiagnosed.** s10's negative case was annotated
+  "unfollow does not prune fan-out" since it was written. Checked against the
+  database: B's post-unfollow activity has zero `Feed` rows and A has exactly
+  one `Feed` row in the whole database. Nothing ever leaked — the padding was
+  supplying the item. Reading delivery directly, the check passes for real.
+
+## Follow-ups
+
+What is left of this plan, and what building it turned up. Nothing here blocks
+anything already shipped.
+
+### Left in this plan
+
+**Step 6 — drop `feed.subject_user_uuid`.** Still deferred, and still for the
+reason given above: it is contingent on step 4 item 2. Nothing new learned.
+
+**Deploy.** As of 2026-08-08 production runs `5c3654f`, which predates #183, so
+profiles are still served the old way there. No migration is involved; the
+schema has been at `7a670908f3fa` since 2026-08-06 and the backfill is done.
+
+**`NOT NULL` on `activity.subject_user_id`.** Newly available rather than newly
+needed: `SELECT count(*) FROM activity WHERE subject_user_id IS NULL` is zero
+in production, which was the precondition named under "Why nullable". A
+one-line migration whenever it is wanted. Note it would remove the containment
+the skip paths rely on, so it should follow a decision about `site_broadcast`
+rather than precede one.
+
+### Turned up on the way
+
+**`blocked_origins` is written but never read.** `get_activities_v2` — now
+`receiver_feed` — has always passed `feed_settings=None`, so `is_blocked` never
+runs, while `PUT /activities/settings/blocked-origins/` and `GET
+/activities/settings` still accept and return the setting. A user can mute a
+site, watch the setting persist, and keep seeing that site. Production has
+**zero** users holding a mute (checked 2026-08-06), so deleting the feature is
+at least as defensible as restoring it; restoring is three lines. Either way it
+should stop being silent. The marker is `NO_FEED_SETTINGS` in
+[`feed_impl.py`](../../chafan_core/app/services/feed_impl.py).
+
+**`FeedSequence.random` does not mean what it looks like.** It is the echoed
+request parameter, not a statement about the response, so neither the frontend
+nor the e2e can tell a delivered item from a padded one. #85 set it to `True`
+when it substituted filler and the rewrite lost that. Restoring it would let
+the frontend label filler as filler and would let s10's negative case assert
+directly instead of going through `before_activity_id`. It is a visible change
+for the PWA, which is why #179 left it alone.
+
+**Padding shows unfollowed users' content.** A feed under
+`feed_fill.FILL_BELOW` items is topped up from recent public activity
+site-wide, so somebody A has deliberately unfollowed can still appear in A's
+feed as filler. Intended behaviour for an empty feed, but at this deployment's
+size nearly every feed is thin, so in practice most users see most content. A
+product question rather than a defect, and the natural thing to settle
+alongside the content-quality work `feed_fill` is a placeholder for.
+
+**Widen the seeded verbs.** `_build_deep` in
+[`smoke/dataset/__init__.py`](../../smoke/dataset/__init__.py) distributes 2 of
+the 15 activity-writing verbs. It stopped being a prerequisite for step 3 once
+the backfill became a hand-run statement, and s10 now exercises four verbs
+against a live server, so this is ordinary coverage work rather than a gap in
+anything above.
+
+### Still open as questions
+
+**Does the subject timeline want a site filter of its own?** The viewer gate is
+per item, applied after the fetch, so a subject with lots of activity in sites
+the viewer cannot read yields a short page rather than an empty one. #183 took
+the simple option deliberately — filling the page means looping until enough
+items survive — and at this scale a short page is invisible. Revisit if the
+site grows or if private sites become common.
+
+**Unrelated and still unfixed: the RSS visibility hole
+([#170](https://github.com/chafan-dev/chafan-core/issues/170)).**
+`feed_impl.retrieve_content` checks `is_hidden`, `is_published` and
+`is_deleted` by hand and never consults content visibility, while `build_rss`
+puts the full answer body in the entry. An answer marked
+`visibility=REGISTERED` in a publicly readable site is therefore served in full
+to anonymous `/rss.xml`, which [`user_permission.py:114`](../../chafan_core/app/user_permission.py) would refuse. This is
+the one path where "a row grants nothing" does not hold, and it is untouched by
+this work.
