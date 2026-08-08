@@ -75,8 +75,9 @@ def get_settings(
 
 
 # TODO: these two endpoints read and write a setting the feed no longer honors
-# -- see the blocked_origins note in services/feed_impl.get_activities_v2. They
-# are left in place so existing settings are not lost while that is decided.
+# -- see the blocked_origins note above NO_FEED_SETTINGS in
+# services/feed_impl.py. They are left in place so existing settings are not
+# lost while that is decided.
 @router.put("/settings/blocked-origins/", response_model=schemas.GenericResponse)
 def update_blocked_origins(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),

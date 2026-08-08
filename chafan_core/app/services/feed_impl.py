@@ -125,49 +125,99 @@ def get_site_activities(
             contents.append(obj)
     return contents
 
-def get_activities_v2(
-    *,
+# --------------------------------------------------------------------------
+# The two timelines.
+#
+# They were always two questions -- "what was delivered to me" and "what did
+# this user do" -- and they used to share one query against Feed. That is why
+# the subject branch ignored receiver_id entirely and asked the delivery table
+# a question about authorship. See
+# docs/proposals/2026-08-04-activity-feed-reassignment.md.
+#
+# Both still materialize per viewer, so a row in either table grants nothing:
+# the responder permission check runs per item at read time and an item the
+# viewer may not see silently does not render.
+# --------------------------------------------------------------------------
+
+# TODO: honor the receiver's feed_settings.blocked_origins. `is_blocked` above
+# and the two /activities/settings endpoints are all still live, so a user can
+# mute a site, see the setting persist, and keep seeing that site. Restoring it
+# is three lines -- parse feed_settings into a UserFeedSettings and pass it
+# here instead of None. Production has zero users holding a mute (checked
+# 2026-08-06), so deleting the feature is at least as likely as restoring it;
+# either way it should be a decision rather than this silence.
+NO_FEED_SETTINGS: Optional[UserFeedSettings] = None
+
+
+def receiver_feed(
     ctx: "RequestContext",
+    *,
+    receiver_id: int,
     before_activity_id: Optional[int],
     limit: int,
-    receiver_user_id: int,
-    subject_user_uuid: Optional[str],
 ) -> List[schemas.Activity]:
+    """What was delivered to this user, newest first.
+
+    No deduplication and no over-fetch. ``Feed`` carries
+    ``UNIQUE (activity_id, receiver_id)``, so filtering by a single receiver
+    returns at most one row per activity. The ``limit * 2`` and the seen-set
+    this replaces existed only because the subject timeline ran through here
+    too, querying across *all* receivers -- that is where one activity came
+    back once per follower.
+    """
     db = ctx.get_db()
-    receiver = crud.user.get(db, id=receiver_user_id)
-    assert receiver is not None
-    # TODO: honor receiver.feed_settings.blocked_origins here. `is_blocked` and
-    # the two /activities/settings endpoints are still live, so a user can mute
-    # a site, see the setting persist, and keep seeing that site -- this branch
-    # is where that promise is dropped. It takes three lines -- parse
-    # receiver.feed_settings into a UserFeedSettings and pass it to
-    # materialize_activity instead of None. Not switched on blind: anyone
-    # holding a mute from before the v2 rewrite would silently lose feed
-    # content on deploy, so size it first with
-    #   SELECT count(*) FROM "user" WHERE feed_settings IS NOT NULL
-    #     AND feed_settings::jsonb -> 'blocked_origins' <> '[]'::jsonb;
-    # and decide between restoring the feature and deleting it.
-    feeds = db.query(models.Feed)
-    if subject_user_uuid is not None:
-        feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
-    else:
-        feeds = feeds.filter_by(receiver_id=receiver_user_id)
+    feeds = db.query(models.Feed).filter_by(receiver_id=receiver_id)
     if before_activity_id:
         feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
-    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit * 2) # Do we have better idea?
+    feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
     activities = []
-    activity_ids = set()
     for feed in feeds:
-        feed_settings = None  # TODO: see the blocked_origins note above.
-        if feed.activity_id in activity_ids:
-            continue
         activity = materialize_activity(
-            ctx.broker, feed.activity, receiver_user_id, feed_settings
+            ctx, feed.activity, receiver_id, NO_FEED_SETTINGS
         )
-        if activity:
-            activity_ids.add(feed.activity_id)
+        if activity is not None:
             activities.append(activity)
-        if len(activities) >= limit:
-            break
-    logger.info("v2 get " + str(len(activities)))
+    return activities
+
+
+def subject_timeline(
+    ctx: "RequestContext",
+    *,
+    subject_user_uuid: str,
+    viewer_id: int,
+    before_activity_id: Optional[int],
+    limit: int,
+) -> List[schemas.Activity]:
+    """Everything one user did, newest first, as seen by ``viewer_id``.
+
+    Reads the event log rather than the delivery table, so it no longer depends
+    on the subject having an audience: a user with no followers and no column
+    subscribers has a complete profile here instead of a blank one.
+
+    The uuid is resolved to an id because ``Activity.subject_user_id`` is an
+    integer FK while the API parameter is the public uuid. A uuid naming nobody
+    yields an **empty timeline rather than an error** -- that is a reader asking
+    about somebody who is gone, not a malformed request.
+
+    A page can come back shorter than ``limit`` when the viewer cannot read some
+    of the subject's sites, because the gate runs per item after the fetch.
+    Accepted deliberately: filling the page would mean looping until enough
+    items survive, which is complexity bought against a load this deployment
+    does not have.
+    """
+    db = ctx.get_db()
+    subject = crud.user.get_by_uuid(db, uuid=subject_user_uuid)
+    if subject is None:
+        return []
+    query = db.query(models.Activity).filter(
+        models.Activity.subject_user_id == subject.id
+    )
+    if before_activity_id:
+        query = query.filter(models.Activity.id < before_activity_id)
+    query = query.order_by(models.Activity.id.desc()).limit(limit)
+    activities = []
+    for activity in query:
+        materialized = materialize_activity(ctx, activity, viewer_id, NO_FEED_SETTINGS)
+        if materialized is not None:
+            activities.append(materialized)
     return activities

@@ -1,10 +1,9 @@
-"""Feed padding: when it happens, and what it is not allowed to do.
+"""GET /activities/: the two timelines behind it, and the padding on one.
 
-The padding exists so a user who follows nobody does not see a blank home
-page. These pin the boundaries the version in #85 had and the rewrite of it
-lost -- it padded any page that was not completely full, could return more
-items than the caller asked for, and could repeat an activity that was already
-in the feed.
+The endpoint answers two different questions. The home feed asks what was
+delivered to the viewer; a profile asks what one user did. Half of these tests
+pin that split, the other half pin the padding that keeps a new user's home
+page from rendering blank.
 """
 
 import datetime
@@ -58,6 +57,20 @@ def _public_site(db: Session, moderator):
             subdomain=random_short_lower_string(),
             description="d",
             permission_type="public",
+        ),
+        moderator=moderator,
+        category_topic_id=None,
+    )
+
+
+def _private_site(db: Session, moderator):
+    return crud.site.create_with_permission_type(
+        db,
+        obj_in=SiteCreate(
+            name=f"S {random_short_lower_string()}",
+            subdomain=random_short_lower_string(),
+            description="d",
+            permission_type="private",
         ),
         moderator=moderator,
         category_topic_id=None,
@@ -200,3 +213,149 @@ def test_subject_timelines_are_never_padded(ctx: RequestContext) -> None:
     activities = _feed(ctx, author, subject_user_uuid=silent.uuid)
 
     assert activities == [], "a silent user's profile stays empty"
+
+
+# ---------------------------------------------------------------------------
+# The subject timeline (step 4). Reads the event log, not the delivery table.
+# ---------------------------------------------------------------------------
+
+
+def test_profile_is_complete_without_an_audience(ctx: RequestContext) -> None:
+    """The bug this whole plan exists to fix.
+
+    No followers and no column subscribers means no Feed rows, so the old
+    subject query -- which read Feed -- returned nothing however much the user
+    had posted.
+    """
+    db = ctx.get_db()
+    loner = _user(db)
+    site = _public_site(db, moderator=loner)
+    _ask(ctx, loner, site)
+    _ask(ctx, loner, site)
+    db.flush()
+
+    # The precondition that made the old query fail: no audience, so the
+    # fan-out wrote nothing, so reading Feed found nothing to return.
+    assert loner.followers.count() == 0
+    mine = [a.id for a in db.query(models.Activity).filter_by(subject_user_id=loner.id)]
+    assert len(mine) == 2
+    assert (
+        db.query(models.Feed).filter(models.Feed.activity_id.in_(mine)).count() == 0
+    ), "no audience means no delivery rows"
+
+    viewer = _user(db)
+    db.flush()
+    activities = _feed(ctx, viewer, subject_user_uuid=loner.uuid)
+
+    assert len(activities) == 2
+
+
+def test_own_profile_needs_no_superuser_trick(ctx: RequestContext) -> None:
+    """You do not follow yourself, which is what the deleted v1 worked around."""
+    db = ctx.get_db()
+    author = _user(db)
+    site = _public_site(db, moderator=author)
+    _ask(ctx, author, site)
+    db.flush()
+
+    activities = _feed(ctx, author, subject_user_uuid=author.uuid)
+
+    assert len(activities) == 1
+
+
+def test_subject_timeline_has_no_duplicates(ctx: RequestContext) -> None:
+    """One activity, once -- however many people it was delivered to.
+
+    Reading Feed across all receivers returned it once per follower, which is
+    what the `limit * 2` over-fetch and the seen-set existed to undo.
+    """
+    db = ctx.get_db()
+    author = _user(db)
+    for _ in range(3):
+        author.followers.append(_user(db))
+    site = _public_site(db, moderator=author)
+    _ask(ctx, author, site)
+    db.flush()
+    viewer = _user(db)
+    db.flush()
+
+    activities = _feed(ctx, viewer, subject_user_uuid=author.uuid)
+
+    ids = [a.id for a in activities]
+    assert ids == sorted(set(ids), reverse=True)
+    assert len(ids) == 1, "three followers, one activity"
+
+
+def test_private_site_activity_stays_hidden(ctx: RequestContext) -> None:
+    """The safety property: reachable by the query is not the same as visible.
+
+    The Activity row is now returned by the subject query regardless of
+    delivery, so the per-viewer responder gate is the only thing standing
+    between an outsider and a private site's contents.
+    """
+    db = ctx.get_db()
+    author = _user(db)
+    public = _public_site(db, moderator=author)
+    private = _private_site(db, moderator=author)
+    _ask(ctx, author, public)
+    _ask(ctx, author, private)
+    db.flush()
+    outsider = _user(db)
+    db.flush()
+
+    seen = _feed(ctx, outsider, subject_user_uuid=author.uuid)
+
+    subdomains = {a.site.subdomain for a in seen if a.site}
+    assert public.subdomain in subdomains
+    assert private.subdomain not in subdomains, "a non-member must not see it"
+    assert len(seen) == 1, "the private item is dropped, not merely unlabelled"
+
+
+def test_unknown_subject_uuid_is_empty_not_an_error(ctx: RequestContext) -> None:
+    """A reader asking about somebody who is gone, not a malformed request."""
+    db = ctx.get_db()
+    viewer = _user(db)
+    db.flush()
+
+    assert _feed(ctx, viewer, subject_user_uuid="no-such-user-uuid") == []
+
+
+def test_activity_without_a_subject_is_absent(ctx: RequestContext) -> None:
+    """Null-subject rows never appear in a subject query -- containment."""
+    db = ctx.get_db()
+    author = _user(db)
+    site = _public_site(db, moderator=author)
+    _ask(ctx, author, site)
+    db.flush()
+    db.query(models.Activity).filter_by(subject_user_id=author.id).update(
+        {"subject_user_id": None}
+    )
+    db.flush()
+    viewer = _user(db)
+    db.flush()
+
+    assert _feed(ctx, viewer, subject_user_uuid=author.uuid) == []
+
+
+def test_subject_timeline_paginates(ctx: RequestContext) -> None:
+    db = ctx.get_db()
+    author = _user(db)
+    site = _public_site(db, moderator=author)
+    for _ in range(3):
+        _ask(ctx, author, site)
+    db.flush()
+    viewer = _user(db)
+    db.flush()
+
+    first = _feed(ctx, viewer, subject_user_uuid=author.uuid, limit=2)
+    assert len(first) == 2
+
+    rest = _feed(
+        ctx,
+        viewer,
+        subject_user_uuid=author.uuid,
+        limit=2,
+        before_activity_id=first[-1].id,
+    )
+    assert len(rest) == 1
+    assert rest[0].id < first[-1].id
