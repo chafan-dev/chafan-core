@@ -1,6 +1,6 @@
 # Event distribution: one seam for Activity, Feed and Notification
 
-**Status:** 3a and 3b landed; step 4 open | **Date:** 2026-08-03 | **Last reviewed:** 2026-08-04
+**Status:** 3a and 3b landed; step 4 item 1 done, items 2–4 open | **Date:** 2026-08-03 | **Last reviewed:** 2026-08-08
 
 Step 3 of the activity/feed work. Step 1 (the per-verb policy table) and step 2
 (Tier 1 renames) landed in #166 as `ca23ef7`. Step 3a landed in #167 as
@@ -298,11 +298,18 @@ behavior depended on it.
 
 ## Deferred to step 4
 
-- Activity/Feed responsibility reassignment: Activity as the complete,
-  deduplicated event log and the source for subject queries; Feed as a pure
-  receiver index with `subject_user_uuid` dropped.
+- ~~Activity/Feed responsibility reassignment~~ — **done 2026-08-08**, planned
+  and recorded in
+  [`2026-08-04-activity-feed-reassignment.md`](2026-08-04-activity-feed-reassignment.md)
+  and shipped in #174, #178, #180, #183, #184. `Activity` now carries
+  `subject_user_id` and is the source for subject queries; production was
+  backfilled by hand. Dropping `Feed.subject_user_uuid` is the one piece held
+  back, because it is contingent on the next item.
 - Fan-out-on-write vs resolving the audience at read time. Kept decidable by
-  keeping fan-out behind the single `deliver(activity, audience)` call.
+  keeping fan-out behind the single `deliver(activity, audience)` call. **Now
+  the next thing to decide**, since it gates dropping `Feed.subject_user_uuid`:
+  under read-time resolution there may be no `Feed` rows at all, which makes
+  the column moot rather than merely redundant.
 - The outbox question — constructing the event at the moment of occurrence
   rather than in phase 2, which would fix both the timestamp skew and events
   being lost if the process dies before the background task runs.
