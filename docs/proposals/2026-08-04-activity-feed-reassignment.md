@@ -265,8 +265,8 @@ SELECT id, subject_user_id FROM activity ORDER BY id DESC LIMIT 1;
 A null there means the deploy did not take and the `UPDATE` needs a second run
 once it has.
 
-**4. Switch the read path.** `get_activities_v2` splits in two, because they
-were always two questions:
+**4. Switch the read path. — done.** `get_activities_v2` split in two, because
+they were always two questions:
 
 | Query | Reads | Ordered by |
 |---|---|---|
@@ -276,6 +276,12 @@ were always two questions:
 The subject branch needs no dedup, no `limit * 2`, and works for a user with no
 audience. Both still materialize per viewer, so the gate above is unchanged.
 This is the step where the bug is fixed and the only one with a behavior change.
+
+The receiver branch turned out to need no dedup either. `Feed` carries
+`UNIQUE (activity_id, receiver_id)`, so filtering by one receiver returns at
+most one row per activity — the `limit * 2` and the seen-set existed *only*
+because the subject query used to run through the same code across all
+receivers. Both are deleted rather than kept on one side.
 
 **The identifier changes type here, which is easy to miss.** The API takes
 `subject_user_uuid: Optional[str]`
