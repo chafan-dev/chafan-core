@@ -175,32 +175,95 @@ Both live in `test_events_distribute.py`, which — along with
 files one by one and was last touched in #155, before #167 added them. That
 step now takes everything directly under `tests/app/`, by subtraction.
 
-**3. Backfill.** Parse `event_json` for every row where `subject_user_id IS
-NULL`, extract `subject_id`, write it. Batched and idempotent, so it can be run,
-interrupted, and re-run. Note this is a *different* kind of migration from the
-one declined in 3b: that was refusing to **correct** wrong rows, this
-**derives** a column from data that is already right. Size it first:
+**3. Backfill. — a single `UPDATE`, run by hand.** Lift `subject_id` out of
+`event_json` into the column for every row where it is null. Note this is a
+*different* kind of migration from the one declined in 3b: that was refusing to
+**correct** wrong rows, this **derives** a column from data that is already
+right.
+
+### What production actually looks like
+
+Measured 2026-08-06, and it settles what this section used to leave open:
+
+| | |
+|---|---|
+| rows | 412 (344 kB), oldest 2025-07-06 |
+| `subject_user_id` populated | 0 — step 2 merged but not yet deployed |
+| payloads that will not parse | 0 |
+| payloads with no `subject_id` | 0 |
+| subjects naming a deleted user | 0 |
+| verbs present | 10 of the 15 |
+
+Every row is readable and every subject resolves, so this is one statement that
+finishes instantly. A batched, resumable script was written and discarded as
+more machinery than 412 rows justify.
+
+### Why fill it at all, rather than look it up at read time
+
+The tempting alternative is to leave the old rows null and have step 4 fall
+back to parsing `event_json` when a subject query comes up short. It was
+considered and rejected, for a reason that has nothing to do with cost:
+
+Since step 2, **any freshly built database has the column populated on 100% of
+rows**, because it is written on every insert. Leaving production at 0% creates
+a permanent divergence between production and every other database — and makes
+the fallback a code path that executes *only* against production history, so
+the one branch that runs in production is the one branch that can never be
+exercised locally or in CI.
+
+Nor does such a fallback age out. Profile timelines are history-oriented, and
+at ~32 activities/month the historical rows dominate profiles for years. The
+"delete it once new rows accumulate" property belongs to the one-time fill, not
+to the fallback.
+
+### The operation
+
+Ordering matters: **deploy step 2 first**, or anything written while the old
+code is still live lands with a null subject. Re-running is free, so a second
+pass after the deploy fixes any stragglers.
 
 ```sql
-SELECT count(*) FROM activity;
+BEGIN;
+
+SELECT count(*) FROM activity WHERE subject_user_id IS NULL;   -- expect 412
+
+UPDATE activity a
+SET subject_user_id = u.id
+FROM "user" u
+WHERE a.subject_user_id IS NULL
+  AND u.id = (a.event_json::jsonb -> 'content' ->> 'subject_id')::int;
+
+SELECT count(*) FROM activity WHERE subject_user_id IS NULL;   -- expect 0
+
+-- values are right, not merely present
+SELECT count(*) FROM activity
+WHERE subject_user_id IS NOT NULL
+  AND subject_user_id <> (event_json::jsonb -> 'content' ->> 'subject_id')::int;
+                                                                -- expect 0
+
+COMMIT;   -- or ROLLBACK if any count surprises
 ```
 
-**It must skip, not abort.** A row whose payload will not parse, or whose
-`subject_id` names a user that no longer exists, is left null and logged. One
-unreadable row from some retired code path must not fail the migration for the
-whole table — the same reasoning as 3b-1, one layer down.
+Reversible with `UPDATE activity SET subject_user_id = NULL`, and safe to do
+because nothing reads the column until step 4.
 
-The migrations CI exercises this for real: its seeded dataset builds
-`Activity` rows through `events.distribute`, so a backfill runs against genuine
-`event_json` and `verify` fails if it mangles them.
+**It skips rather than aborts, structurally.** A payload with no `subject_id`
+yields SQL `NULL` from `->>`, which matches no user, so the row is left alone
+instead of failing the statement. The one thing that *would* abort it is a
+payload that is not valid JSON — measured at zero, and `pg_input_is_valid` is
+PostgreSQL 16+ while production is 14, so there is no portable guard. Rows
+written between the measurement and the run come from `event.json()` on a
+pydantic model and are always valid.
 
-Coverage is thin, though — `_build_deep` in
-[`smoke/dataset/__init__.py`](../../smoke/dataset/__init__.py) distributes only
-`create_question` and `answer_question`, 2 of the 15 verbs that write
-activities. All 15 store `subject_id` the same way, so one extraction handles
-them all and the risk is lower than the count suggests, but broadening the
-seeded verbs before this step lands would make the test mean what it appears to
-mean.
+**Confirm step 2 is live afterwards**, since the count going to zero does not
+prove new rows are being populated:
+
+```sql
+SELECT id, subject_user_id FROM activity ORDER BY id DESC LIMIT 1;
+```
+
+A null there means the deploy did not take and the `UPDATE` needs a second run
+once it has.
 
 **4. Switch the read path.** `get_activities_v2` splits in two, because they
 were always two questions:
@@ -230,9 +293,10 @@ deliberately rather than discovering:
 Keeping the API parameter a uuid is deliberate: it is the public identifier and
 changing it would break clients for no gain.
 
-**5. Delete the dead v1.** `get_activities` has no callers and is already marked
-`# TODO to remove this function`. Same category as `new_activity_into_feed`,
-which #169 deleted.
+**5. Delete the dead v1. — #180.** `get_activities` had no callers and was
+already marked `# TODO to remove this function`. Same category as
+`new_activity_into_feed`, which #169 deleted. It was also the last caller of
+`execute_with_broker` in `feed_impl`.
 
 **6. Deferred — drop `feed.subject_user_uuid`.** Destructive DDL, and
 contingent on step 4 item 2 (fan-out-on-write vs read-time resolution): under
@@ -269,11 +333,12 @@ Three tests the change should carry:
 
 ## Open questions
 
-- **Backfill size.** Unknown without `count(*)` against production. It sets
-  whether step 3 is a single statement or a batched script.
-- **Widen the seeded verbs before step 3?** `_build_deep` covers 2 of the 15
-  activity-writing verbs. Cheap to extend, and it is what makes the backfill
-  test load-bearing rather than decorative.
+- ~~**Backfill size.**~~ Answered 2026-08-06: 412 rows, 344 kB. A single
+  statement.
+- **Widen the seeded verbs?** `_build_deep` covers 2 of the 15
+  activity-writing verbs. No longer a prerequisite for step 3, which is now a
+  hand-run statement rather than tested code, but still worth doing on its own
+  merits.
 - **Does the subject timeline want a site filter of its own?** Today the viewer
   gate is per item, applied after the fetch, so a subject with lots of activity
   in sites the viewer cannot read yields a short page rather than an empty one.
