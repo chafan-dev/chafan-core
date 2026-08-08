@@ -1,4 +1,3 @@
-from chafan_core.app.infra.request_context import RequestContext
 from typing import List, Optional
 
 from chafan_core.db.base_class import Base as BaseCrudModel
@@ -11,7 +10,6 @@ from chafan_core.app.schemas.event import (
     CreateQuestionInternal,
     EventInternal,
 )
-from chafan_core.app.infra.runtime import execute_with_broker
 from chafan_core.utils.base import map_, unwrap
 
 import logging
@@ -141,10 +139,11 @@ def get_activities_v2(
     # TODO: honor receiver.feed_settings.blocked_origins here. `is_blocked` and
     # the two /activities/settings endpoints are still live, so a user can mute
     # a site, see the setting persist, and keep seeing that site -- this branch
-    # is where that promise is dropped. The now-dead v1 `get_activities` below
-    # shows the three lines it takes. Not switched on blind: anyone holding a
-    # mute from before the v2 rewrite would silently lose feed content on
-    # deploy, so size it first with
+    # is where that promise is dropped. It takes three lines -- parse
+    # receiver.feed_settings into a UserFeedSettings and pass it to
+    # materialize_activity instead of None. Not switched on blind: anyone
+    # holding a mute from before the v2 rewrite would silently lose feed
+    # content on deploy, so size it first with
     #   SELECT count(*) FROM "user" WHERE feed_settings IS NOT NULL
     #     AND feed_settings::jsonb -> 'blocked_origins' <> '[]'::jsonb;
     # and decide between restoring the feature and deleting it.
@@ -172,46 +171,3 @@ def get_activities_v2(
             break
     logger.info("v2 get " + str(len(activities)))
     return activities
-
-
-def get_activities( # TODO to remove this function
-    *,
-    before_activity_id: Optional[int],
-    limit: int,
-    receiver_user_id: int,
-    subject_user_uuid: Optional[str],
-) -> List[schemas.Activity]:
-    def runnable(broker: RequestContext) -> List[schemas.Activity]:
-        db = broker.get_db()
-        receiver = crud.user.get(db, id=receiver_user_id)
-        assert receiver is not None, receiver_user_id
-        if receiver.uuid == subject_user_uuid:
-            receiver_id = crud.user.get_superuser(db).id
-        else:
-            receiver_id = receiver_user_id
-        feed_settings = None
-        if receiver.feed_settings:
-            feed_settings = UserFeedSettings.parse_obj(receiver.feed_settings)
-        activities = []
-        feeds = db.query(models.Feed).filter_by(receiver_id=receiver_id)
-        if before_activity_id:
-            feeds = feeds.filter(models.Feed.activity_id < before_activity_id)
-        if subject_user_uuid:
-            feeds = feeds.filter_by(subject_user_uuid=subject_user_uuid)
-        feeds = feeds.order_by(models.Feed.activity_id.desc()).limit(limit)
-        for feed in feeds:
-            activity = materialize_activity(
-                broker, feed.activity, receiver_user_id, feed_settings
-            )
-            if activity:
-                activities.append(activity)
-        return activities
-
-    data = execute_with_broker(runnable)
-    if data:
-        return data
-    else:
-        return []
-
-
-
