@@ -47,7 +47,6 @@ from chafan_core.app.services.webhook_delivery import (
 )
 from chafan_core.db.session import SessionLocal
 from chafan_core.utils.base import get_utc_now
-import chafan_core.app.services.reputation as rep
 
 
 import logging
@@ -195,7 +194,6 @@ def postprocess_new_question(question_id: int) -> None:
                 question_id=question.id,
             ),
         )
-        rep.award_question_created(broker.get_db(), question.author, question)
         events.distribute(broker, event)
         postprocess_question_common(question)
         for webhook in question.site.webhooks:
@@ -243,7 +241,6 @@ def postprocess_new_submission(submission_id: int) -> None:
         # NOTE: crud.submission.create_with_author already wrote the Activity for
         # this submission, but nothing fans it out. See activity_policy.POLICY
         # ["create_submission"]. TODO event to feed? 2025-Sep-14
-        rep.award_submission_created(broker.get_db(), submission.author, submission)
         postprocess_submission_common(submission)
         for webhook in submission.site.webhooks:
             call_webhook(
@@ -269,27 +266,9 @@ def postprocess_new_submission_suggestion(submission_suggestion_id: int) -> None
                 submission_suggestion_id=submission_suggestion.id,
             ),
         )
-        rep.award_submission_suggestion_created(
-            broker.get_db(), submission_suggestion.author, submission_suggestion
-        )
         events.distribute(broker, event)
 
     execute_with_broker(runnable)
-
-
-def postprocess_accept_submission_suggestion(submission_suggestion_id: int) -> None:
-    def runnable(db: Session) -> None:
-        submission_suggestion = crud.submission_suggestion.get(
-            db, id=submission_suggestion_id
-        )
-        assert submission_suggestion is not None
-        # NOTE: no accept_submission_suggestion event is delivered anywhere.
-        # See activity_policy.POLICY["accept_submission_suggestion"].
-        rep.award_submission_suggestion_accepted(
-            db, submission_suggestion.author, submission_suggestion
-        )
-
-    execute_with_db(SessionLocal(), runnable)
 
 
 def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
@@ -306,27 +285,9 @@ def postprocess_new_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
                 answer_suggest_edit_id=answer_suggest_edit.id,
             ),
         )
-        rep.award_answer_suggest_created(
-            broker.get_db(), answer_suggest_edit.author, answer_suggest_edit
-        )
         events.distribute(broker, event)
 
     execute_with_broker(runnable)
-
-
-def postprocess_accept_answer_suggest_edit(answer_suggest_edit_id: int) -> None:
-    def runnable(db: Session) -> None:
-        answer_suggest_edit = crud.answer_suggest_edit.get(
-            db, id=answer_suggest_edit_id
-        )
-        assert answer_suggest_edit is not None
-        # NOTE: no accept_answer_suggest_edit event is delivered anywhere.
-        # See activity_policy.POLICY["accept_answer_suggest_edit"].
-        rep.award_answer_suggest_accepted(
-            db, answer_suggest_edit.author, answer_suggest_edit
-        )
-
-    execute_with_db(SessionLocal(), runnable)
 
 
 def postprocess_updated_submission(submission_id: int) -> None:
@@ -388,7 +349,6 @@ def postprocess_new_article(article_id: int) -> None:
             created_at=utc_now,
             content=event,
         )
-        rep.award_article_created(broker.get_db(), article.author, article)
         events.distribute(broker, event_internal)
 
     execute_with_broker(runnable)

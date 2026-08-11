@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models
+from chafan_core.app import crud, karma, models
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.submission import Submission, SubmissionUpvotes
 from chafan_core.app.models.topic import Topic
@@ -46,6 +46,7 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
+    karma.record_new(db, db_obj)
     return db_obj
 
 
@@ -73,52 +74,57 @@ def search(db: Session, *, q: str) -> List[Submission]:
 
 
 def upvote(db: Session, *, db_obj: Submission, voter: models.User) -> Submission:
-    submission_upvote = (
-        db.query(SubmissionUpvotes)
-        .filter_by(submission_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if submission_upvote is None:
-        submission_upvote = SubmissionUpvotes(submission=db_obj, voter=voter)
-        db.add(submission_upvote)
-        db_obj.upvotes_count += 1
-        db.flush()
-        db.refresh(db_obj)
-    elif submission_upvote.cancelled:
-        db_obj.upvotes_count += 1
-        submission_upvote.cancelled = False
-        db.flush()
+    with karma.tracked(db, db_obj):
+        submission_upvote = (
+            db.query(SubmissionUpvotes)
+            .filter_by(submission_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if submission_upvote is None:
+            submission_upvote = SubmissionUpvotes(submission=db_obj, voter=voter)
+            db.add(submission_upvote)
+            db_obj.upvotes_count += 1
+            db.flush()
+            db.refresh(db_obj)
+        elif submission_upvote.cancelled:
+            db_obj.upvotes_count += 1
+            submission_upvote.cancelled = False
+            db.flush()
     return db_obj
 
 
 def cancel_upvote(db: Session, *, db_obj: Submission, voter: models.User) -> Submission:
-    submission_upvote = (
-        db.query(SubmissionUpvotes)
-        .filter_by(submission_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if submission_upvote is not None and not submission_upvote.cancelled:
-        db_obj.upvotes_count -= 1
-        assert db_obj.upvotes_count >= 0
-        submission_upvote.cancelled = True
-        db.flush()
-        db.refresh(db_obj)
+    with karma.tracked(db, db_obj):
+        submission_upvote = (
+            db.query(SubmissionUpvotes)
+            .filter_by(submission_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if submission_upvote is not None and not submission_upvote.cancelled:
+            db_obj.upvotes_count -= 1
+            assert db_obj.upvotes_count >= 0
+            submission_upvote.cancelled = True
+            db.flush()
+            db.refresh(db_obj)
     return db_obj
 
 
 def update(
     db: Session, *, db_obj: Submission, obj_in: Union[SubmissionUpdate, Dict[str, Any]]
 ) -> Submission:
-    if isinstance(obj_in, dict):
-        update_data = obj_in
-    else:
-        update_data = obj_in.dict(exclude_unset=True)
-    for field in update_data:
-        if hasattr(db_obj, field):
-            setattr(db_obj, field, update_data[field])
-    db.add(db_obj)
-    db.flush()
-    db.refresh(db_obj)
+    # Tracked because this is the path that publishes a draft and the path a
+    # moderator or author hides content through -- both change what it is worth.
+    with karma.tracked(db, db_obj):
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+        for field in update_data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
+        db.flush()
+        db.refresh(db_obj)
     return db_obj
 
 

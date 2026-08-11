@@ -1,20 +1,14 @@
 import datetime
-import logging
 import secrets
 from typing import Dict, List
 
 import sentry_sdk
-from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, models
-from chafan_core.app.services import reputation as rep_manager
 from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.email_utils import send_notification_email
-from chafan_core.app.infra.runtime import execute_with_broker, execute_with_db
-from chafan_core.db.session import SessionLocal
+from chafan_core.app.infra.runtime import execute_with_broker
 from chafan_core.utils.base import EntityType, filter_not_none
-
-karma_drift_logger = logging.getLogger("chafan.karma_drift")
 
 
 def deliver_notifications(data_broker: RequestContext) -> None:
@@ -48,27 +42,6 @@ def deliver_notifications(data_broker: RequestContext) -> None:
         for notif in notifs:
             notif.is_delivered = True
     db.commit()
-
-
-def refresh_karmas() -> None:
-    print("refresh_karmas", flush=True)
-
-    def runnable(db: Session) -> None:
-        for user in crud.user.get_all_active_users(db):
-            stored = user.karma or 0
-            authoritative = rep_manager.compute_karma(db, user)
-            drift = abs(authoritative - stored)
-            if drift > 50:
-                karma_drift_logger.error(
-                    f"karma drift user_id={user.id} stored={stored} computed={authoritative} drift={drift}"
-                )
-            elif drift > 5:
-                karma_drift_logger.warning(
-                    f"karma drift user_id={user.id} stored={stored} computed={authoritative} drift={drift}"
-                )
-            rep_manager.set_karma(db, user, authoritative)
-
-    execute_with_db(SessionLocal(), runnable)
 
 
 def cache_matrices() -> None:

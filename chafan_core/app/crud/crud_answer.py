@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud
+from chafan_core.app import crud, karma
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.answer import Answer, Answer_Upvotes
 from chafan_core.app.models.user import User
@@ -66,41 +66,44 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
+    karma.record_new(db, db_obj)
     db.flush()
     return db_obj
 
 
 def upvote(db: Session, *, db_obj: Answer, voter: User) -> Answer:
-    answer_upvote = (
-        db.query(Answer_Upvotes)
-        .filter_by(answer_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if answer_upvote is None:
-        answer_upvote = Answer_Upvotes(answer=db_obj, voter=voter)
-        db.add(answer_upvote)
-        db_obj.upvotes_count += 1
-        db.flush()
-        db.refresh(db_obj)
-    elif answer_upvote.cancelled:
-        db_obj.upvotes_count += 1
-        answer_upvote.cancelled = False
-        db.flush()
+    with karma.tracked(db, db_obj):
+        answer_upvote = (
+            db.query(Answer_Upvotes)
+            .filter_by(answer_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if answer_upvote is None:
+            answer_upvote = Answer_Upvotes(answer=db_obj, voter=voter)
+            db.add(answer_upvote)
+            db_obj.upvotes_count += 1
+            db.flush()
+            db.refresh(db_obj)
+        elif answer_upvote.cancelled:
+            db_obj.upvotes_count += 1
+            answer_upvote.cancelled = False
+            db.flush()
     return db_obj
 
 
 def cancel_upvote(db: Session, *, db_obj: Answer, voter: User) -> Answer:
-    answer_upvote = (
-        db.query(Answer_Upvotes)
-        .filter_by(answer_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if answer_upvote is not None and not answer_upvote.cancelled:
-        db_obj.upvotes_count -= 1
-        assert db_obj.upvotes_count >= 0
-        answer_upvote.cancelled = True
-        db.flush()
-        db.refresh(db_obj)
+    with karma.tracked(db, db_obj):
+        answer_upvote = (
+            db.query(Answer_Upvotes)
+            .filter_by(answer_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if answer_upvote is not None and not answer_upvote.cancelled:
+            db_obj.upvotes_count -= 1
+            assert db_obj.upvotes_count >= 0
+            answer_upvote.cancelled = True
+            db.flush()
+            db.refresh(db_obj)
     return db_obj
 
 
@@ -120,16 +123,19 @@ def search(db: Session, *, q: str) -> List[Answer]:
 def update(
     db: Session, *, db_obj: Answer, obj_in: Union[AnswerUpdate, Dict[str, Any]]
 ) -> Answer:
-    if isinstance(obj_in, dict):
-        update_data = obj_in
-    else:
-        update_data = obj_in.dict(exclude_unset=True)
-    for field in update_data:
-        if hasattr(db_obj, field):
-            setattr(db_obj, field, update_data[field])
-    db.add(db_obj)
-    db.flush()
-    db.refresh(db_obj)
+    # Tracked because this is the path that publishes a draft and the path a
+    # moderator hides an answer through -- both change what it is worth.
+    with karma.tracked(db, db_obj):
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+        for field in update_data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
+        db.flush()
+        db.refresh(db_obj)
     return db_obj
 
 
@@ -140,14 +146,15 @@ def update_checked(db: Session, *, db_obj: Answer, obj_in: Dict[str, Any]) -> An
 
 
 def delete_forever(db: Session, *, answer: Answer) -> None:
-    answer.is_deleted = True
-    answer.body = "[DELETED]"
-    answer.body_draft = "[DELETED]"
-    answer.body_prerendered_text = "[DELETED]"
-    for archive in answer.archives:
-        archive.body = "[DELETED]"
-    db.add(answer)
-    db.flush()
+    with karma.tracked(db, answer):
+        answer.is_deleted = True
+        answer.body = "[DELETED]"
+        answer.body_draft = "[DELETED]"
+        answer.body_prerendered_text = "[DELETED]"
+        for archive in answer.archives:
+            archive.body = "[DELETED]"
+        db.add(answer)
+        db.flush()
 
 
 def get_all_published(db: Session) -> List[Answer]:

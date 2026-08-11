@@ -1,6 +1,11 @@
-"""Coin balance mutations (shared by crud write helpers and services.reputation).
+"""Coin balance mutations: the single place that changes `User.remaining_coins`.
 
-Kept outside services/ so crud can call it without an upward import.
+Kept outside services/ so crud can call it without an upward import, same as
+`karma.py`. The amounts are not decided here -- callers pass them in from
+`rules.py`.
+
+Coins are anti-spam credit, not currency: drift is tolerable, atomicity is not
+a goal.
 """
 
 from __future__ import annotations

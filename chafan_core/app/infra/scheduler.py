@@ -21,7 +21,6 @@ def set_up_scheduled_tasks() -> None:
     from chafan_core.app.services.viewcounts import write_view_count_to_db
     from chafan_core.app.text_analysis import fill_missing_keywords_task
     from chafan_core.scheduled.deliver_notifications import run_deliver_notification_task
-    from chafan_core.scheduled.lib import refresh_karmas
 
     scheduler.add_job(
         write_view_count_to_db,
@@ -44,11 +43,10 @@ def set_up_scheduled_tasks() -> None:
         ),
         name="fill_missing_keywords_task",
     )
-    scheduler.add_job(
-        refresh_karmas,
-        trigger=IntervalTrigger(hours=settings.SCHEDULED_TASK_REFRESH_KARMAS_HOURS),
-        name="refresh_karmas",
-    )
+    # No karma job. Karma is applied as it is earned (see app/karma.py), so
+    # there is nothing for a periodic pass to catch up on. `make refresh-karmas`
+    # recomputes it from scratch on demand -- after a rule change, or to check
+    # that no hook is missing.
     scheduler.add_job(
         run_deliver_notification_task,
         trigger=IntervalTrigger(

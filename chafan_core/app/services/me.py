@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from fastapi.encoders import jsonable_encoder
 from pydantic.tools import parse_obj_as
 
-from chafan_core.app import crud, schemas
+from chafan_core.app import crud, karma, schemas
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.responders.user import user_schema_from_orm
@@ -79,20 +79,24 @@ def update_me(ctx, *, user_in: UserUpdateMe) -> schemas.User:
         crud.user.update_profession_topics(
             db, db_obj=current_user, new_topics=new_topics
         )
-    if user_in.education_experiences is not None:
-        current_user.education_experiences = jsonable_encoder(
-            user_in.education_experiences
-        )
-        del user_in_dict["education_experiences"]
-    if user_in.work_experiences is not None:
-        current_user.work_experiences = jsonable_encoder(user_in.work_experiences)
-        del user_in_dict["work_experiences"]
-    if user_in.flag_list is not None:
-        user_in_dict["flags"] = " ".join(user_in.flag_list)
-        del user_in_dict["flag_list"]
-    return user_schema_from_orm(
-        crud.user.update(db, db_obj=current_user, obj_in=user_in_dict)
-    )
+    # Filling in (or clearing) a profile field changes karma -- see
+    # rules.PROFILE_FIELD. The experience lists are assigned straight onto the
+    # model rather than going through crud.user.update, so the tracked block
+    # has to start above them, not just around the update call.
+    with karma.tracked(db, current_user):
+        if user_in.education_experiences is not None:
+            current_user.education_experiences = jsonable_encoder(
+                user_in.education_experiences
+            )
+            del user_in_dict["education_experiences"]
+        if user_in.work_experiences is not None:
+            current_user.work_experiences = jsonable_encoder(user_in.work_experiences)
+            del user_in_dict["work_experiences"]
+        if user_in.flag_list is not None:
+            user_in_dict["flags"] = " ".join(user_in.flag_list)
+            del user_in_dict["flag_list"]
+        updated = crud.user.update(db, db_obj=current_user, obj_in=user_in_dict)
+    return user_schema_from_orm(updated)
 
 
 def update_login_email(ctx, *, user_in: UserUpdatePrimaryEmail) -> schemas.User:

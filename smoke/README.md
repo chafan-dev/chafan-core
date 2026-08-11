@@ -7,6 +7,13 @@ messages. It also asserts the negative paths (`s13_authz`): anonymous writes
 and non-author edits/deletes are rejected with the expected status. Exit code
 0 = the backend is sane.
 
+`s14_site_create` covers both sides of the one karma-gated action there is:
+the low-karma account is refused, the high-karma account creates a site, pays
+for it, and then uses it. It depends on account A out-earning
+`rules.MIN_KARMA_CREATE_SITE` over the seeded dataset plus the earlier
+scenarios; if that ever stops being true the scenario reports SKIP rather than
+a hollow pass, which is the signal to seed a dedicated high-karma account.
+
 The suite reads `config.json` (git-ignored) for the target endpoint and two
 member accounts, then runs the scenarios in `scenarios/` fail-fast.
 

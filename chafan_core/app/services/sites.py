@@ -8,18 +8,16 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models, rules, schemas
 from chafan_core.app.common import OperationType
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.recs.matrices import similar_entity_ids
 from chafan_core.app.recs.ranking import rank_site_profiles
 from chafan_core.app.schemas.application import ApplicationCreate
-from chafan_core.app.schemas.channel import SiteCreationSubject
 from chafan_core.app.schemas.event import (
     ApplyJoinSiteInternal,
     CreateSiteInternal,
-    CreateSiteNeedApprovalInternal,
     EventInternal,
 )
 from chafan_core.app.schemas.site import SiteCreate
@@ -153,52 +151,27 @@ def list_site_webhooks(ctx, *, site: models.Site) -> List[schemas.Webhook]:
 def create_site_for_user(ctx, *, site_in: schemas.SiteCreate) -> schemas.CreateSiteResponse:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    needs_approval = settings.CREATE_SITE_FORCE_NEED_APPROVAL
-    if current_user.remaining_coins < settings.CREATE_SITE_COIN_DEDUCTION:
-        needs_approval = True
-    if current_user.karma < settings.MIN_KARMA_CREATE_PUBLIC_SITE:
-        needs_approval = True
-    if current_user.is_superuser:
-        needs_approval = False
-    elif site_in.permission_type != "public":
-        raise HTTPException_(
-            status_code=400,
-            detail="Not allowed to create a private site",
-        )
-    if needs_approval:
-        raise HTTPException_(
-            status_code=400,
-            detail="Not allowed to create site with approval (yet)",
-        )
-    if needs_approval:
-        from chafan_core.app.responders import misc as misc_responder
-
-        admin = crud.user.get_superuser(db)
-        channel = crud.channel.get_or_create_private_channel_with(
-            db,
-            host_user=current_user,
-            with_user=admin,
-            obj_in=schemas.ChannelCreate(
-                private_with_user_uuid=admin.uuid,
-                subject=SiteCreationSubject(site_in=site_in),
-            ),
-        )
-        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-        events.distribute(
-            ctx.broker,
-            EventInternal(
-                created_at=utc_now,
-                content=CreateSiteNeedApprovalInternal(
-                    subject_id=current_user.id,
-                    channel_id=channel.id,
-                ),
-            ),
-        )
-        return schemas.CreateSiteResponse(
-            application_channel=misc_responder.channel_schema_from_orm(
-                ctx.principal_view, channel
+    # Karma and coins are the whole gate: earn enough of both and the site is
+    # created directly. There used to be an admin-approval path here, but a
+    # `raise` had been placed in front of it -- so for as long as anyone can
+    # tell, an application has never reached a moderator. Rejecting outright is
+    # what the code already did; now it says so.
+    if not current_user.is_superuser:
+        if site_in.permission_type != "public":
+            raise HTTPException_(
+                status_code=400,
+                detail="Not allowed to create a private site",
             )
-        )
+        if current_user.karma < rules.MIN_KARMA_CREATE_SITE:
+            raise HTTPException_(
+                status_code=400,
+                detail="Insufficient karma.",
+            )
+        if current_user.remaining_coins < rules.CREATE_SITE_COST:
+            raise HTTPException_(
+                status_code=400,
+                detail="Insufficient coins.",
+            )
     site = crud.site.get_by_subdomain(db, subdomain=site_in.subdomain)
     if site:
         raise HTTPException_(
@@ -230,7 +203,7 @@ def create_site_for_user(ctx, *, site_in: schemas.SiteCreate) -> schemas.CreateS
         db,
         obj_in=schemas.CoinPaymentCreate(
             payee_id=super_user.id,
-            amount=settings.CREATE_SITE_COIN_DEDUCTION,
+            amount=rules.CREATE_SITE_COST,
             event_json=EventInternal(
                 created_at=utc_now,
                 content=CreateSiteInternal(
