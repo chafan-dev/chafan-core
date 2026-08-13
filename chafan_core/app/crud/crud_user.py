@@ -7,6 +7,7 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
 
+from chafan_core.app import karma, rules
 from chafan_core.app.config import settings
 from chafan_core.app.models.answer import Answer
 from chafan_core.app.models.article import Article
@@ -115,12 +116,16 @@ def create(db: Session, *, obj_in: UserCreate) -> User:
         full_name=obj_in.full_name,
         handle=handle,
         is_superuser=obj_in.is_superuser,
-        remaining_coins=settings.INITIAL_USER_COINS,
+        remaining_coins=rules.INITIAL_USER_COINS,
         created_at=utc_now,
     )
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
+    # Signing up with a full name already fills in one profile field, which is
+    # karma under rules.PROFILE_FIELD. Every other profile edit goes through
+    # services.me.update_me, which tracks it there.
+    karma.record_new(db, db_obj)
     return db_obj
 
 

@@ -98,18 +98,13 @@ class Settings(BaseSettings):
     SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES: int = 5
     SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS: int = 24
     SCHEDULED_TASK_FILL_MISSING_KEYWORDS_HOURS: int = 24
-    SCHEDULED_TASK_REFRESH_KARMAS_HOURS: int = 24
     SCHEDULED_TASK_DELIVER_NOTIFICATIONS_HOURS: int = 168
 
-    MIN_KARMA_CREATE_PUBLIC_SITE: int = 100
-    MIN_KARMA_CREATE_PRIVATE_SITE: int = 10
-
-    INITIAL_USER_COINS: int = 0
-    INVITE_NEW_USER_COIN_PAYMENT_AMOUNT: int = 5
-    CREATE_ARTICLE_COIN_DEDUCTION: int = 2
-    UPVOTE_ARTICLE_COIN_DEDUCTION: int = 2
-    CREATE_SITE_COIN_DEDUCTION: int = 10
-    CREATE_SITE_FORCE_NEED_APPROVAL: bool = True
+    # Karma and coin amounts are NOT settings -- they are product rules, and
+    # they live in `chafan_core/app/rules.py` where they can be read and
+    # changed by someone who does not write Python. Redeploying the backend
+    # with a different environment is harder than editing that file, not
+    # easier, so the old per-deployment overrides bought nothing.
 
 
 

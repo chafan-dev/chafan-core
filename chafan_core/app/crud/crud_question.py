@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models
+from chafan_core.app import crud, karma, models
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.question import Question, QuestionUpvotes
 from chafan_core.app.models.topic import Topic
@@ -51,6 +51,7 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
+    karma.record_new(db, db_obj)
     return db_obj
 
 
@@ -83,52 +84,57 @@ def get_placed_at_home(db: Session) -> List[Question]:
 
 
 def upvote(db: Session, *, db_obj: Question, voter: models.User) -> Question:
-    question_upvote = (
-        db.query(QuestionUpvotes)
-        .filter_by(question_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if question_upvote is None:
-        question_upvote = QuestionUpvotes(question=db_obj, voter=voter)
-        db.add(question_upvote)
-        db_obj.upvotes_count += 1
-        db.flush()
-        db.refresh(db_obj)
-    elif question_upvote.cancelled:
-        db_obj.upvotes_count += 1
-        question_upvote.cancelled = False
-        db.flush()
+    with karma.tracked(db, db_obj):
+        question_upvote = (
+            db.query(QuestionUpvotes)
+            .filter_by(question_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if question_upvote is None:
+            question_upvote = QuestionUpvotes(question=db_obj, voter=voter)
+            db.add(question_upvote)
+            db_obj.upvotes_count += 1
+            db.flush()
+            db.refresh(db_obj)
+        elif question_upvote.cancelled:
+            db_obj.upvotes_count += 1
+            question_upvote.cancelled = False
+            db.flush()
     return db_obj
 
 
 def cancel_upvote(db: Session, *, db_obj: Question, voter: models.User) -> Question:
-    question_upvote = (
-        db.query(QuestionUpvotes)
-        .filter_by(question_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if question_upvote is not None and not question_upvote.cancelled:
-        db_obj.upvotes_count -= 1
-        assert db_obj.upvotes_count >= 0
-        question_upvote.cancelled = True
-        db.flush()
-        db.refresh(db_obj)
+    with karma.tracked(db, db_obj):
+        question_upvote = (
+            db.query(QuestionUpvotes)
+            .filter_by(question_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if question_upvote is not None and not question_upvote.cancelled:
+            db_obj.upvotes_count -= 1
+            assert db_obj.upvotes_count >= 0
+            question_upvote.cancelled = True
+            db.flush()
+            db.refresh(db_obj)
     return db_obj
 
 
 def update(
     db: Session, *, db_obj: Question, obj_in: Union[QuestionUpdate, Dict[str, Any]]
 ) -> Question:
-    if isinstance(obj_in, dict):
-        update_data = obj_in
-    else:
-        update_data = obj_in.dict(exclude_unset=True)
-    for field in update_data:
-        if hasattr(db_obj, field):
-            setattr(db_obj, field, update_data[field])
-    db.add(db_obj)
-    db.flush()
-    db.refresh(db_obj)
+    # Tracked because this is the path that publishes a draft and the path a
+    # moderator or author hides content through -- both change what it is worth.
+    with karma.tracked(db, db_obj):
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+        for field in update_data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
+        db.flush()
+        db.refresh(db_obj)
     return db_obj
 
 

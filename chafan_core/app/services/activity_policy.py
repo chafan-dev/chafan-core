@@ -348,7 +348,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     ),
     EventPolicy(
         "accept_submission_suggestion",
-        note="No live emitter; the accept path awards reputation only.",
+        note="No live emitter, and no karma: accepting a suggestion is not in rules.py.",
     ),
     EventPolicy(
         "create_answer_suggest_edit",
@@ -357,7 +357,7 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     ),
     EventPolicy(
         "accept_answer_suggest_edit",
-        note="No live emitter; the accept path awards reputation only.",
+        note="No live emitter, and no karma: accepting a suggestion is not in rules.py.",
     ),
     # -- sites, invitations, messages -------------------------------------
     EventPolicy(
@@ -367,8 +367,8 @@ _POLICIES: Tuple[EventPolicy, ...] = (
     ),
     EventPolicy(
         "create_site_need_approval",
-        notifies=(Audience.SUPERUSER,),
-        emitted_by=("services.sites.create_site",),
+        note="No live emitter: site creation is gated on karma, not approval. "
+        "Kept so rows already persisted keep materializing.",
     ),
     EventPolicy(
         "apply_join_site",

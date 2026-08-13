@@ -10,11 +10,15 @@ import chafan_core
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models, rules, schemas
 from chafan_core.app.config import settings
 from chafan_core.app.endpoint_utils import check_writing_session
 from chafan_core.app.responders.archives import article_archive_schema_from_orm
-from chafan_core.app.schemas.event import EventInternal, UpvoteArticleInternal
+from chafan_core.app.schemas.event import (
+    CreateArticleInternal,
+    EventInternal,
+    UpvoteArticleInternal,
+)
 from chafan_core.app.schemas.richtext import RichText
 from chafan_core.app.services import viewcounts as viewcounts_service
 from chafan_core.app.user_permission import (
@@ -211,11 +215,12 @@ def create_article(
             request_info={"article_in": jsonable_encoder(article_in)},
         )
 
-    if current_user.remaining_coins < settings.CREATE_ARTICLE_COIN_DEDUCTION:
+    if current_user.remaining_coins < rules.CREATE_ARTICLE_COST:
         raise HTTPException_(
             status_code=400,
             detail="Insufficient coins.",
         )
+    super_user = crud.user.get_superuser(ctx.get_db())
     check_writing_session(article_in.writing_session_uuid)
     article_column = crud.article_column.get_by_uuid(
         ctx.get_db(), uuid=article_in.article_column_uuid
@@ -232,6 +237,25 @@ def create_article(
         )
     new_article = crud.article.create_with_author(
         ctx.get_db(), obj_in=article_in, author_id=current_user.id
+    )
+    # Charge the cost we just checked for. This used to be a gate that never
+    # collected: the balance check above rejected authors who could not afford
+    # an article, and then nobody was ever billed for one.
+    crud.coin_payment.make_payment(
+        ctx.get_db(),
+        obj_in=schemas.CoinPaymentCreate(
+            payee_id=super_user.id,
+            amount=rules.CREATE_ARTICLE_COST,
+            event_json=EventInternal(
+                created_at=datetime.datetime.now(tz=datetime.timezone.utc),
+                content=CreateArticleInternal(
+                    subject_id=current_user.id,
+                    article_id=new_article.id,
+                ),
+            ).json(),
+        ),
+        payer=current_user,
+        payee=super_user,
     )
     # No event here. Creating an article is not publishing one: a draft must
     # not reach the timeline, and a published article is announced exactly once
@@ -389,7 +413,7 @@ def upvote_article(ctx, *, uuid: str) -> schemas.ArticleUpvotes:
             status_code=400,
             detail="Author can't upvote authored article.",
         )
-    if current_user.remaining_coins < settings.UPVOTE_ARTICLE_COIN_DEDUCTION:
+    if current_user.remaining_coins < rules.UPVOTE_ARTICLE_COST:
         raise HTTPException_(
             status_code=400,
             detail="Insufficient coins.",
@@ -408,7 +432,7 @@ def upvote_article(ctx, *, uuid: str) -> schemas.ArticleUpvotes:
             db,
             obj_in=schemas.CoinPaymentCreate(
                 payee_id=article.author_id,
-                amount=settings.UPVOTE_ARTICLE_COIN_DEDUCTION,
+                amount=rules.UPVOTE_ARTICLE_COST,
                 event_json=EventInternal(
                     created_at=utc_now,
                     content=UpvoteArticleInternal(

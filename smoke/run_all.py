@@ -24,6 +24,7 @@ from scenarios import (
     s11_notifications,
     s12_messages,
     s13_authz,
+    s14_site_create,
     s08_delete,
 )
 
@@ -44,6 +45,7 @@ SCENARIOS = [
     s11_notifications,
     s12_messages,
     s13_authz,
+    s14_site_create,
     s08_delete,
 ]
 

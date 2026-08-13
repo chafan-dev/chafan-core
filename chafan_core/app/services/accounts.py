@@ -14,7 +14,7 @@ from fastapi import status
 from pydantic.types import SecretStr
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models, rules, schemas
 from chafan_core.app.common import check_email
 from chafan_core.app.config import settings
 from chafan_core.app.infra.request_context import RequestContext
@@ -101,14 +101,14 @@ def pay_reward_for_invitation(
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     superuser = crud.user.get_superuser(db)
     if (
-        inviter.sent_new_user_invitataions < 10
-        and superuser.remaining_coins >= settings.INVITE_NEW_USER_COIN_PAYMENT_AMOUNT
+        inviter.sent_new_user_invitataions < rules.INVITE_NEW_USER_MAX_REWARDED
+        and superuser.remaining_coins >= rules.INVITE_NEW_USER_REWARD
     ):
         crud.coin_payment.make_payment(
             db,
             obj_in=schemas.CoinPaymentCreate(
                 payee_id=inviter.id,
-                amount=settings.INVITE_NEW_USER_COIN_PAYMENT_AMOUNT,
+                amount=rules.INVITE_NEW_USER_REWARD,
                 event_json=EventInternal(
                     created_at=utc_now,
                     content=InviteNewUserInternal(
@@ -121,5 +121,5 @@ def pay_reward_for_invitation(
             payer=superuser,
             payee=inviter,
         )
-        return settings.INVITE_NEW_USER_COIN_PAYMENT_AMOUNT
+        return rules.INVITE_NEW_USER_REWARD
     return None

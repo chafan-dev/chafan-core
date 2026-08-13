@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from chafan_core.app import models, schemas
+from chafan_core.app import models, rules, schemas
 from chafan_core.app.config import settings
 from chafan_core.app.schemas.security import IntlPhoneNumber
 from chafan_core.utils.constants import (
@@ -41,17 +41,14 @@ def user_schema_from_orm(user: models.User) -> schemas.User:
     else:
         d["flag_list"] = []
 
-    enough_coins = user.remaining_coins >= settings.CREATE_SITE_COIN_DEDUCTION
-    if settings.CREATE_SITE_FORCE_NEED_APPROVAL:
-        d["can_create_public_site"] = False
-        d["can_create_private_site"] = False
-    else:
-        d["can_create_public_site"] = (
-            user.karma >= settings.MIN_KARMA_CREATE_PUBLIC_SITE and enough_coins
-        )
-        d["can_create_private_site"] = (
-            user.karma >= settings.MIN_KARMA_CREATE_PRIVATE_SITE and enough_coins
-        )
+    d["can_create_public_site"] = (
+        user.karma >= rules.MIN_KARMA_CREATE_SITE
+        and user.remaining_coins >= rules.CREATE_SITE_COST
+    )
+    # Private sites are sunset: `services.sites.create_site_for_user` refuses a
+    # non-public site from anyone but a superuser, so no karma threshold can
+    # unlock this. The field stays in the API contract, reporting the truth.
+    d["can_create_private_site"] = False
     if user.is_superuser:
         d["can_create_public_site"] = True
         d["can_create_private_site"] = True

@@ -11,7 +11,6 @@ from chafan_core.app.schemas.answer_suggest_edit import (
 )
 from chafan_core.app.services import answer_suggest_edits as answer_suggest_edits_service
 from chafan_core.app.services.postprocess import (
-    postprocess_accept_answer_suggest_edit,
     postprocess_new_answer,
     postprocess_new_answer_suggest_edit,
 )
@@ -54,9 +53,5 @@ def update_answer_suggest_edits(
     if answer_needs_postprocess and accepted_answer is not None:
         background_tasks.add_task(
             postprocess_new_answer, accepted_answer.id, answer_was_published
-        )
-    if needs_accept_postprocess and suggest_edit is not None:
-        background_tasks.add_task(
-            postprocess_accept_answer_suggest_edit, suggest_edit.id
         )
     return data

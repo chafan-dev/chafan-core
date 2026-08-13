@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models
+from chafan_core.app import crud, karma, models
 from chafan_core.app.models.comment import Comment
 from chafan_core.app.schemas.comment import CommentCreate, CommentUpdate
 from chafan_core.utils.base import get_utc_now, get_uuid, unwrap
@@ -91,15 +91,17 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
+    karma.record_new(db, db_obj)
     return db_obj
 
 
 def delete_forever(db: Session, *, comment: Comment) -> None:
-    comment.is_deleted = True
-    comment.body = "[DELETED]"
-    comment.body_text = "[DELETED]"
-    db.add(comment)
-    db.flush()
+    with karma.tracked(db, comment):
+        comment.is_deleted = True
+        comment.body = "[DELETED]"
+        comment.body_text = "[DELETED]"
+        db.add(comment)
+        db.flush()
 
 
 def upvote(db: Session, *, db_obj: Comment, voter: models.User) -> Comment:

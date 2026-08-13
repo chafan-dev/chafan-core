@@ -5,6 +5,7 @@ set -xe
 # Architecture ratchets (must pass).
 python scripts/static_analysis/check_layer_imports.py
 python scripts/static_analysis/check_service_commits.py
+python scripts/static_analysis/check_rules_applied.py
 
 mypy chafan_core || true
 black chafan_core --check || true

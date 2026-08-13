@@ -8,7 +8,8 @@ a real community member profile.
 from __future__ import annotations
 
 from chafan_core.app import crud, schemas
-from chafan_core.app.services.reputation import award_coins
+from chafan_core.app import karma
+from chafan_core.app.coins import award_coins
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr, StrippedNonEmptyStr
 
 TARGET_COINS = 1000
@@ -119,7 +120,12 @@ def build_users(db) -> dict:
     result = {}
     for spec in USERS:
         user = _get_or_create_user(db, spec)
-        user.personal_introduction = spec["bio"]
+        # personal_introduction is a karma-bearing profile field, so this
+        # assignment has to be tracked like any other profile edit -- otherwise
+        # a seeded database reports drift under `make refresh-karmas` forever
+        # and people learn to ignore the one signal that catches missing hooks.
+        with karma.tracked(db, user):
+            user.personal_introduction = spec["bio"]
         _ensure_coins(db, user)
         result[spec["key"]] = user
     db.flush()

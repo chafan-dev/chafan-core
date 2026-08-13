@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models
+from chafan_core.app import crud, karma, models
 from chafan_core.app.infra.search_index import do_search
 from chafan_core.app.models.article import Article, ArticleUpvotes
 from chafan_core.app.schemas.article import ArticleCreate, ArticleUpdate
@@ -55,6 +55,7 @@ def create_with_author(
     db.add(db_obj)
     db.flush()
     db.refresh(db_obj)
+    karma.record_new(db, db_obj)
     return db_obj
 
 
@@ -82,62 +83,68 @@ def update_topics(
 
 
 def upvote(db: Session, *, db_obj: Article, voter: models.User) -> Article:
-    article_upvote = (
-        db.query(ArticleUpvotes)
-        .filter_by(article_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if article_upvote is None:
-        article_upvote = ArticleUpvotes(article=db_obj, voter=voter)
-        db.add(article_upvote)
-        db_obj.upvotes_count += 1
-        db.flush()
-        db.refresh(db_obj)
-    elif article_upvote.cancelled:
-        db_obj.upvotes_count += 1
-        article_upvote.cancelled = False
-        db.flush()
+    with karma.tracked(db, db_obj):
+        article_upvote = (
+            db.query(ArticleUpvotes)
+            .filter_by(article_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if article_upvote is None:
+            article_upvote = ArticleUpvotes(article=db_obj, voter=voter)
+            db.add(article_upvote)
+            db_obj.upvotes_count += 1
+            db.flush()
+            db.refresh(db_obj)
+        elif article_upvote.cancelled:
+            db_obj.upvotes_count += 1
+            article_upvote.cancelled = False
+            db.flush()
     return db_obj
 
 
 def cancel_upvote(db: Session, *, db_obj: Article, voter: models.User) -> Article:
-    article_upvote = (
-        db.query(ArticleUpvotes)
-        .filter_by(article_id=db_obj.id, voter_id=voter.id)
-        .first()
-    )
-    if article_upvote is not None and not article_upvote.cancelled:
-        db_obj.upvotes_count -= 1
-        assert db_obj.upvotes_count >= 0
-        article_upvote.cancelled = True
-        db.flush()
-        db.refresh(db_obj)
+    with karma.tracked(db, db_obj):
+        article_upvote = (
+            db.query(ArticleUpvotes)
+            .filter_by(article_id=db_obj.id, voter_id=voter.id)
+            .first()
+        )
+        if article_upvote is not None and not article_upvote.cancelled:
+            db_obj.upvotes_count -= 1
+            assert db_obj.upvotes_count >= 0
+            article_upvote.cancelled = True
+            db.flush()
+            db.refresh(db_obj)
     return db_obj
 
 
 def delete_forever(db: Session, *, article: Article) -> None:
-    article.is_deleted = True
-    article.body = "[DELETED]"
-    article.body_draft = "[DELETED]"
-    for archive in article.archives:
-        archive.body = "[DELETED]"
-    db.add(article)
-    db.flush()
+    with karma.tracked(db, article):
+        article.is_deleted = True
+        article.body = "[DELETED]"
+        article.body_draft = "[DELETED]"
+        for archive in article.archives:
+            archive.body = "[DELETED]"
+        db.add(article)
+        db.flush()
 
 
 def update(
     db: Session, *, db_obj: Article, obj_in: Union[ArticleUpdate, Dict[str, Any]]
 ) -> Article:
-    if isinstance(obj_in, dict):
-        update_data = obj_in
-    else:
-        update_data = obj_in.dict(exclude_unset=True)
-    for field in update_data:
-        if hasattr(db_obj, field):
-            setattr(db_obj, field, update_data[field])
-    db.add(db_obj)
-    db.flush()
-    db.refresh(db_obj)
+    # Tracked because this is the path that publishes a draft and the path a
+    # moderator or author hides content through -- both change what it is worth.
+    with karma.tracked(db, db_obj):
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+        for field in update_data:
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, update_data[field])
+        db.add(db_obj)
+        db.flush()
+        db.refresh(db_obj)
     return db_obj
 
 

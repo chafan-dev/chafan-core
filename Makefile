@@ -8,6 +8,14 @@ check:
 	bash scripts/static_analysis/lint.sh
 	python scripts/check.py
 
+# Report karma that disagrees with the rules in chafan_core/app/rules.py.
+# Clean output means every karma-earning action is being tracked.
+refresh-karmas:
+	python scripts/refresh_karmas.py
+
+refresh-karmas-apply:
+	python scripts/refresh_karmas.py --apply
+
 dev-run:
 	uvicorn --host $(LOCAL_DEV_HOST) --port $(LOCAL_DEV_PORT) chafan_core.app.main:app --reload
 
