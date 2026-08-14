@@ -32,6 +32,7 @@ from .submission_archive import SubmissionArchive
 from .submission_suggestion import SubmissionSuggestion
 from .task import Task
 from .topic import Topic
+from .upload import Upload
 from .user import User
 from .webhook import Webhook
 from .viewcount import ViewCountArticle, ViewCountAnswer, ViewCountQuestion, ViewCountSubmission

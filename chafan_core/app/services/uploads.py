@@ -124,13 +124,9 @@ def find_usages(db: Session, *, sha: str) -> List[str]:
     return usages
 
 
-def find_orphans(db: Session) -> List[Any]:
-    """Uploads whose sha appears in no body or archive text. Report only.
-
-    Returns nothing until the Upload table lands (``crud.upload`` is stubbed);
-    typed ``Any`` so the real model can arrive later without touching this.
-    """
-    orphans: List[Any] = []
+def find_orphans(db: Session) -> List[models.Upload]:
+    """Uploads whose sha appears in no body or archive text. Report only."""
+    orphans: List[models.Upload] = []
     for sha in crud.upload.all_shas(db):
         if not find_usages(db, sha=sha):
             orphans.extend(crud.upload.get_multi_by_sha(db, sha=sha))

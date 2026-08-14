@@ -1,18 +1,9 @@
-"""Stub persistence for image uploads.
-
-TODO: replace with the real ``Upload`` model + migration. Until then the
-endpoint works against the object store but leaves no database record, and
-every upload looks new -- so re-uploading identical bytes is charged again and
-``find_orphans`` / ``misdeclared_avatars`` see nothing. The real crud, model
-and migration land together in the final "SQL" PR; this module is the seam that
-lets the rest of the code merge first.
-"""
-
-from __future__ import annotations
-
+import datetime
 from typing import Any, List, Optional
 
 from sqlalchemy.orm import Session
+
+from chafan_core.app.models.upload import Upload
 
 
 def create(
@@ -25,21 +16,34 @@ def create(
     purpose: str,
     storage_bucket: str,
     original_filename: Optional[str] = None,
-) -> Any:
-    # TODO: write an Upload row.
-    return None
+) -> Upload:
+    upload = Upload(
+        uploader_id=uploader_id,
+        sha256=sha256,
+        content_type=content_type,
+        size_bytes=size_bytes,
+        original_filename=original_filename,
+        purpose=purpose,
+        storage_bucket=storage_bucket,
+        created_at=datetime.datetime.now(tz=datetime.timezone.utc),
+    )
+    db.add(upload)
+    db.flush()
+    db.refresh(upload)
+    return upload
 
 
 def exists_with_sha(db: Session, *, sha: str) -> bool:
-    # TODO: query the Upload table. Until then every upload looks new.
-    return False
+    return db.query(Upload).filter(Upload.sha256 == sha).first() is not None
 
 
-def get_multi_by_sha(db: Session, *, sha: str) -> List[Any]:
-    # TODO: return the Upload rows for `sha`.
-    return []
+def get_multi_by_sha(db: Session, *, sha: str) -> List[Upload]:
+    return db.query(Upload).filter(Upload.sha256 == sha).all()
 
 
 def all_shas(db: Session) -> List[str]:
-    # TODO: return every distinct sha in the Upload table.
-    return []
+    return [row[0] for row in db.query(Upload.sha256).distinct().all()]
+
+
+def get(db: Session, id: Any) -> Optional[Upload]:
+    return db.query(Upload).filter(Upload.id == id).first()
