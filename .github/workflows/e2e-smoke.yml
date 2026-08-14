@@ -49,18 +49,6 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-      minio:
-        image: minio/minio
-        env:
-          MINIO_ROOT_USER: minioadmin
-          MINIO_ROOT_PASSWORD: minioadmin
-        options: >-
-          --health-cmd "curl -f http://localhost:9000/minio/health/live"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 9000:9000
 
     steps:
     - name: Checkout
@@ -83,6 +71,25 @@ jobs:
           set -e
           psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
         "
+
+    - name: Start MinIO
+      # Not a service container: the minio/minio image does not start the
+      # server by default (it prints usage and exits), and GitHub service
+      # containers cannot pass a command. Run it explicitly instead.
+      run: |
+        docker run -d --name minio -p 9000:9000 \
+          -e MINIO_ROOT_USER=minioadmin \
+          -e MINIO_ROOT_PASSWORD=minioadmin \
+          minio/minio server /data --console-address ":9001"
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:9000/minio/health/live; then
+            echo "minio ready"
+            exit 0
+          fi
+          sleep 1
+        done
+        docker logs minio
+        exit 1
 
     - name: Run e2e smoke suite (bootstrap mode)
       run: |
