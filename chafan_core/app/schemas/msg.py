@@ -1,8 +1,7 @@
 from enum import Enum
-from typing import List, Mapping, Optional
+from typing import Optional
 
 from pydantic import BaseModel
-from pydantic.networks import AnyHttpUrl
 
 from chafan_core.utils.validators import StrippedNonEmptyBasicStr
 
@@ -15,17 +14,6 @@ class Scores(BaseModel):
 class ClaimWelcomeTestScoreMsg(BaseModel):
     success: bool
     scores: Scores
-
-
-class UploadResultData(BaseModel):
-    errFiles: List[str] = []
-    succMap: Mapping[str, AnyHttpUrl]
-
-
-class UploadResults(BaseModel):
-    msg: str = ""
-    code: int = 0
-    data: UploadResultData
 
 
 class HealthResponse(BaseModel):
