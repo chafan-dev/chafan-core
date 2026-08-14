@@ -14,6 +14,14 @@ for it, and then uses it. It depends on account A out-earning
 scenarios; if that ever stops being true the scenario reports SKIP rather than
 a hollow pass, which is the signal to seed a dedicated high-karma account.
 
+`s15_upload` is the executable spec for image upload, written *before* the
+endpoint exists. It reports XFAIL (known failure) on each spec point the
+backend does not yet satisfy, so the PR that adds it is a spec review rather
+than a behaviour change; it flips to OK as the implementation lands. The
+object-store-dependent points are SKIPped when no object store is configured
+(`UPLOADS_S3_*` unset), so a bootstrap run without MinIO does not report false
+passes.
+
 The suite reads `config.json` (git-ignored) for the target endpoint and two
 member accounts, then runs the scenarios in `scenarios/` fail-fast.
 
