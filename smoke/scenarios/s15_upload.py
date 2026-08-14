@@ -20,16 +20,16 @@ Spec points (see the image-upload proposal):
   6. Files over the size cap (``common.MAX_UPLOAD_BYTES`` = 5 MB) are refused.
   7. The legacy ``POST /upload/vditor/`` endpoint is gone → 404.
 
-The object-store-dependent steps (3-6) are exercised against whatever object
-store the deployment configures via ``UPLOADS_S3_*``; in the CI bootstrap run
-that is MinIO. They are skipped rather than falsely passed when the store is
-not reachable.
+The object-store-dependent steps are exercised against whatever store the
+deployment configures via ``UPLOADS_S3_*`` (MinIO in CI); the deduplicate step
+is skipped when the endpoint is not live, since the legacy placeholder endpoint
+returns the same URL for any bytes and charges nothing, which would be a false
+pass.
 """
 from __future__ import annotations
 
 import base64
 import re
-import uuid as uuidlib
 
 from client import ApiClient, ApiError, note, ok
 
@@ -49,71 +49,51 @@ _COIN_COST = 2
 _SHA_RE = re.compile(r"[0-9a-f]{64}")
 
 
-class _SpecViolation(Exception):
-    """The current backend does not satisfy the spec yet."""
+def _content_addressed(url) -> bool:
+    return bool(url) and "picsum.photos" not in url and bool(_SHA_RE.search(url))
 
 
-def _spec(label: str, check) -> None:
-    try:
-        check()
-    except _SpecViolation as e:
-        note(TAG, label, "XFAIL", str(e))
-    except ApiError as e:
-        note(TAG, label, "XFAIL", f"unexpected HTTP {e.status_code}")
-    else:
-        ok(TAG, label)
+def _describe(resp) -> str:
+    """A short "got X, expected a content-addressed URL" for an XFAIL note."""
+    if resp is None:
+        return "request was refused, expected a content-addressed URL"
+    url = resp.get("url", "") if isinstance(resp, dict) else resp
+    return f"got {url!r}, expected a content-addressed URL"
 
 
 def _upload_ok(client: ApiClient, **kwargs):
+    """Upload and return the response body, or None if the server refused."""
     try:
         return client.upload("/api/v1/upload/images/", **kwargs)
-    except ApiError as e:
-        raise _SpecViolation(f"expected success, got HTTP {e.status_code}") from None
+    except ApiError:
+        return None
 
 
-def _expect_refused(client: ApiClient, statuses, **kwargs) -> None:
+def _upload_refused(client: ApiClient, statuses, **kwargs) -> bool:
+    """Upload and return True if it was refused with one of `statuses`."""
     try:
         client.upload("/api/v1/upload/images/", **kwargs)
     except ApiError as e:
-        if e.status_code in statuses:
-            return
-        raise _SpecViolation(
-            f"expected HTTP {sorted(statuses)}, got {e.status_code}"
-        ) from None
-    raise _SpecViolation(f"expected HTTP {sorted(statuses)}, but it succeeded")
+        return e.status_code in statuses
+    return False
 
 
-def _is_content_addressed(url) -> bool:
-    return (
-        bool(url)
-        and "picsum.photos" not in url
-        and bool(_SHA_RE.search(url))
-    )
+def _check_anon_upload_refused(anon: ApiClient) -> None:
+    if _upload_refused(
+        anon,
+        (401, 403),
+        file_bytes=_PNG,
+        filename="a.png",
+        content_type="image/png",
+        purpose="figure",
+    ):
+        ok(TAG, "anon upload → 401/403")
+    else:
+        note(TAG, "anon upload → 401/403", "XFAIL", "anonymous upload was accepted")
 
 
-def run(state: dict) -> None:
-    a = state["a"]
-    b = state["b"]
-    cfg = state["cfg"]
-
-    anon = ApiClient(cfg["api_base"], "anon")
-
-    # ---- 1. anonymous upload is refused ---------------------------------
-    _spec(
-        "anon upload → 401/403",
-        lambda: _expect_refused(
-            anon,
-            (401, 403),
-            file_bytes=_PNG,
-            filename="a.png",
-            content_type="image/png",
-            purpose="figure",
-        ),
-    )
-
-    # ---- guard: A and B must sit on opposite sides of the karma gate -----
-    me_a = a.get("/api/v1/me")
-    me_b = b.get("/api/v1/me")
+def _accounts_on_opposite_sides(me_a: dict, me_b: dict) -> bool:
+    """A must be ≥ the karma gate and B below it, or this scenario can't run."""
     if me_a.get("karma", 0) < _KARMA_GATE or me_b.get("karma", 0) >= _KARMA_GATE:
         note(
             TAG,
@@ -121,133 +101,161 @@ def run(state: dict) -> None:
             "SKIP",
             f"karma A={me_a.get('karma')} B={me_b.get('karma')}",
         )
-        return
+        return False
+    return True
 
-    # ---- 2. low-karma figure is refused ---------------------------------
-    _spec(
-        "low-karma figure → 403",
-        lambda: _expect_refused(
-            b,
-            (403,),
-            file_bytes=_PNG,
-            filename="b.png",
-            content_type="image/png",
-            purpose="figure",
-        ),
+
+def _check_low_karma_figure_refused(b: ApiClient) -> None:
+    if _upload_refused(
+        b,
+        (403,),
+        file_bytes=_PNG,
+        filename="b.png",
+        content_type="image/png",
+        purpose="figure",
+    ):
+        ok(TAG, "low-karma figure → 403")
+    else:
+        note(TAG, "low-karma figure → 403", "XFAIL", "low-karma figure was accepted")
+
+
+def _check_low_karma_avatar_exempt(b: ApiClient) -> None:
+    resp = _upload_ok(
+        b,
+        file_bytes=_PNG,
+        filename="b-avatar.png",
+        content_type="image/png",
+        purpose="avatar",
     )
+    url = (resp or {}).get("url", "") if isinstance(resp, dict) else ""
+    if _content_addressed(url):
+        ok(TAG, "low-karma avatar → 200 (exempt)", f"url={url}")
+    else:
+        note(TAG, "low-karma avatar → 200 (exempt)", "XFAIL", _describe(resp))
 
-    # ---- 3. avatar is exempt from the karma gate ------------------------
-    def _check_avatar():
-        resp = _upload_ok(
-            b,
-            file_bytes=_PNG,
-            filename="b-avatar.png",
-            content_type="image/png",
-            purpose="avatar",
-        )
-        url = resp.get("url", "") if isinstance(resp, dict) else ""
-        if not _is_content_addressed(url):
-            raise _SpecViolation(f"expected a content-addressed URL, got {url!r}")
 
-    _spec("low-karma avatar → 200 (exempt)", _check_avatar)
+def _check_new_figure(a: ApiClient, me_a: dict):
+    """New figure must return a content-addressed URL and cost 2 coins.
 
-    # ---- 3. new figure costs coins and is content-addressed -------------
-    # Sentinel for the object-store-dependent steps: if this does not produce
-    # a content-addressed URL, the endpoint is not live, and steps 4-6 are
-    # skipped rather than risk a false pass.
-    live = False
+    Returns (live, url, coins_after): ``live`` is True when the endpoint is up
+    and storing real objects (a content-addressed URL came back), which is what
+    gates the deduplicate step.
+    """
     coins_before = me_a.get("remaining_coins", 0)
+    resp = _upload_ok(
+        a,
+        file_bytes=_PNG,
+        filename="a.png",
+        content_type="image/png",
+        purpose="figure",
+    )
+    url = (resp or {}).get("url", "") if isinstance(resp, dict) else ""
+    if not _content_addressed(url):
+        note(TAG, "new figure → content-addressed URL, costs 2 coins", "XFAIL", _describe(resp))
+        return False, "", 0
+
+    coins_after = a.get("/api/v1/me")["remaining_coins"]
+    if coins_before - coins_after == _COIN_COST:
+        ok(TAG, "new figure → content-addressed URL, costs 2 coins", f"url={url}")
+    else:
+        note(
+            TAG,
+            "new figure → content-addressed URL, costs 2 coins",
+            "XFAIL",
+            f"charged {coins_before - coins_after} coins, expected {_COIN_COST}",
+        )
+    return True, url, coins_after
+
+
+def _check_identical_bytes_free(a: ApiClient, live: bool, url: str, coins_after: int) -> None:
+    if not live:
+        note(TAG, "identical bytes are free and deduplicate", "SKIP", "endpoint not live")
+        return
+    resp = _upload_ok(
+        a,
+        file_bytes=_PNG,
+        filename="a-again.png",
+        content_type="image/png",
+        purpose="figure",
+    )
+    again = (resp or {}).get("url", "") if isinstance(resp, dict) else ""
+    coins_now = a.get("/api/v1/me")["remaining_coins"]
+    if again == url and coins_now == coins_after:
+        ok(TAG, "identical bytes are free and deduplicate", f"url={again}")
+    else:
+        note(
+            TAG,
+            "identical bytes are free and deduplicate",
+            "XFAIL",
+            f"url={again!r}, coins {coins_after} → {coins_now}",
+        )
+
+
+def _check_non_image_refused(a: ApiClient) -> None:
+    if _upload_refused(
+        a,
+        (415,),
+        file_bytes=b"this is definitely not an image",
+        filename="fake.png",
+        content_type="image/png",
+        purpose="figure",
+    ):
+        ok(TAG, "non-image bytes → 415")
+    else:
+        note(TAG, "non-image bytes → 415", "XFAIL", "non-image bytes were accepted")
+
+
+def _check_oversize_refused(a: ApiClient) -> None:
+    if _upload_refused(
+        a,
+        (413, 422),
+        file_bytes=b"\x00" * (5_000_000 + 1),
+        filename="big.png",
+        content_type="image/png",
+        purpose="figure",
+    ):
+        ok(TAG, "oversize file → 413/422")
+    else:
+        note(TAG, "oversize file → 413/422", "XFAIL", "oversize file was accepted")
+
+
+def _check_vditor_removed(a: ApiClient) -> None:
     try:
-        resp = _upload_ok(
-            a,
+        a.upload(
+            "/api/v1/upload/vditor/",
             file_bytes=_PNG,
             filename="a.png",
             content_type="image/png",
-            purpose="figure",
         )
-        url = resp.get("url", "") if isinstance(resp, dict) else ""
-        if not _is_content_addressed(url):
-            raise _SpecViolation(f"expected a content-addressed URL, got {url!r}")
-        coins_after = a.get("/api/v1/me")["remaining_coins"]
-        if coins_before - coins_after != _COIN_COST:
-            raise _SpecViolation(
-                f"expected {_COIN_COST} coins charged, "
-                f"got {coins_before - coins_after}"
-            )
-    except (_SpecViolation, ApiError) as e:
-        note(TAG, "new figure → content-addressed URL, costs 2 coins", "XFAIL", str(e))
+    except ApiError as e:
+        if e.status_code == 404:
+            ok(TAG, "vditor endpoint removed → 404")
+        else:
+            note(TAG, "vditor endpoint removed → 404", "XFAIL", f"expected 404, got {e.status_code}")
     else:
-        ok(TAG, "new figure → content-addressed URL, costs 2 coins", f"url={url}")
-        live = True
+        note(TAG, "vditor endpoint removed → 404", "XFAIL", "endpoint still exists")
 
-    # ---- 4. identical bytes are free and deduplicate --------------------
-    # Only meaningful when the endpoint is live: the legacy endpoint returns
-    # the same placeholder URL for any bytes and charges nothing, which would
-    # be a false pass for "same URL, no coin charge".
-    if live:
-        def _check_dedup():
-            resp = _upload_ok(
-                a,
-                file_bytes=_PNG,
-                filename="a-again.png",
-                content_type="image/png",
-                purpose="figure",
-            )
-            again = resp.get("url", "") if isinstance(resp, dict) else ""
-            if again != url:
-                raise _SpecViolation(f"expected the same URL, got {again!r}")
-            coins_now = a.get("/api/v1/me")["remaining_coins"]
-            if coins_now != coins_after:
-                raise _SpecViolation(
-                    f"re-upload must be free, but coins changed by {coins_now - coins_after}"
-                )
 
-        _spec("identical bytes are free and deduplicate", _check_dedup)
-    else:
-        note(TAG, "identical bytes are free and deduplicate", "SKIP", "endpoint not live")
+def run(state: dict) -> None:
+    a = state["a"]
+    b = state["b"]
+    cfg = state["cfg"]
+    anon = ApiClient(cfg["api_base"], "anon")
 
-    # ---- 5. non-image bytes → 415 ---------------------------------------
-    _spec(
-        "non-image bytes → 415",
-        lambda: _expect_refused(
-            a,
-            (415,),
-            file_bytes=b"this is definitely not an image",
-            filename="fake.png",
-            content_type="image/png",
-            purpose="figure",
-        ),
-    )
+    _check_anon_upload_refused(anon)
 
-    # ---- 6. oversize → refused ------------------------------------------
-    _spec(
-        "oversize file → 413/422",
-        lambda: _expect_refused(
-            a,
-            (413, 422),
-            file_bytes=b"\x00" * (5_000_000 + 1),
-            filename="big.png",
-            content_type="image/png",
-            purpose="figure",
-        ),
-    )
+    me_a = a.get("/api/v1/me")
+    me_b = b.get("/api/v1/me")
+    if not _accounts_on_opposite_sides(me_a, me_b):
+        return
 
-    # ---- 7. legacy vditor endpoint is gone ------------------------------
-    def _check_vditor():
-        try:
-            a.upload(
-                "/api/v1/upload/vditor/",
-                file_bytes=_PNG,
-                filename="a.png",
-                content_type="image/png",
-            )
-        except ApiError as e:
-            if e.status_code == 404:
-                return
-            raise _SpecViolation(f"expected 404, got {e.status_code}") from None
-        raise _SpecViolation("expected 404, but the endpoint still exists")
-
-    _spec("vditor endpoint removed → 404", _check_vditor)
+    _check_low_karma_figure_refused(b)
+    _check_low_karma_avatar_exempt(b)
+    live, url, coins_after = _check_new_figure(a, me_a)
+    _check_identical_bytes_free(a, live, url, coins_after)
+    _check_non_image_refused(a)
+    _check_oversize_refused(a)
+    _check_vditor_removed(a)
 
 
 if __name__ == "__main__":
