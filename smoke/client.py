@@ -147,6 +147,28 @@ class ApiClient:
             return resp.json()
         return None
 
+    def upload(
+        self,
+        path: str,
+        *,
+        file_bytes: bytes,
+        filename: str,
+        content_type: str,
+        purpose: Optional[str] = None,
+    ) -> Any:
+        """Multipart file upload (e.g. POST /upload/images/)."""
+        files = {"file": (filename, file_bytes, content_type)}
+        data = {"purpose": purpose} if purpose is not None else None
+        resp = self.session.post(
+            self._url(path), headers=self._headers(), files=files, data=data
+        )
+        self._log("POST", path, resp.status_code)
+        if not resp.ok:
+            self._raise("POST", path, resp)
+        if resp.text:
+            return resp.json()
+        return None
+
     # ---- Auth ----------------------------------------------------------
 
     def login(self, username: str, password: str) -> None:
