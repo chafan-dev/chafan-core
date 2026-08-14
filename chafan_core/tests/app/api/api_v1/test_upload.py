@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import io
 import random
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from chafan_core.app import crud, image_sanitize, karma, models, object_storage, rules
 from chafan_core.app.common import get_redis_cli
 from chafan_core.app.config import settings
+from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.services import uploads as uploads_service
 from chafan_core.tests.utils.user import authentication_token_from_email
 from chafan_core.tests.utils.utils import random_email
@@ -302,3 +304,143 @@ def test_find_usages_and_orphans(db, uploader):
 
     assert uploads_service.find_usages(db, sha=sha) == [f"comment:{comment.id}"]
     assert not any(u.sha256 == sha for u in uploads_service.find_orphans(db))
+
+
+def _create_upload(db, uploader_id, sha, purpose):
+    crud.upload.create(
+        db,
+        uploader_id=uploader_id,
+        sha256=sha,
+        content_type="image/png",
+        size_bytes=10,
+        purpose=purpose,
+        storage_bucket="test-bucket",
+    )
+    db.commit()
+
+
+def test_misdeclared_avatars_logic(db, uploader):
+    avatar_sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    figure_sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    both_sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    never_sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+
+    _create_upload(db, uploader["id"], avatar_sha, "avatar")
+    _create_upload(db, uploader["id"], figure_sha, "figure")
+    _create_upload(db, uploader["id"], both_sha, "avatar")
+    _create_upload(db, uploader["id"], both_sha, "figure")
+
+    body = (
+        f"<img src='https://uploads.cha.fan/{avatar_sha}.png'>"
+        f"<img src='https://uploads.cha.fan/{figure_sha}.png'>"
+        f"<img src='https://uploads.cha.fan/{both_sha}.png'>"
+        f"<img src='https://uploads.cha.fan/{never_sha}.png'>"
+    )
+    ctx = RequestContext(principal_id=uploader["id"])
+    try:
+        result = uploads_service.misdeclared_avatars(
+            ctx, author_id=uploader["id"], body=body
+        )
+    finally:
+        ctx.close()
+    assert result == [avatar_sha]
+
+
+def test_misdeclared_avatar_reported_once(db, uploader, monkeypatch):
+    sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    _create_upload(db, uploader["id"], sha, "avatar")
+
+    reports = []
+    monkeypatch.setattr(uploads_service, "report_msg", reports.append)
+
+    article = SimpleNamespace(
+        id=random.randint(10**6, 10**7),
+        uuid="fake-article-uuid",
+        author_id=uploader["id"],
+        body=f"<img src='https://uploads.cha.fan/{sha}.png'>",
+    )
+    ctx = RequestContext(principal_id=uploader["id"])
+    try:
+        uploads_service.check_article_for_misdeclared_avatars(ctx, article=article)
+        uploads_service.check_article_for_misdeclared_avatars(ctx, article=article)
+    finally:
+        ctx.close()
+
+    assert len(reports) == 1
+    assert sha in reports[0]
+
+
+def test_misdeclared_avatar_swallowed_on_failure(db, uploader, monkeypatch):
+    def boom(ctx, *, author_id, body):
+        raise RuntimeError("upload table down")
+
+    monkeypatch.setattr(uploads_service, "misdeclared_avatars", boom)
+    article = SimpleNamespace(id=1, uuid="x", author_id=uploader["id"], body="x")
+    ctx = RequestContext(principal_id=uploader["id"])
+    try:
+        uploads_service.check_article_for_misdeclared_avatars(ctx, article=article)
+    finally:
+        ctx.close()
+
+
+def test_misdeclared_avatar_swallowed_on_redis_failure(db, uploader, monkeypatch):
+    sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    _create_upload(db, uploader["id"], sha, "avatar")
+
+    class BoomRedis:
+        def set(self, *args, **kwargs):
+            raise RuntimeError("redis down")
+
+    article = SimpleNamespace(
+        id=2,
+        uuid="y",
+        author_id=uploader["id"],
+        body=f"<img src='https://uploads.cha.fan/{sha}.png'>",
+    )
+    ctx = RequestContext(principal_id=uploader["id"])
+    monkeypatch.setattr(ctx, "get_redis", lambda: BoomRedis())
+    try:
+        uploads_service.check_article_for_misdeclared_avatars(ctx, article=article)
+    finally:
+        ctx.close()
+
+
+def test_article_read_reports_misdeclared_avatar_once(client, db, uploader, monkeypatch):
+    sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    _create_upload(db, uploader["id"], sha, "avatar")
+    _set_karma(db, uploader["id"], 100)
+    _set_coins(db, uploader["id"], 100)
+
+    r = client.post(
+        f"{settings.API_V1_STR}/article-columns/",
+        headers=uploader["headers"],
+        json={"name": f"col {get_uuid()}", "description": "test"},
+    )
+    assert r.status_code == 200, r.json()
+    column_uuid = r.json()["uuid"]
+
+    body = f"<img src='https://uploads.cha.fan/{sha}.png'>"
+    r = client.post(
+        f"{settings.API_V1_STR}/articles/",
+        headers=uploader["headers"],
+        json={
+            "title": "figure misuse",
+            "content": {"source": body, "editor": "tiptap"},
+            "article_column_uuid": column_uuid,
+            "is_published": True,
+            "writing_session_uuid": get_uuid(),
+            "visibility": "anyone",
+        },
+    )
+    assert r.status_code == 200, r.json()
+    article_uuid = r.json()["uuid"]
+
+    reports = []
+    monkeypatch.setattr(uploads_service, "report_msg", reports.append)
+
+    assert client.get(f"{settings.API_V1_STR}/articles/{article_uuid}").status_code == 200
+    assert client.get(f"{settings.API_V1_STR}/articles/{article_uuid}").status_code == 200
+
+    assert len(reports) == 1, reports
+    assert sha in reports[0]
+    assert article_uuid in reports[0]
