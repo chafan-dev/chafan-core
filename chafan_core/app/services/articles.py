@@ -82,6 +82,7 @@ def article_schema(ctx, article: models.Article):
 
 def get_article(ctx, *, uuid: str, request=None) -> schemas.Article:
     from chafan_core.app.services import audit as audit_service
+    from chafan_core.app.services import uploads as uploads_service
 
     current_user_id = ctx.principal_id
     article = get_article_by_uuid(ctx.get_db(), uuid, current_user_id)
@@ -103,6 +104,9 @@ def get_article(ctx, *, uuid: str, request=None) -> schemas.Article:
             status_code=400,
             detail="The article has corrupted data. Please contact admin.",
         )
+    # Advisory: detect figures whose author declared them an avatar. Never
+    # breaks the read path -- failures are logged and swallowed.
+    uploads_service.check_article_for_misdeclared_avatars(ctx, article=article)
     data = article_schema(ctx, article)
     if data is None:
         raise HTTPException_(
