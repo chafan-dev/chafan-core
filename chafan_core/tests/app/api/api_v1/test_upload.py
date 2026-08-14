@@ -1,5 +1,7 @@
+import datetime
 import hashlib
 import io
+import random
 
 import pytest
 from fastapi.testclient import TestClient
@@ -7,21 +9,28 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from chafan_core.app import crud, image_sanitize, karma, models, object_storage, rules
+from chafan_core.app.common import get_redis_cli
 from chafan_core.app.config import settings
+from chafan_core.app.services import uploads as uploads_service
 from chafan_core.tests.utils.user import authentication_token_from_email
 from chafan_core.tests.utils.utils import random_email
+from chafan_core.utils.base import get_uuid
 
 UPLOAD_BASE = "https://uploads.cha.fan"
 
 
-def _png(rgb=(255, 0, 0)) -> bytes:
+def _random_rgb():
+    return (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+
+def _png(rgb=None) -> bytes:
     buf = io.BytesIO()
-    Image.new("RGB", (1, 1), rgb).save(buf, format="PNG")
+    Image.new("RGB", (1, 1), rgb or _random_rgb()).save(buf, format="PNG")
     return buf.getvalue()
 
 
-def _jpeg(rgb=(10, 20, 30), description=None, gps=False) -> bytes:
-    img = Image.new("RGB", (20, 20), rgb)
+def _jpeg(rgb=None, description=None, gps=False) -> bytes:
+    img = Image.new("RGB", (20, 20), rgb or _random_rgb())
     exif = Image.Exif()
     if description is not None:
         exif[0x010E] = description  # ImageDescription
@@ -37,8 +46,8 @@ def _jpeg(rgb=(10, 20, 30), description=None, gps=False) -> bytes:
 
 
 def _gif() -> bytes:
-    f1 = Image.new("RGB", (10, 10), (255, 0, 0))
-    f2 = Image.new("RGB", (10, 10), (0, 255, 0))
+    f1 = Image.new("RGB", (10, 10), _random_rgb())
+    f2 = Image.new("RGB", (10, 10), _random_rgb())
     buf = io.BytesIO()
     f1.save(buf, format="GIF", save_all=True, append_images=[f2], loop=0, duration=100)
     return buf.getvalue()
@@ -77,6 +86,17 @@ def configure_uploads(monkeypatch):
     monkeypatch.setattr(settings, "UPLOADS_S3_BUCKET", "test-bucket")
     monkeypatch.setattr(settings, "UPLOADS_S3_REGION", "us-east-1")
     monkeypatch.setattr(settings, "UPLOADS_PUBLIC_URL_BASE", UPLOAD_BASE)
+
+
+@pytest.fixture(autouse=True)
+def clear_upload_rate_limit():
+    # The endpoint is rate-limited to 20/hour. Redis outlives a pytest run, so
+    # a developer re-running the suite (or several modules hitting the same
+    # endpoint) would otherwise trip the limiter and see spurious 429s.
+    redis = get_redis_cli()
+    for key in redis.scan_iter("*upload/images*"):
+        redis.delete(key)
+    yield
 
 
 @pytest.fixture(autouse=True)
@@ -123,7 +143,7 @@ def test_upload_png_success(client, db, uploader, fake_put_image):
 def test_upload_same_bytes_free(client, db, uploader, fake_put_image):
     _set_karma(db, uploader["id"], 100)
     _set_coins(db, uploader["id"], 100)
-    data = _png(rgb=(0, 128, 255))
+    data = _png(_random_rgb())
 
     r1 = _upload(client, uploader["headers"], data, purpose="figure")
     assert r1.status_code == 200, r1.json()
@@ -143,7 +163,7 @@ def test_upload_same_bytes_free(client, db, uploader, fake_put_image):
 def test_jpeg_exif_stripped(client, db, uploader, fake_put_image):
     _set_karma(db, uploader["id"], 100)
     _set_coins(db, uploader["id"], 100)
-    data = _jpeg(rgb=(30, 40, 50), description="GPS location of my house", gps=True)
+    data = _jpeg(description="GPS location of my house", gps=True)
     assert Image.open(io.BytesIO(data)).getexif(), "fixture must carry EXIF"
 
     r = _upload(client, uploader["headers"], data, filename="photo.jpg", content_type="image/jpeg", purpose="figure")
@@ -159,8 +179,9 @@ def test_jpeg_exif_stripped(client, db, uploader, fake_put_image):
 def test_same_photo_different_exif_dedupes(client, db, uploader, fake_put_image):
     _set_karma(db, uploader["id"], 100)
     _set_coins(db, uploader["id"], 100)
-    a = _jpeg(rgb=(60, 70, 80), description="first copy")
-    b = _jpeg(rgb=(60, 70, 80), description="second copy")
+    color = _random_rgb()
+    a = _jpeg(rgb=color, description="first copy")
+    b = _jpeg(rgb=color, description="second copy")
 
     r1 = _upload(client, uploader["headers"], a, filename="a.jpg", content_type="image/jpeg", purpose="figure")
     assert r1.status_code == 200, r1.json()
@@ -190,7 +211,7 @@ def test_animated_gif_stays_animated(client, db, uploader, fake_put_image):
 def test_figure_requires_karma(client, db, uploader, fake_put_image):
     _set_karma(db, uploader["id"], 99)
     _set_coins(db, uploader["id"], 100)
-    data = _png(rgb=(1, 2, 3))
+    data = _png(_random_rgb())
 
     r = _upload(client, uploader["headers"], data, purpose="figure")
     assert r.status_code == 403, r.json()
@@ -202,7 +223,7 @@ def test_figure_requires_karma(client, db, uploader, fake_put_image):
 def test_zero_coins(client, db, uploader, fake_put_image):
     _set_karma(db, uploader["id"], 100)
     _set_coins(db, uploader["id"], 0)
-    data = _png(rgb=(9, 8, 7))
+    data = _png(_random_rgb())
 
     r = _upload(client, uploader["headers"], data, purpose="figure")
     assert r.status_code == 400, r.json()
@@ -249,3 +270,35 @@ def test_upload_requires_auth(client, db, uploader):
 def test_vditor_endpoint_removed(client):
     r = client.post(f"{settings.API_V1_STR}/upload/vditor/")
     assert r.status_code == 404
+
+
+def test_find_usages_and_orphans(db, uploader):
+    sha = hashlib.sha256(_png()).hexdigest()
+    crud.upload.create(
+        db,
+        uploader_id=uploader["id"],
+        sha256=sha,
+        content_type="image/png",
+        size_bytes=10,
+        purpose="figure",
+        storage_bucket="test-bucket",
+    )
+    db.commit()
+
+    assert uploads_service.find_usages(db, sha=sha) == []
+    assert any(u.sha256 == sha for u in uploads_service.find_orphans(db))
+
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    comment = models.Comment(
+        uuid=get_uuid(),
+        author_id=uploader["id"],
+        body=f"<img src='https://uploads.cha.fan/{sha}.png'>",
+        body_text="an image",
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(comment)
+    db.commit()
+
+    assert uploads_service.find_usages(db, sha=sha) == [f"comment:{comment.id}"]
+    assert not any(u.sha256 == sha for u in uploads_service.find_orphans(db))
