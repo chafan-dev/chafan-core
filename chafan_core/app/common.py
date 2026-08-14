@@ -43,11 +43,11 @@ def get_redis_cli() -> redis.Redis:
     return _redis_pool
 
 
-MAX_FILE_SIZE = 10_000_000
+MAX_UPLOAD_BYTES = 5_000_000  # was MAX_FILE_SIZE = 10_000_000
 
 
 def valid_content_length(
-    content_length: int = Header(..., lt=MAX_FILE_SIZE)
+    content_length: int = Header(..., lt=MAX_UPLOAD_BYTES)
 ) -> int:
     return content_length
 
