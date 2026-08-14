@@ -58,22 +58,28 @@ EXPERIENCE_MAX_ITEMS = 5  # only the first five of each are rewarded
 # ---------------------------------------------------------------------------
 
 MIN_KARMA_CREATE_SITE = 100  # karma needed to create a site without admin approval
+MIN_KARMA_UPLOAD_IMAGE = 100  # karma needed to put a picture in an article or answer
 
 
 # ---------------------------------------------------------------------------
 # Coins
 #
 # Coins slow down spam by putting a small price on actions that are cheap to
-# automate and expensive for everyone else to read. Every cost below is paid
+# automate and expensive for everyone else to read. Most costs below are paid
 # to another person, not burned: upvoting an article pays its author, creating
-# a site pays the site admin, and inviting someone pays you.
+# a site pays the site admin, and inviting someone pays you. UPLOAD_IMAGE_COST
+# is the exception -- it is burned, because storage has no counterparty to pay.
 # ---------------------------------------------------------------------------
 
 INITIAL_USER_COINS = 0  # coins a brand new account starts with
+# TODO: 0 with no organic way to earn coins means a new account can never
+# afford any coin cost (CREATE_ARTICLE_COST, UPLOAD_IMAGE_COST, ...). Fix this
+# as its own change; do not paper over it here.
 
 CREATE_ARTICLE_COST = 2  # writing an article, paid to the site admin
 UPVOTE_ARTICLE_COST = 2  # upvoting an article, paid to the article's author
 CREATE_SITE_COST = 10  # creating a site, paid to the site admin
+UPLOAD_IMAGE_COST = 2  # uploading a new picture; the same picture again is free
 
 INVITE_NEW_USER_REWARD = 5  # paid to you by the site admin for each person you invite
 INVITE_NEW_USER_MAX_REWARDED = 10  # only your first ten invitations are rewarded

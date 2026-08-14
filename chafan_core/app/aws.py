@@ -16,10 +16,6 @@ def get_boto3_client() -> boto3.Session:
     )
 
 
-def get_s3_client() -> Any:
-    return get_boto3_client().client("s3")
-
-
 def get_ses_client() -> Any:
     return get_boto3_client().client("ses")
 

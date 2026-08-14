@@ -1,103 +1,33 @@
-import hashlib
-from tempfile import NamedTemporaryFile
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from fastapi import APIRouter, Depends, File, UploadFile
-from pydantic import AnyHttpUrl
-from pydantic.tools import parse_obj_as
+from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
 
-from chafan_core.app import schemas
+from chafan_core.app import object_storage, schemas
 from chafan_core.app.api import deps
-from chafan_core.app.aws import get_s3_client
 from chafan_core.app.common import valid_content_length
-from chafan_core.app.config import settings
-from chafan_core.utils.base import HTTPException_, unwrap
+from chafan_core.app.infra.request_context import RequestContext
+from chafan_core.app.limiter import limiter
+from chafan_core.app.services import uploads as uploads_service
+from chafan_core.utils.base import HTTPException_
 
 router = APIRouter()
 
 
 @router.post("/images/", response_model=schemas.UploadedImage)
+@limiter.limit("20/hour;60/day")
 def upload_image(
+    request: Request,
+    response: Response,
+    *,
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     file: UploadFile = File(...),
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
     file_size: int = Depends(valid_content_length),
+    purpose: str = Form("figure"),
 ) -> Any:
-    if settings.AWS_CLOUDFRONT_HOST is None:
-        # No object store configured (e.g. local dev): return a placeholder.
-        return schemas.UploadedImage(url="https://picsum.photos/200/300")
-    if not current_user_id:
+    if not object_storage.is_configured():
         raise HTTPException_(
-            status_code=400,
-            detail="Upload requires login.",
+            status_code=503, detail="Image uploads are not configured on this server."
         )
-    s3 = get_s3_client()
-    tmpfile_name = None
-    h = hashlib.sha256()
-    with NamedTemporaryFile(delete=False) as tmpfile:
-        written_size = 0
-        while written_size < file_size:
-            chunk = file.file.read(file_size - written_size)
-            if len(chunk) == 0:
-                break
-            written_size += len(chunk)
-            tmpfile.write(chunk)
-            h.update(chunk)
-        tmpfile_name = tmpfile.name
-    key = h.hexdigest()
-    s3.upload_file(
-        tmpfile_name,
-        settings.S3_UPLOADS_BUCKET_NAME,
-        key,
-        ExtraArgs={"CacheControl": "max-age=360000"},
+    return uploads_service.upload_image(
+        ctx, file=file, file_size=file_size, purpose=purpose
     )
-    return schemas.UploadedImage(url=f"{settings.AWS_CLOUDFRONT_HOST}/{key}")
-
-
-@router.post("/vditor/", response_model=schemas.msg.UploadResults)
-def upload_files_from_vditor(
-    files: List[UploadFile] = File(...),
-    current_user_id: Optional[int] = Depends(deps.try_get_current_user_id),
-    file_size: int = Depends(valid_content_length),
-) -> Any:
-    if settings.AWS_CLOUDFRONT_HOST is None:
-        # No object store configured (e.g. local dev): return a placeholder.
-        return schemas.msg.UploadResults(
-            data=schemas.msg.UploadResultData(
-                succMap={
-                    "example.jpeg": parse_obj_as(
-                        AnyHttpUrl, "https://picsum.photos/200/300"
-                    )
-                }
-            )
-        )
-    if not current_user_id:
-        raise HTTPException_(
-            status_code=400,
-            detail="Upload requires login.",
-        )
-    s3 = get_s3_client()
-    succMap: Dict[str, AnyHttpUrl] = {}
-    for file in files:
-        tmpfile_name = None
-        h = hashlib.sha256()
-        with NamedTemporaryFile(delete=False) as tmpfile:
-            written_size = 0
-            while written_size < file_size:
-                chunk = file.file.read(file_size - written_size)
-                if len(chunk) == 0:
-                    break
-                written_size += len(chunk)
-                tmpfile.write(chunk)
-                h.update(chunk)
-            tmpfile_name = tmpfile.name
-        key = h.hexdigest()
-        s3.upload_file(
-            tmpfile_name,
-            settings.S3_UPLOADS_BUCKET_NAME,
-            key,
-            ExtraArgs={"CacheControl": "max-age=360000"},
-        )
-        succMap[unwrap(file.filename)] = parse_obj_as(
-            AnyHttpUrl, f"{settings.AWS_CLOUDFRONT_HOST}/{key}"
-        )
-    return schemas.msg.UploadResults(data=schemas.msg.UploadResultData(succMap=succMap))
