@@ -55,6 +55,9 @@ python scripts/initial_data.py
 echo "==> Seed bootstrap fixtures (writes smoke/config.json)"
 python smoke/seed.py
 
+echo "==> Ensure the upload bucket exists (no-op without UPLOADS_S3_*)"
+python scripts/e2e/ensure_upload_bucket.py
+
 echo "==> Launch uvicorn server"
 uvicorn chafan_core.app.main:app --host "$HOST_ADDR" --port "$PORT" \
     >"$SERVER_LOG" 2>&1 &
