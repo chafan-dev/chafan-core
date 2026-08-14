@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import re
 from typing import Any, List
 
 from sqlalchemy.orm import Session
@@ -17,7 +18,7 @@ from chafan_core.app import (
     rules,
     schemas,
 )
-from chafan_core.app.common import MAX_UPLOAD_BYTES
+from chafan_core.app.common import MAX_UPLOAD_BYTES, report_msg
 from chafan_core.app.config import settings
 from chafan_core.utils.base import HTTPException_
 
@@ -134,3 +135,74 @@ def find_orphans(db: Session) -> List[Any]:
         if not find_usages(db, sha=sha):
             orphans.extend(crud.upload.get_multi_by_sha(db, sha=sha))
     return orphans
+
+
+# ---------------------------------------------------------------------------
+# Avatar-misuse detection.
+#
+# ``purpose`` is client-supplied, so the karma gate on ``purpose="figure"`` is
+# bypassable by a user sending ``purpose="avatar"`` and pasting the URL into an
+# article by hand. Prevention was never available; detection is. This runs at
+# article *read* time, so no write hook can be forgotten: if a body embeds an
+# image its author only ever declared an avatar, someone lied, and it is
+# reported once (deduplicated in Redis) and swallowed on any failure.
+# ---------------------------------------------------------------------------
+
+_SHA_RE = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])")
+_MISDECLARED_TTL_SECONDS = 60 * 60 * 24 * 90
+
+
+def _shas_in_body(body: str) -> List[str]:
+    return list(dict.fromkeys(_SHA_RE.findall(body or "")))
+
+
+def misdeclared_avatars(ctx, *, author_id: int, body: str) -> List[str]:
+    """Shas embedded in ``body`` that ``author_id`` only ever uploaded as an avatar.
+
+    A sha the author legitimately uploaded as a figure is fine even if someone
+    else used it as an avatar; a sha the author never uploaded at all is not
+    this check's business.
+    """
+    db = ctx.get_db()
+    reported: List[str] = []
+    for sha in _shas_in_body(body):
+        purposes = {
+            row.purpose
+            for row in crud.upload.get_multi_by_sha(db, sha=sha)
+            if row.uploader_id == author_id
+        }
+        if "avatar" in purposes and "figure" not in purposes:
+            reported.append(sha)
+    return reported
+
+
+def check_article_for_misdeclared_avatars(ctx, *, article) -> None:
+    """Advisory detection on an article read; must never break the page."""
+    try:
+        shas = misdeclared_avatars(
+            ctx, author_id=article.author_id, body=article.body
+        )
+    except Exception:
+        logger.exception(
+            "misdeclared-avatar detection failed for article %s", article.uuid
+        )
+        return
+    if not shas:
+        return
+    redis = ctx.get_redis()
+    for sha in shas:
+        key = f"upload:misdeclared-avatar:{article.id}:{sha}"
+        try:
+            newly_reported = redis.set(
+                key, "1", nx=True, ex=_MISDECLARED_TTL_SECONDS
+            )
+        except Exception:
+            logger.exception(
+                "misdeclared-avatar dedupe failed for article %s", article.uuid
+            )
+            continue
+        if newly_reported:
+            report_msg(
+                f"misdeclared avatar: article={article.uuid} "
+                f"author_id={article.author_id} sha={sha}"
+            )
