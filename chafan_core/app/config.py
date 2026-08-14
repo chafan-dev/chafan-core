@@ -41,6 +41,16 @@ class Settings(BaseSettings):
     CLOUDFRONT_HOST: Optional[AnyHttpUrl] = None
     S3_UPLOADS_BUCKET_NAME: Optional[str] = None
 
+    # Image uploads, backed by an S3-compatible object store (Storm Buckets).
+    # Deployment settings only: nothing in here decides a rule. The karma gate
+    # and coin cost live in rules.py, the size cap in common.py.
+    UPLOADS_S3_ENDPOINT_URL: Optional[str] = None  # from the Storm dashboard
+    UPLOADS_S3_ACCESS_KEY_ID: Optional[str] = None
+    UPLOADS_S3_SECRET_ACCESS_KEY: Optional[str] = None
+    UPLOADS_S3_BUCKET: Optional[str] = None
+    UPLOADS_S3_REGION: str = "auto"
+    UPLOADS_PUBLIC_URL_BASE: Optional[str] = None  # https://uploads.cha.fan
+
     USERS_OPEN_REGISTRATION: bool = True
 
     ############ Web server only ############
