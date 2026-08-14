@@ -37,9 +37,6 @@ class Settings(BaseSettings):
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
     AWS_REGION: Optional[str] = None
-    AWS_CLOUDFRONT_HOST: Optional[AnyHttpUrl] = None
-    CLOUDFRONT_HOST: Optional[AnyHttpUrl] = None
-    S3_UPLOADS_BUCKET_NAME: Optional[str] = None
 
     # Image uploads, backed by an S3-compatible object store (Storm Buckets).
     # Deployment settings only: nothing in here decides a rule. The karma gate
