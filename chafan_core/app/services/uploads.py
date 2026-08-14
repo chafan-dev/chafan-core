@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from typing import Any
+from typing import Any, List
+
+from sqlalchemy.orm import Session
 
 from chafan_core.app import (
     coins,
     crud,
     image_sanitize,
+    models,
     object_storage,
     rules,
     schemas,
@@ -84,3 +87,46 @@ def upload_image(ctx, *, file, file_size: int, purpose: str) -> schemas.Uploaded
         storage_bucket=settings.UPLOADS_S3_BUCKET,
     )
     return schemas.UploadedImage(url=object_storage.public_url(sha, content_type))
+
+
+# ---------------------------------------------------------------------------
+# Usage accounting: computed, not stored.
+#
+# delete_forever overwrites body, body_draft and every archive row with
+# "[DELETED]", so the references leave the database and a scan of bodies gives
+# the correct answer with no join table to maintain. Nothing here deletes.
+# ---------------------------------------------------------------------------
+
+_BODY_COLUMNS = [
+    (models.Article, "body", "article"),
+    (models.Article, "body_draft", "article"),
+    (models.ArticleArchive, "body", "article_archive"),
+    (models.Answer, "body", "answer"),
+    (models.Answer, "body_draft", "answer"),
+    (models.Archive, "body", "answer_archive"),
+    (models.Comment, "body", "comment"),
+    (models.Submission, "description", "submission"),
+    (models.SubmissionArchive, "description", "submission_archive"),
+]
+
+
+def find_usages(db: Session, *, sha: str) -> List[str]:
+    """Locations (``table:id``) whose body text embeds ``sha``.
+
+    The public URL embeds the sha, so a ``LIKE`` hit is exact.
+    """
+    usages: List[str] = []
+    for model, column, label in _BODY_COLUMNS:
+        col = getattr(model, column)
+        for (id_,) in db.query(model.id).filter(col.like(f"%{sha}%")).all():
+            usages.append(f"{label}:{id_}")
+    return usages
+
+
+def find_orphans(db: Session) -> List[models.Upload]:
+    """Uploads whose sha appears in no body or archive text. Report only."""
+    orphans: List[models.Upload] = []
+    for sha in crud.upload.all_shas(db):
+        if not find_usages(db, sha=sha):
+            orphans.extend(crud.upload.get_multi_by_sha(db, sha=sha))
+    return orphans
