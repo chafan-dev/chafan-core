@@ -53,12 +53,25 @@ def test_sanitize_png() -> None:
 
 
 def test_sanitize_strips_exif() -> None:
-    raw = _jpeg("GPS location of my house", gps=True)
-    assert Image.open(io.BytesIO(raw)).getexif(), "fixture must carry EXIF"
+    description = "GPS location of my house"
+    raw = _jpeg(description, gps=True)
+
+    # The fixture genuinely carries EXIF: the APP1 segment marker, the
+    # description bytes, and a GPS IFD.
+    assert b"Exif\x00\x00" in raw, "fixture has no EXIF APP1 segment"
+    assert description.encode() in raw, "fixture has no description in EXIF"
+    assert Image.open(io.BytesIO(raw)).getexif().get_ifd(0x8825), "fixture has no GPS IFD"
 
     clean, content_type = sanitize(raw)
     assert content_type == "image/jpeg"
-    assert Image.open(io.BytesIO(clean)).getexif() == {}, "stored bytes carry EXIF"
+
+    # The stored bytes must carry no EXIF at all: not the APP1 segment, not the
+    # description string, and no parsed EXIF or GPS IFD.
+    assert b"Exif\x00\x00" not in clean, "EXIF APP1 segment survived sanitization"
+    assert description.encode() not in clean, "description survived sanitization"
+    parsed = Image.open(io.BytesIO(clean)).getexif()
+    assert parsed == {}, "parsed EXIF survives sanitization"
+    assert parsed.get_ifd(0x8825) == {}, "GPS IFD survives sanitization"
 
 
 def test_sanitize_preserves_animated_gif() -> None:
