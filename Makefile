@@ -16,6 +16,10 @@ refresh-karmas:
 refresh-karmas-apply:
 	python scripts/refresh_karmas.py --apply
 
+# Report uploaded images that no body references any more. Nothing is deleted.
+upload-report:
+	python scripts/upload_report.py
+
 dev-run:
 	uvicorn --host $(LOCAL_DEV_HOST) --port $(LOCAL_DEV_PORT) chafan_core.app.main:app --reload
 
