@@ -26,6 +26,7 @@
           ps.python-jose
           ps.passlib
           ps.boto3 # S3 client
+          ps.pillow # server-side image sanitization (EXIF stripping)
           ps.bcrypt
           ps.sentry-sdk
 
