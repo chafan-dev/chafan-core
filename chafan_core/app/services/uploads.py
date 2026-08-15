@@ -21,6 +21,7 @@ from chafan_core.app import (
 from chafan_core.app.common import MAX_UPLOAD_BYTES, report_msg
 from chafan_core.app.config import settings
 from chafan_core.utils.base import HTTPException_
+from chafan_core.utils.constants import upload_purpose_T
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,9 @@ def _read_bytes(file: Any) -> bytes:
     return bytes(buf)
 
 
-def upload_image(ctx, *, file, file_size: int, purpose: str) -> schemas.UploadedImage:
+def upload_image(
+    ctx, *, file, file_size: int, purpose: upload_purpose_T
+) -> schemas.UploadedImage:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
 
@@ -98,7 +101,12 @@ def upload_image(ctx, *, file, file_size: int, purpose: str) -> schemas.Uploaded
 # the correct answer with no join table to maintain. Nothing here deletes.
 # ---------------------------------------------------------------------------
 
-_BODY_COLUMNS = [
+# Every column that can hold the URL of an uploaded image. Bodies are the
+# obvious ones. The two avatar columns matter just as much: a purpose="avatar"
+# upload is never embedded in anyone's body, so without them every avatar ever
+# uploaded reads as an orphan -- and orphans are the input to any future
+# garbage collection.
+_REFERENCE_COLUMNS = [
     (models.Article, "body", "article"),
     (models.Article, "body_draft", "article"),
     (models.ArticleArchive, "body", "article_archive"),
@@ -106,31 +114,31 @@ _BODY_COLUMNS = [
     (models.Answer, "body_draft", "answer"),
     (models.Archive, "body", "answer_archive"),
     (models.Comment, "body", "comment"),
+    (models.Question, "description", "question"),
+    (models.QuestionArchive, "description", "question_archive"),
     (models.Submission, "description", "submission"),
     (models.SubmissionArchive, "description", "submission_archive"),
+    (models.User, "avatar_url", "user_avatar"),
+    (models.User, "gif_avatar_url", "user_gif_avatar"),
 ]
 
 
 def find_usages(db: Session, *, sha: str) -> List[str]:
-    """Locations (``table:id``) whose body text embeds ``sha``.
+    """Locations (``table:id``) that reference ``sha``.
 
     The public URL embeds the sha, so a ``LIKE`` hit is exact.
     """
     usages: List[str] = []
-    for model, column, label in _BODY_COLUMNS:
+    for model, column, label in _REFERENCE_COLUMNS:
         col = getattr(model, column)
         for (id_,) in db.query(model.id).filter(col.like(f"%{sha}%")).all():
             usages.append(f"{label}:{id_}")
     return usages
 
 
-def find_orphans(db: Session) -> List[Any]:
-    """Uploads whose sha appears in no body or archive text. Report only.
-
-    Returns nothing until the Upload table lands (``crud.upload`` is stubbed);
-    typed ``Any`` so the real model can arrive later without touching this.
-    """
-    orphans: List[Any] = []
+def find_orphans(db: Session) -> List[models.Upload]:
+    """Uploads whose sha appears in no body or archive text. Report only."""
+    orphans: List[models.Upload] = []
     for sha in crud.upload.all_shas(db):
         if not find_usages(db, sha=sha):
             orphans.extend(crud.upload.get_multi_by_sha(db, sha=sha))

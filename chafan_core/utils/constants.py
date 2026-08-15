@@ -23,6 +23,12 @@ editor_T = Literal[
 ]
 indexed_object_T = Literal["question", "answer", "article", "submission", "site"]
 
+# What an uploaded image was declared to be. The set is closed on purpose: the
+# karma gate applies to "figure" and the read-time misuse detection looks for
+# "avatar", so a third value would be an upload that is neither gated nor
+# detected.
+upload_purpose_T = Literal["figure", "avatar"]
+
 
 feedback_status_T = Union[
     Literal["sent"], Literal["processing"], Literal["closed"], Literal["wontfix"]
