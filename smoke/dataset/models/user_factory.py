@@ -122,7 +122,7 @@ def build_users(db) -> dict:
         user = _get_or_create_user(db, spec)
         # personal_introduction is a karma-bearing profile field, so this
         # assignment has to be tracked like any other profile edit -- otherwise
-        # a seeded database reports drift under `make refresh-karmas` forever
+        # a seeded database reports drift under `scripts/refresh_karmas.py` forever
         # and people learn to ignore the one signal that catches missing hooks.
         with karma.tracked(db, user):
             user.personal_introduction = spec["bio"]

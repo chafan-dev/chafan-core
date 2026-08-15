@@ -20,8 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Storm-compatible object store (MinIO in CI) so the upload spec can
-      # exercise the real write path. Ignored by the backend until it declares
-      # these settings, and the bucket script is a no-op until then too.
+      # exercise the real write path. UPLOADS_PUBLIC_URL_BASE is never fetched
+      # -- the suite asserts the shape of the stored URL, not its contents --
+      # so it can name a host that does not exist here.
       UPLOADS_S3_ENDPOINT_URL: http://localhost:9000
       UPLOADS_S3_ACCESS_KEY_ID: minioadmin
       UPLOADS_S3_SECRET_ACCESS_KEY: minioadmin

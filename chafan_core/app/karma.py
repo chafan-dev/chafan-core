@@ -19,7 +19,7 @@ rule, applied in one direction, with no separate revoke path to forget.
 
 `compute_karma()` sums the same `contribution()` over everything a user owns,
 so the incremental path and the reconciler cannot disagree about the rules --
-they are reading the same function. See `make refresh-karmas`.
+they are reading the same function. See `scripts/refresh_karmas.py`.
 """
 
 from __future__ import annotations
@@ -140,7 +140,7 @@ def set_karma(db: Session, user: models.User, value: int) -> None:
 def compute_karma(db: Session, user: models.User) -> int:
     """Recompute a user's karma from scratch, from everything they own.
 
-    The authoritative answer, and the one `make refresh-karmas` writes back.
+    The authoritative answer, and the one `scripts/refresh_karmas.py` writes back.
     Uses the same `contribution()` as the incremental path, so the two can only
     disagree if an incremental hook is missing -- which is exactly what the
     reconciler exists to find.

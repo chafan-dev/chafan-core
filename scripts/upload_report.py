@@ -1,7 +1,7 @@
 """Report which uploaded images are orphans -- referenced by no body any more.
 
-    make upload-report              # list orphans
-    make upload-report-sha --sha=<sha>  # list usages of one sha (not wired to make)
+    python scripts/upload_report.py              # list orphans
+    python scripts/upload_report.py --sha=<sha>  # list usages of one sha
 
 Storage in the upload bucket is treated as losable; the upload table is the
 recovery manifest. Orphans here are objects that no live or archived body

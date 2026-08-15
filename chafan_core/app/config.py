@@ -105,7 +105,6 @@ class Settings(BaseSettings):
     SCHEDULED_TASK_UPDATE_VIEW_COUNT_MINUTES: int = 5
     SCHEDULED_TASK_REFRESH_SEARCH_INDEX_HOURS: int = 24
     SCHEDULED_TASK_FILL_MISSING_KEYWORDS_HOURS: int = 24
-    SCHEDULED_TASK_DELIVER_NOTIFICATIONS_HOURS: int = 168
 
     # Karma and coin amounts are NOT settings -- they are product rules, and
     # they live in `chafan_core/app/rules.py` where they can be read and
