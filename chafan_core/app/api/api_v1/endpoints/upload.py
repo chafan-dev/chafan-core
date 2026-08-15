@@ -9,6 +9,7 @@ from chafan_core.app.infra.request_context import RequestContext
 from chafan_core.app.limiter import limiter
 from chafan_core.app.services import uploads as uploads_service
 from chafan_core.utils.base import HTTPException_
+from chafan_core.utils.constants import upload_purpose_T
 
 router = APIRouter()
 
@@ -22,7 +23,11 @@ def upload_image(
     ctx: RequestContext = Depends(deps.get_request_context_logged_in),
     file: UploadFile = File(...),
     file_size: int = Depends(valid_content_length),
-    purpose: str = Form("figure"),
+    # A closed set, not a free-form string: anything outside it would skip the
+    # karma gate (which tests for "figure") and be invisible to the read-time
+    # misuse detection (which tests for "avatar"). The default is the gated
+    # value, so an old client cannot slip past the karma check either.
+    purpose: upload_purpose_T = Form("figure"),
 ) -> Any:
     if not object_storage.is_configured():
         raise HTTPException_(

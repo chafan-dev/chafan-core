@@ -222,6 +222,44 @@ def test_figure_requires_karma(client, db, uploader, fake_put_image):
     assert r.status_code == 200, r.json()
 
 
+def test_unknown_purpose_rejected(client, db, uploader, fake_put_image):
+    # `purpose` is a closed set. A third value would be neither gated by karma
+    # (which tests for "figure") nor visible to the read-time misuse detection
+    # (which tests for "avatar"), so it must be refused outright -- karma 0
+    # here, to show the gate is not simply being sidestepped.
+    _set_karma(db, uploader["id"], 0)
+    _set_coins(db, uploader["id"], 100)
+    data = _png(_random_rgb())
+
+    r = _upload(client, uploader["headers"], data, purpose="banana")
+    assert r.status_code == 422, r.json()
+    assert fake_put_image == []
+
+    clean, _ = image_sanitize.sanitize(data)
+    sha = hashlib.sha256(clean).hexdigest()
+    db.expire_all()
+    assert db.query(models.Upload).filter_by(sha256=sha).count() == 0
+
+
+@pytest.mark.parametrize(
+    "unset",
+    ["UPLOADS_S3_ENDPOINT_URL", "UPLOADS_S3_BUCKET", "UPLOADS_PUBLIC_URL_BASE"],
+)
+def test_incomplete_configuration_returns_503(
+    client, db, uploader, fake_put_image, monkeypatch, unset
+):
+    # Any one of the three missing is a 503, checked before anything is stored:
+    # the bucket is a NOT NULL column and the public base builds the response,
+    # so a later failure would leave bytes in the store with no row.
+    _set_karma(db, uploader["id"], 100)
+    _set_coins(db, uploader["id"], 100)
+    monkeypatch.setattr(settings, unset, None)
+
+    r = _upload(client, uploader["headers"], _png(_random_rgb()), purpose="figure")
+    assert r.status_code == 503, r.json()
+    assert fake_put_image == []
+
+
 def test_zero_coins(client, db, uploader, fake_put_image):
     _set_karma(db, uploader["id"], 100)
     _set_coins(db, uploader["id"], 0)
@@ -303,6 +341,67 @@ def test_find_usages_and_orphans(db, uploader):
     db.commit()
 
     assert uploads_service.find_usages(db, sha=sha) == [f"comment:{comment.id}"]
+    assert not any(u.sha256 == sha for u in uploads_service.find_orphans(db))
+
+
+def test_find_usages_covers_avatars(db, uploader):
+    # An avatar is never embedded in a body: it lives on the user row. Without
+    # those two columns every avatar ever uploaded reads as an orphan.
+    sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    gif_sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    crud.upload.create(
+        db,
+        uploader_id=uploader["id"],
+        sha256=sha,
+        content_type="image/png",
+        size_bytes=10,
+        purpose="avatar",
+        storage_bucket="test-bucket",
+    )
+    db.commit()
+    assert uploads_service.find_usages(db, sha=sha) == []
+
+    user = crud.user.get(db, id=uploader["id"])
+    crud.user.update(
+        db,
+        db_obj=user,
+        obj_in={
+            "avatar_url": f"{UPLOAD_BASE}/{sha}.png",
+            "gif_avatar_url": f"{UPLOAD_BASE}/{gif_sha}.gif",
+        },
+    )
+    db.commit()
+
+    assert uploads_service.find_usages(db, sha=sha) == [f"user_avatar:{user.id}"]
+    assert uploads_service.find_usages(db, sha=gif_sha) == [
+        f"user_gif_avatar:{user.id}"
+    ]
+    assert not any(u.sha256 == sha for u in uploads_service.find_orphans(db))
+
+
+def test_find_usages_covers_question_description(
+    db, uploader, normal_user_authored_question_uuid
+):
+    sha = hashlib.sha256(_png(_random_rgb())).hexdigest()
+    crud.upload.create(
+        db,
+        uploader_id=uploader["id"],
+        sha256=sha,
+        content_type="image/png",
+        size_bytes=10,
+        purpose="figure",
+        storage_bucket="test-bucket",
+    )
+    db.commit()
+    assert uploads_service.find_usages(db, sha=sha) == []
+
+    question = crud.question.get_by_uuid(db, uuid=normal_user_authored_question_uuid)
+    assert question is not None
+    question.description = f"<img src='{UPLOAD_BASE}/{sha}.png'>"
+    db.add(question)
+    db.commit()
+
+    assert uploads_service.find_usages(db, sha=sha) == [f"question:{question.id}"]
     assert not any(u.sha256 == sha for u in uploads_service.find_orphans(db))
 
 
