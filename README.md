@@ -220,7 +220,7 @@ python scripts/refresh_karmas.py --apply   # write the recomputed values
 bash scripts/compile_email_templates.sh    # rebuild the email HTML from the .mjml sources
 ```
 
-`compile_email_templates.sh` is the one command here that needs something the dev shell does not carry: `mjml`, from npm (`npm install -g mjml`). It is only needed when an email template changes; the compiled HTML is committed.
+`compile_email_templates.sh` is the one command here that needs something the dev shell does not carry: `mjml`, from npm (`npm install -g mjml`) — nixpkgs 25.05 dropped `nodePackages.mjml`. It is only needed when an email template changes; the compiled HTML under `email-templates/build` is committed and is what the app reads at runtime. MJML is being kept as the authoring format for now, so that npm dependency is a decision rather than an oversight; the reasoning, and what to do instead if it ever stops paying for itself, is in the script's header.
 
 ## How to add a new event type
 
