@@ -1,47 +1,7 @@
-import datetime
-import secrets
-from typing import Dict, List
-
-import sentry_sdk
-
-from chafan_core.app import crud, models
+from chafan_core.app import crud
 from chafan_core.app.infra.request_context import RequestContext
-from chafan_core.app.email_utils import send_notification_email
 from chafan_core.app.infra.runtime import execute_with_broker
-from chafan_core.utils.base import EntityType, filter_not_none
-
-
-def deliver_notifications(data_broker: RequestContext) -> None:
-    db = data_broker.get_db()
-    print(f"Deliver notifications @ {datetime.datetime.now(tz=datetime.timezone.utc)}")
-    user_notifications: Dict[models.User, List[models.Notification]] = {}
-    for notif in crud.notification.get_undelivered_unread(db):
-        if notif.receiver not in user_notifications:
-            user_notifications[notif.receiver] = []
-        user_notifications[notif.receiver].append(notif)
-    for user, notifs in user_notifications.items():
-        if not user.is_active:
-            continue
-        if not user.enable_deliver_unread_notifications:
-            continue
-        if user.unsubscribe_token is None:
-            user.unsubscribe_token = secrets.token_urlsafe(10)
-            db.commit()
-        try:
-            m = data_broker.as_principal(user.id)
-            ns = filter_not_none([m.notification_schema_from_orm(n) for n in notifs])
-            if ns:
-                send_notification_email(
-                    user.email,
-                    notifications=ns,
-                    unsubscribe_token=user.unsubscribe_token,
-                )
-        except Exception as e:
-            sentry_sdk.capture_exception(e)
-            break
-        for notif in notifs:
-            notif.is_delivered = True
-    db.commit()
+from chafan_core.utils.base import EntityType
 
 
 def cache_matrices() -> None:
