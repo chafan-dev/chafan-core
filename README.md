@@ -45,7 +45,7 @@ podman run -d --name chafan-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgr
 podman run -d --name chafan-redis -p 6379:6379 redis
 ```
 
-A container Postgres does check the password, so keep `PGPASSWORD=postgres` in your environment — that is what lets the bare `psql -U postgres` below run without prompting.
+A container Postgres does check the password, so keep `PGPASSWORD=postgres` in your environment — that is what lets `psql` and `scripts/reset_app_state.sh` run without prompting.
 
 ### Configure environment
 
@@ -86,13 +86,15 @@ Two of those are easy to get wrong:
 
 ### Create and initialize the database
 
-The database itself is not created for you — `alembic` expects it to exist:
+The database itself is not created for you — `alembic` expects it to exist. Derive it from the `DATABASE_URL` you just exported, rather than retyping the connection details: `${DATABASE_URL%/*}` is the same server with the database name stripped off, so pointing it at the always-present `postgres` database gives you a connection from which to create your own.
 
 ```bash
-psql -h localhost -U postgres -c 'create database chafan_dev;'
+psql "${DATABASE_URL%/*}/postgres" -c "create database ${DATABASE_URL##*/};"
 alembic upgrade head
 python scripts/initial_data.py
 ```
+
+Written this way the step follows whatever `DATABASE_URL` says — the local `chafan_dev` above, or the host, port, user and database name of a deployment whose environment file lives outside the checkout. `alembic` and `initial_data.py` already read the same variable.
 
 `initial_data.py` inserts exactly one row: the superuser from `FIRST_SUPERUSER`. For a database you can actually click around in, build the shared development dataset as well — eight users with karma and coins, a site with three columns, questions, answers, articles, and the follow/upvote/comment graph between them:
 
