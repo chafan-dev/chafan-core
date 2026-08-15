@@ -35,7 +35,21 @@ _CONTENT_TYPE_EXTENSIONS = {
 
 
 def is_configured() -> bool:
-    return settings.UPLOADS_S3_ENDPOINT_URL is not None
+    """True when every setting the write path needs is present.
+
+    All three, not just the endpoint: the bucket is a NOT NULL column on the
+    upload row and the public base is what the response URL is built from, so
+    a half-configured deployment used to fail with a 500 *after* the object had
+    already been stored. Checked up front, that becomes a 503 and nothing is
+    written anywhere.
+    """
+    return all(
+        (
+            settings.UPLOADS_S3_ENDPOINT_URL,
+            settings.UPLOADS_S3_BUCKET,
+            settings.UPLOADS_PUBLIC_URL_BASE,
+        )
+    )
 
 
 @lru_cache(maxsize=1)
