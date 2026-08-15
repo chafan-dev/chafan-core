@@ -62,6 +62,9 @@
           # Required for static analysis (lint)
           ps.mypy
           ps.flake8
+
+          # Required for scripts/format.sh
+          ps.autoflake
         ]);
       in
       {

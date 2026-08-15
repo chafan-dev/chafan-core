@@ -6,7 +6,7 @@ name: Migrations
 # deliverable in their own right.
 #
 # The second half of the job runs against a *populated* database, seeded from
-# smoke/dataset.py -- the same rows the e2e smoke suite uses. An empty database
+# smoke/dataset -- the same rows the e2e smoke suite uses. An empty database
 # is the easy case; migrations break on the ones that already hold data.
 #
 # What is deliberately NOT checked is a full-history downgrade: `alembic
@@ -103,7 +103,7 @@ jobs:
       # a NOT NULL column with no default, a type change that existing values
       # do not fit, a data migration with an off-by-one. Everything below this
       # point runs against real rows -- the same rows the e2e smoke suite uses,
-      # from smoke/dataset.py, so one definition serves both and neither
+      # from smoke/dataset, so one definition serves both and neither
       # silently rots.
       run: |
         set -euo pipefail

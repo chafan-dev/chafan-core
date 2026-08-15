@@ -44,7 +44,7 @@ def set_up_scheduled_tasks() -> None:
         name="fill_missing_keywords_task",
     )
     # No karma job. Karma is applied as it is earned (see app/karma.py), so
-    # there is nothing for a periodic pass to catch up on. `make refresh-karmas`
+    # there is nothing for a periodic pass to catch up on. `scripts/refresh_karmas.py`
     # recomputes it from scratch on demand -- after a rule change, or to check
     # that no hook is missing.
     scheduler.add_job(

@@ -7,9 +7,9 @@
 ### Requirements
 
 - Linux or macOS
-- [Nix](https://nixos.org/download) with flakes enabled — provides Python and all backend dependencies via `flake.nix`
-- A running PostgreSQL server (any recent version) with a database you can write to
-- A running Redis server
+- [Nix](https://nixos.org/download) with flakes enabled
+
+That is the whole list. `flake.nix` provides Python and every backend dependency, PostgreSQL 14, Redis, and the formatters and linters, so the dev shell is self-contained. The one thing it cannot ship is a container runtime — Podman or Docker — and that is needed only for the optional object store in [Image uploads](#image-uploads-optional).
 
 ### Enter the dev shell
 
@@ -17,14 +17,35 @@
 nix develop
 ```
 
-This drops you into a shell with Python and every backend dependency available.
+Besides Python, this puts `alembic`, `uvicorn`, `pytest`, `black`, `isort`, `autoflake`, `mypy`, `flake8`, `psql`, `postgres`, `redis-server` and `redis-cli` on `PATH`.
 
-Run all subsequent commands **from the repository root**, inside this shell. Several tools depend on it: `alembic.ini` sets `script_location = alembic`, a relative path, so `alembic` outside the root fails with `No config file 'alembic.ini' found`. Set `PYTHONPATH` to the root as well, so that `chafan_core` is importable:
+Run all subsequent commands **from the repository root**, inside this shell. Several tools depend on it: `alembic.ini` sets `script_location = alembic`, a relative path, so `alembic` outside the root fails with `No config file 'alembic.ini' found`. Set `PYTHONPATH` to the root as well, so that `chafan_core` and `smoke` are importable:
 
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 export PYTHONPATH="$PWD"
 ```
+
+### Start PostgreSQL and Redis
+
+The shell ships both servers but starts neither, and nothing below works until they are up. Any instance reachable at your `DATABASE_URL` and `REDIS_URL` will do; the shortest path is to run them out of the shell itself:
+
+```bash
+initdb -U postgres -D "$PWD/.pgdata"                       # once
+pg_ctl -D "$PWD/.pgdata" -l "$PWD/.pgdata/logfile" start
+redis-server --daemonize yes
+```
+
+`-U postgres` matters: it names the cluster superuser `postgres`, which is the user `env.ci` and `scripts/reset_app_state.sh` connect as. A cluster created this way trusts local connections, so the password in `DATABASE_URL` is ignored.
+
+Containers work equally well and are what CI runs:
+
+```bash
+podman run -d --name chafan-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:14
+podman run -d --name chafan-redis -p 6379:6379 redis
+```
+
+A container Postgres does check the password, so keep `PGPASSWORD=postgres` in your environment — that is what lets the bare `psql -U postgres` below run without prompting.
 
 ### Configure environment
 
@@ -45,11 +66,11 @@ set -a; source env.dev; set +a
 A minimal configuration of your own:
 
 ```
-SERVER_HOST=http://dev.cha.fan:4582
-DATABASE_URL=postgresql://<user>@localhost:5432/chafan_dev
+SERVER_HOST=http://dev.cha.fan:8080
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/chafan_dev
 REDIS_URL=redis://127.0.0.1:6379
-SERVER_NAME=dev.cha.fan
-BACKEND_CORS_ORIGINS=["http://dev.cha.fan:8080"]
+PGPASSWORD=postgres
+CHAFAN_BACKEND_CORS_ORIGINS=http://dev.cha.fan:8080,http://127.0.0.1:8080
 PROJECT_NAME=Chafan Dev
 SECRET_KEY=change-me
 FIRST_SUPERUSER=admin@cha.fan
@@ -58,28 +79,82 @@ USERS_OPEN_REGISTRATION=False
 ENV=dev
 ```
 
+Two of those are easy to get wrong:
+
+- **`SERVER_HOST` is the frontend, not this server.** It is the base for links the backend builds into emails, RSS items and event templates — `{SERVER_HOST}/reset-password?token=...`, `{SERVER_HOST}/questions/...`. Those are PWA routes, so point it at the PWA, not at the API port, or every emailed link lands on the API server.
+- **`CHAFAN_BACKEND_CORS_ORIGINS` is a comma-separated string**, not a JSON list, and the name carries the `CHAFAN_` prefix. Its default is `https://127.0.0.1:8080`, so a PWA served from any other origin is blocked until you list that origin here. `DEBUG_BYPASS_BACKEND_CORS=magic` allows every origin instead — a dev-only shortcut that the app refuses to start with when `ENV=prod`.
+
 ### Point `dev.cha.fan` at your machine
 
-The dev server binds the hostname `dev.cha.fan`, which resolves publicly to an address you cannot bind locally. Add it to `/etc/hosts` first, or `make dev-run` fails with `Cannot assign requested address`:
+The dev server binds the hostname `dev.cha.fan`, which resolves publicly to an address you cannot bind locally. Add it to `/etc/hosts` first, or the server fails to start with `Cannot assign requested address`:
 
 ```
 127.0.0.1 dev.cha.fan
 ```
 
-### Initialize the database
+### Create and initialize the database
+
+The database itself is not created for you — `alembic` expects it to exist:
 
 ```bash
+psql -h localhost -U postgres -c 'create database chafan_dev;'
 alembic upgrade head
 python scripts/initial_data.py
 ```
 
+`initial_data.py` inserts exactly one row: the superuser from `FIRST_SUPERUSER`. For a database you can actually click around in, build the shared development dataset as well — eight users with karma and coins, a site with three columns, questions, answers, articles, and the follow/upvote/comment graph between them:
+
+```bash
+python -m smoke.dataset build --deep
+```
+
+`--deep` adds an extra answer and the Activity/Feed/Notification rows behind it, so the feed and notification screens have something to show. This is the same dataset the e2e smoke suite seeds and the `Migrations` workflow migrates across (`smoke/dataset/`), which is why it keeps up with the schema. It is idempotent: re-running it against a seeded database is a no-op. Sign in as `smoke-a@cha.fan` / `smoke-pw-a1` (superuser) or `smoke-b@cha.fan` / `smoke-pw-b1`; the rest of the accounts are in `smoke/dataset/models/user_factory.py`.
+
 ### Run the dev server
 
 ```bash
-make dev-run
+uvicorn chafan_core.app.main:app --host dev.cha.fan --port 4582 --reload
 ```
 
-API docs: http://dev.cha.fan:4582/docs
+API docs: http://dev.cha.fan:4582/docs — served only when `ENV=dev`.
+
+### Image uploads (optional)
+
+Uploads go to an S3-compatible object store (Storm Buckets in production). With the `UPLOADS_S3_*` settings unset the endpoint rejects every upload with `503 Image uploads are not configured on this server.` and nothing else is affected, so skip this section unless you are working on uploads.
+
+MinIO gives you a local one, the same way `.github/workflows/e2e-smoke.yml` does:
+
+```bash
+podman run -d --name chafan-minio -p 9000:9000 -p 9001:9001 \
+  -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
+  minio/minio server /data --console-address ":9001"
+```
+
+Add to your environment, then create the bucket:
+
+```
+UPLOADS_S3_ENDPOINT_URL=http://localhost:9000
+UPLOADS_S3_ACCESS_KEY_ID=minioadmin
+UPLOADS_S3_SECRET_ACCESS_KEY=minioadmin
+UPLOADS_S3_BUCKET=chafan-dev
+UPLOADS_S3_REGION=us-east-1
+UPLOADS_PUBLIC_URL_BASE=http://localhost:9000/chafan-dev
+```
+
+```bash
+python scripts/e2e/ensure_upload_bucket.py
+```
+
+`UPLOADS_PUBLIC_URL_BASE` is only ever used to build the stored URL (`<base>/<sha>.<ext>`); the backend never reads back through it. The value above resolves in a browser only if the bucket allows anonymous reads — CI does not bother, and uses `https://uploads.cha.fan`, because the smoke suite asserts the shape of the URL rather than fetching it.
+
+Who may upload and what it costs are product rules rather than settings: the karma gate and coin price live in `chafan_core/app/rules.py`, the size cap in `chafan_core/app/common.py`. To find uploads that no body references any more:
+
+```bash
+python scripts/upload_report.py              # list orphans
+python scripts/upload_report.py --sha=<sha>  # usages of a single sha
+```
+
+Nothing is deleted by that script — the bucket is treated as losable and the `upload` table is the recovery manifest.
 
 ## DB Schema Migrations
 
@@ -102,7 +177,7 @@ The `Migrations` workflow tests migrations as a deliverable in their own right: 
 
 ## Tests
 
-`scripts/reset_app_state.sh` gives you a clean slate. **It drops and recreates the `chafan_dev` database and flushes Redis** — everything in your dev database is lost. It connects as the `postgres` superuser on `localhost:5432`.
+`scripts/reset_app_state.sh` gives you a clean slate. **It drops and recreates the `chafan_dev` database and flushes Redis** — everything in your dev database is lost. It connects as the `postgres` superuser on `localhost:5432`, and expects the database to exist already (on a fresh machine, create it as above first).
 
 ```bash
 bash scripts/reset_app_state.sh
@@ -130,11 +205,22 @@ It expects the repository root as the working directory, Postgres and Redis up, 
 ## Checks before a pull request
 
 ```bash
-make format   # isort, autoflake, black
-make check    # architecture ratchets, mypy, black/isort/flake8, event-table consistency
+bash scripts/format.sh                 # isort, autoflake, black
+bash scripts/static_analysis/lint.sh   # architecture ratchets, mypy, black/isort/flake8
+python scripts/check.py                # event-table consistency
 ```
 
-`make check` runs `scripts/static_analysis/lint.sh` — the same script the `Static Analysis` workflow runs — plus `scripts/check.py`, which asserts that every event verb has a row in both `EVENT_TEMPLATES` and the distribution policy table. The two architecture ratchets (`check_layer_imports.py`, `check_service_commits.py`) must pass; the formatting and typing checks are advisory.
+`lint.sh` is the same script the `Static Analysis` workflow runs. Its three architecture ratchets (`check_layer_imports.py`, `check_service_commits.py`, `check_rules_applied.py`) must pass; the formatting and typing checks are advisory. `scripts/check.py` asserts that every event verb has a row in both `EVENT_TEMPLATES` and the distribution policy table.
+
+Two maintenance scripts are worth knowing about:
+
+```bash
+python scripts/refresh_karmas.py           # report karma that disagrees with rules.py
+python scripts/refresh_karmas.py --apply   # write the recomputed values
+bash scripts/compile_email_templates.sh    # rebuild the email HTML from the .mjml sources
+```
+
+`compile_email_templates.sh` is the one command here that needs something the dev shell does not carry: `mjml`, from npm (`npm install -g mjml`). It is only needed when an email template changes; the compiled HTML is committed.
 
 ## How to add a new event type
 

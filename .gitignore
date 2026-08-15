@@ -1,5 +1,7 @@
 # DB related
 dump.rdb
+# local Postgres cluster, per the README's "Start PostgreSQL and Redis"
+.pgdata/
 
 
 # log

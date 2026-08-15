@@ -38,9 +38,13 @@ local server. This is what `.github/workflows/e2e-smoke.yml` runs via
 Locally, from the repo root inside the nix devShell with Postgres + Redis up:
 
 ```
-source env.ci
+set -a; source env.ci; set +a
 ./scripts/e2e/run_e2e_smoke.sh
 ```
+
+`set -a` is not optional: the script runs `alembic`, `uvicorn` and the suite as
+child processes, and a plain `source` leaves the settings unexported where none
+of them can see it.
 
 ### Real world (manual)
 

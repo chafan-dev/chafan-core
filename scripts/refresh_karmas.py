@@ -1,7 +1,7 @@
 """Recompute every active user's karma from scratch and write it back.
 
-    make refresh-karmas          # show what would change, write nothing
-    make refresh-karmas-apply    # write the recomputed values
+    python scripts/refresh_karmas.py            # show what would change, write nothing
+    python scripts/refresh_karmas.py --apply    # write the recomputed values
 
 Karma is normally applied the moment it is earned (see `chafan_core/app/karma.py`),
 so a healthy run reports no drift at all. Run this:
