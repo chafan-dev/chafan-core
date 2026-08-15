@@ -66,11 +66,11 @@ set -a; source env.dev; set +a
 A minimal configuration of your own:
 
 ```
-SERVER_HOST=http://dev.cha.fan:8080
+SERVER_HOST=http://localhost:8080
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/chafan_dev
 REDIS_URL=redis://127.0.0.1:6379
 PGPASSWORD=postgres
-CHAFAN_BACKEND_CORS_ORIGINS=http://dev.cha.fan:8080,http://127.0.0.1:8080
+CHAFAN_BACKEND_CORS_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
 PROJECT_NAME=Chafan Dev
 SECRET_KEY=change-me
 FIRST_SUPERUSER=admin@cha.fan
@@ -81,16 +81,8 @@ ENV=dev
 
 Two of those are easy to get wrong:
 
-- **`SERVER_HOST` is the frontend, not this server.** It is the base for links the backend builds into emails, RSS items and event templates — `{SERVER_HOST}/reset-password?token=...`, `{SERVER_HOST}/questions/...`. Those are PWA routes, so point it at the PWA, not at the API port, or every emailed link lands on the API server.
-- **`CHAFAN_BACKEND_CORS_ORIGINS` is a comma-separated string**, not a JSON list, and the name carries the `CHAFAN_` prefix. Its default is `https://127.0.0.1:8080`, so a PWA served from any other origin is blocked until you list that origin here. `DEBUG_BYPASS_BACKEND_CORS=magic` allows every origin instead — a dev-only shortcut that the app refuses to start with when `ENV=prod`.
-
-### Point `dev.cha.fan` at your machine
-
-The dev server binds the hostname `dev.cha.fan`, which resolves publicly to an address you cannot bind locally. Add it to `/etc/hosts` first, or the server fails to start with `Cannot assign requested address`:
-
-```
-127.0.0.1 dev.cha.fan
-```
+- **`SERVER_HOST` is the frontend, not this server.** It is the base for links the backend builds into emails, RSS items and event templates — `{SERVER_HOST}/reset-password?token=...`, `{SERVER_HOST}/questions/...`. Those are PWA routes, so point it at wherever the PWA is served, not at the API port, or every emailed link lands on the API server.
+- **`CHAFAN_BACKEND_CORS_ORIGINS` is a comma-separated string**, not a JSON list, and the name carries the `CHAFAN_` prefix. Its default is `https://127.0.0.1:8080`, so a PWA served from any other origin is blocked until you list that origin here. Both values above assume the PWA on `localhost:8080`; under a tunnel they become the public hostname instead (see [Reaching it from a browser](#reaching-it-from-a-browser)). `DEBUG_BYPASS_BACKEND_CORS=magic` allows every origin instead — a dev-only shortcut that the app refuses to start with when `ENV=prod`.
 
 ### Create and initialize the database
 
@@ -113,10 +105,33 @@ python -m smoke.dataset build --deep
 ### Run the dev server
 
 ```bash
-uvicorn chafan_core.app.main:app --host dev.cha.fan --port 4582 --reload
+uvicorn chafan_core.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-API docs: http://dev.cha.fan:4582/docs — served only when `ENV=dev`.
+API docs: http://127.0.0.1:8000/docs — served only when `ENV=dev`. Loopback and port 8000 are what the rest of the repo assumes: `scripts/e2e/run_e2e_smoke.sh` and `scripts/launch_serv/_fastapi.sh` both use them.
+
+### Reaching it from a browser
+
+Two setups are in use, and neither wants an `/etc/hosts` entry — the server always binds loopback.
+
+**Local only.** Run the PWA's dev server on `localhost:8080`, point it at `http://127.0.0.1:8000`, and list its origin in `CHAFAN_BACKEND_CORS_ORIGINS` as the example config above does. Nothing leaves the machine.
+
+**Published over a Cloudflare tunnel.** For testing from a phone, another machine, or by someone else, `cloudflared` fronts the same loopback server: the backend is published as `api_dev.cha.fan` and the PWA as `dev.cha.fan`, so the public hostnames resolve to Cloudflare rather than to you.
+
+```bash
+cloudflared tunnel --no-autoupdate run --token "$CF_TUN_TOKEN"
+```
+
+`cloudflared` comes with the dev shell. `scripts/launch_serv/5_cloudflared_screen.sh` runs exactly that line, reading `CF_TUN_TOKEN` from a `launch_env` file kept **outside** the checkout — same reason the app config lives outside it. Which hostname maps to which local port is configured in the Cloudflare dashboard, not in this repo.
+
+In that setup the two front-end-facing settings follow the public names:
+
+```
+SERVER_HOST=https://dev.cha.fan
+CHAFAN_BACKEND_CORS_ORIGINS=https://dev.cha.fan
+```
+
+`scripts/launch_serv/` holds the rest of that workflow — Postgres, Redis, uvicorn and the tunnel, each in its own `screen` session.
 
 ### Image uploads (optional)
 
