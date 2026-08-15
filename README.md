@@ -36,7 +36,7 @@ pg_ctl -D "$PWD/.pgdata" -l "$PWD/.pgdata/logfile" start
 redis-server --daemonize yes
 ```
 
-`-U postgres` matters: it names the cluster superuser `postgres`, which is the user `env.ci` and `scripts/reset_app_state.sh` connect as. A cluster created this way trusts local connections, so the password in `DATABASE_URL` is ignored.
+`-U postgres` matters: it names the cluster superuser `postgres`, which is the user `env.ci` connects as. A cluster created this way trusts local connections, so the password in `DATABASE_URL` is ignored.
 
 Containers work equally well and are what CI runs:
 
@@ -45,7 +45,7 @@ podman run -d --name chafan-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgr
 podman run -d --name chafan-redis -p 6379:6379 redis
 ```
 
-A container Postgres does check the password, so keep `PGPASSWORD=postgres` in your environment — that is what lets `psql` and `scripts/reset_app_state.sh` run without prompting.
+A container Postgres does check the password, so keep `PGPASSWORD=postgres` in your environment — that is what lets the `psql` commands below run without prompting.
 
 ### Configure environment
 
@@ -194,12 +194,18 @@ The `Migrations` workflow tests migrations as a deliverable in their own right: 
 
 ## Tests
 
-`scripts/reset_app_state.sh` gives you a clean slate. **It drops and recreates the `chafan_dev` database and flushes Redis** — everything in your dev database is lost. It connects as the `postgres` superuser on `localhost:5432`, and expects the database to exist already (on a fresh machine, create it as above first).
+Start from a clean slate. **The first three commands flush Redis and drop and recreate the `chafan_dev` database** — everything in your dev database is lost:
 
 ```bash
-bash scripts/reset_app_state.sh
+redis-cli flushall
+psql -h localhost -p 5432 -U postgres -c 'drop database chafan_dev WITH (FORCE);'
+psql -h localhost -p 5432 -U postgres -c 'create database chafan_dev;'
+alembic upgrade head
+python scripts/initial_data.py
 pytest
 ```
+
+Unlike [creating the database](#create-and-initialize-the-database) above, these spell the connection out instead of deriving it from `DATABASE_URL`, and that asymmetry is deliberate: a `drop database` that follows the environment destroys whatever the environment happens to point at, which for a deployment is the live database. Pinned to `localhost:5432` and `chafan_dev`, a misfire under the wrong environment reaches nothing instead.
 
 A single file:
 
