@@ -1,4 +1,5 @@
-from typing import Literal, Optional
+import re
+from typing import Iterator, Literal, Optional, Tuple
 
 import sentry_sdk
 from pydantic import AnyHttpUrl, ValidationError
@@ -116,6 +117,7 @@ class Settings(BaseSettings):
 
 setting_keys = set(Settings.schema()["properties"].keys())
 
+
 try:
     settings = Settings()
 except ValidationError as e:
@@ -142,3 +144,56 @@ if settings.SENTRY_DSN:
             SqlalchemyIntegration(),
         ],
     )
+
+
+############ Logging the settings ############
+
+REDACTED = "***redacted***"
+
+# A setting is treated as secret-bearing by its *name*, not by an explicit list
+# of the secrets we happen to have today: a setting added later that carries a
+# credential is redacted the moment it is named like one, without anyone having
+# to remember to come back here. The cost is a few harmless redactions
+# (HCAPTCHA_SITEKEY is public), which is the direction to be wrong in.
+_SECRET_NAME_PARTS = (
+    "SECRET",
+    "PASSWORD",
+    "PASSCODE",
+    "TOKEN",
+    "KEY",
+    "CODE",
+    "CREDENTIAL",
+)
+
+# Only string-valued settings are redacted, so the durations that are named like
+# secrets -- ACCESS_TOKEN_EXPIRE_MINUTES, EMAIL_SIGNUP_CODE_EXPIRE_HOURS -- keep
+# printing their value. An int cannot be a credential.
+_SECRET_VALUE_TYPES = (str, SecretStr)
+
+# Credentials also hide inside URLs: DATABASE_URL and REDIS_URL carry a
+# password, and a Sentry DSN carries its key, all in the userinfo part before
+# the `@`. Mask the whole userinfo and keep the rest, which is the half worth
+# logging.
+_URL_USERINFO_RE = re.compile(r"(?<=://)[^/@]+@")
+
+
+def _is_secret_name(name: str) -> bool:
+    return any(part in name for part in _SECRET_NAME_PARTS)
+
+
+def redact_setting(name: str, value: object) -> str:
+    """Render one setting for a log line, without disclosing a credential."""
+    if value is None:
+        # Worth logging as-is: "unset" is the answer to most configuration
+        # questions, and it discloses nothing.
+        return "None"
+    if _is_secret_name(name) and isinstance(value, _SECRET_VALUE_TYPES):
+        return REDACTED
+    return _URL_USERINFO_RE.sub(f"{REDACTED}@", str(value))
+
+
+def redacted_settings() -> Iterator[Tuple[str, str]]:
+    """The settings as (name, loggable value) pairs, in declaration order."""
+    for k, v in settings.__dict__.items():
+        if not k.startswith("__"):
+            yield k, redact_setting(k, v)
