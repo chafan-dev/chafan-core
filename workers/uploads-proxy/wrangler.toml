@@ -1,0 +1,32 @@
+name = "chafan-uploads-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+# Everything lives under a named environment on purpose. A bare `wrangler deploy`
+# then fails instead of quietly publishing somewhere harmful -- see workers_dev
+# below for why "somewhere harmful" is not an exaggeration.
+
+[env.dev]
+name = "chafan-uploads-proxy-dev"
+# custom_domain provisions the DNS record and certificate for the hostname. The
+# hostname is not cosmetic: `caches.default` is a silent no-op on *.workers.dev,
+# so on that URL every single view would be a fresh Storm fetch.
+routes = [{ pattern = "img-dev.cha.fan", custom_domain = true }]
+# And a live workers.dev URL would serve the same images outside the zone,
+# bypassing the rate-limiting and hotlink rules attached to img-dev.cha.fan.
+workers_dev = false
+
+[env.dev.vars]
+UPLOADS_S3_ENDPOINT_URL = "https://alpha.buckets.stormdevelopments.ca"
+UPLOADS_S3_BUCKET = "chafandev2026"
+UPLOADS_S3_REGION = "storm"
+
+[env.prod]
+name = "chafan-uploads-proxy"
+routes = [{ pattern = "img.cha.fan", custom_domain = true }]
+workers_dev = false
+
+[env.prod.vars]
+UPLOADS_S3_ENDPOINT_URL = "https://alpha.buckets.stormdevelopments.ca"
+UPLOADS_S3_BUCKET = "chafan2026"
+UPLOADS_S3_REGION = "storm"

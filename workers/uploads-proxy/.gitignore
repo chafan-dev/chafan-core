@@ -1,0 +1,12 @@
+node_modules/
+# Local secrets for `wrangler dev`. The real ones live in Cloudflare, set with
+# `wrangler secret put`; never commit either.
+.dev.vars
+.wrangler/
+
+# The repo root ignores package.json and package-lock.json outright (a Python
+# repo defending against stray JS). This directory is a real npm package, so
+# put them back -- without this, `npm install` after a fresh clone would have
+# nothing to install from, and the failure is silent at commit time.
+!package.json
+!package-lock.json
