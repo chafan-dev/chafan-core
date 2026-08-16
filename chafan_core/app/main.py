@@ -42,7 +42,7 @@ from starlette.requests import Request
 from chafan_core.app.api import health
 from chafan_core.app.api.api_v1.api import api_router
 from chafan_core.app.common import enable_rate_limit, is_dev, report_msg
-from chafan_core.app.config import settings
+from chafan_core.app.config import redacted_settings, settings
 from chafan_core.app.infra.scheduler import set_up_scheduled_tasks
 from chafan_core.app.limiter import limiter
 from chafan_core.app.limiter_middleware import SlowAPIMiddleware
@@ -113,10 +113,12 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 
 
 def print_app_settings() -> None:
+    # Credentials are masked here rather than trusted to the log file's
+    # permissions: FASTAPI_LOG_PATH gets copied, tailed and pasted into bug
+    # reports. See `redact_setting` in config.py for what counts as secret.
     logger.info("settings:")
-    for k, v in settings.__dict__.items():
-        if not k.startswith("__"):
-            logger.info(f"{k}: {v}")
+    for k, v in redacted_settings():
+        logger.info(f"{k}: {v}")
 
 print_app_settings()
 for lib in [fastapi, uvicorn, starlette]:
