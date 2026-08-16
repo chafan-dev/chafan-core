@@ -164,6 +164,27 @@ python scripts/e2e/ensure_upload_bucket.py
 
 `UPLOADS_PUBLIC_URL_BASE` is only ever used to build the stored URL (`<base>/<sha>.<ext>`); the backend never reads back through it. The value above resolves in a browser only if the bucket allows anonymous reads — CI does not bother, and uses `https://uploads.cha.fan`, because the smoke suite asserts the shape of the URL rather than fetching it.
 
+#### Storm Buckets: writes and reads use different hosts
+
+Storm runs Garage, which serves *no* anonymous request on the S3 endpoint — not a permission you can grant but a missing feature (`Forbidden: Garage does not support anonymous access yet`), and there is no bucket policy either (`GetBucketPolicy` → `NotImplemented`). So pointing `UPLOADS_PUBLIC_URL_BASE` at `UPLOADS_S3_ENDPOINT_URL` is the failure that looks like success: every upload returns 200 and lands in the bucket with the right content type, and every `<img>` then 403s.
+
+The bucket stays private. Reads go through `workers/uploads-proxy`, a Cloudflare Worker holding a Read Only key that signs each GET and caches at the edge:
+
+```
+UPLOADS_S3_ENDPOINT_URL=https://alpha.buckets.stormdevelopments.ca   # signed writes, from the server
+UPLOADS_PUBLIC_URL_BASE=https://img-dev.cha.fan                      # reads, through the Worker
+```
+
+Storm's other option, Static Hosting, is deliberately **not** used: it is a per-bucket switch that exposes everything at a `stormsites.ca` URL which cannot be turned off while serving, so it would leave a permanent way to bypass Cloudflare's cache and rate limits and bill the egress to us. `workers/uploads-proxy/README.md` has the deploy steps and the reasoning.
+
+Once it is up, this fetches every object anonymously through the public base and compares each against a signed `head_object`:
+
+```bash
+python scripts/check_upload_public_read.py
+```
+
+TODO: URLs are absolute and get baked into answer bodies at post time, so changing `UPLOADS_PUBLIC_URL_BASE` only fixes uploads made after the change. Anything already posted against an old base needs its stored body rewritten; the objects themselves do not move. Keeping the hostname (`img-dev.cha.fan`) stable is what makes the thing *behind* it swappable without that rewrite.
+
 Who may upload and what it costs are product rules rather than settings: the karma gate and coin price live in `chafan_core/app/rules.py`, the size cap in `chafan_core/app/common.py`. To find uploads that no body references any more:
 
 ```bash

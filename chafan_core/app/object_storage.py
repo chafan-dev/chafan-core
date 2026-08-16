@@ -12,6 +12,12 @@ format, and the public URL. It is cached (one client, not one per request).
 The stored URL is always our own domain (``UPLOADS_PUBLIC_URL_BASE``), never the
 provider's hostname, so switching vendors is a CNAME change plus a bucket copy
 rather than a rewrite of every URL embedded in a body.
+
+Only writes go to the endpoint above. The bucket is private -- Garage serves no
+anonymous request at all -- so reads come back through ``workers/uploads-proxy``,
+a Cloudflare Worker that signs each GET and caches at the edge. ``_key()`` and
+``_CONTENT_TYPE_EXTENSIONS`` below define the key format that Worker validates;
+changing either means changing its ``KEY_PATTERN`` too.
 """
 
 from __future__ import annotations
