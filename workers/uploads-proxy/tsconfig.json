@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    // No "dom": its CacheStorage lacks `default`, and it would shadow the
+    // Workers globals that @cloudflare/workers-types is here to provide.
+    "lib": ["es2022"],
+    "types": ["@cloudflare/workers-types"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  // scripts/ is a Node harness, not Worker code -- it runs under `node
+  // --experimental-strip-types`, which does no checking, and typing it here
+  // would mean pulling @types/node into the same program as the Workers globals.
+  "include": ["src/**/*.ts"]
+}
