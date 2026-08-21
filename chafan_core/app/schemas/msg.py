@@ -42,7 +42,3 @@ class UploadedImage(BaseModel):
 class SiteApplicationResponse(BaseModel):
     auto_approved: bool = False
     applied_before: bool = False
-
-
-class VerifyTelegramResponse(BaseModel):
-    handle: StrippedNonEmptyBasicStr

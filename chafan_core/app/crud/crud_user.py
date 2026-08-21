@@ -37,10 +37,6 @@ def get_by_email(db: Session, *, email: str) -> Optional[User]:
     return db.query(User).filter_by(email=email).first()
 
 
-def get_by_telegram_id(db: Session, *, telegram_id: str) -> Optional[User]:
-    return db.query(User).filter_by(verified_telegram_user_id=telegram_id).first()
-
-
 def get_by_phone_number(
     db: Session, *, phone_number: IntlPhoneNumber
 ) -> Optional[User]:

@@ -32,15 +32,3 @@ class VerificationCodeRequest(BaseModel):
 class LoginWithVerificationCode(BaseModel):
     phone_number: IntlPhoneNumber
     code: str
-
-
-class VerifyTelegramID(BaseModel):
-    verifier_secret: str
-    telegram_id: str
-    email: str
-    code: str
-
-
-class VerifiedTelegramID(BaseModel):
-    verifier_secret: str
-    telegram_id: str

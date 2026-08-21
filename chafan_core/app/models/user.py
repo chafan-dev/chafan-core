@@ -115,7 +115,6 @@ class User(Base):
     is_active = Column(Boolean(), server_default="true", nullable=False, default=True)
     is_superuser = Column(Boolean(), default=False)
     created_at = Column(DateTime(timezone=True), nullable=False)
-    verified_telegram_user_id = Column(String, nullable=True)
 
     subscribed_article_columns: List["ArticleColumn"] = relationship(  # type: ignore
         "ArticleColumn",

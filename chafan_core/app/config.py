@@ -76,8 +76,6 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER_PASSWORD: Optional[SecretStr] = None
     VISITOR_USER_ID: Optional[int] = None
 
-    OFFICIAL_BOT_SECRET: Optional[str] = None
-
     DISABLE_RATE_LIMIT: bool = False
 
     API_LIMIT_SITES_GET_QUESTIONS_LIMIT: int = 20
