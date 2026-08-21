@@ -68,6 +68,9 @@ def upload_image(
         ) from exc
     sha = hashlib.sha256(clean).hexdigest()
 
+    # Everything from here to the insert has to be one critical section per
+    # sha, or two concurrent uploads of the same new bytes both pay for it.
+    crud.upload.lock_sha(db, sha=sha)
     is_new = not crud.upload.exists_with_sha(db, sha=sha)
     if is_new:
         if current_user.remaining_coins < rules.UPLOAD_IMAGE_COST:
