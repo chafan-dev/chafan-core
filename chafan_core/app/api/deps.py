@@ -7,6 +7,7 @@ from jose import jwt
 from chafan_core.app import schemas, security
 from chafan_core.app.config import settings
 from chafan_core.app.infra.request_context import RequestContext
+from chafan_core.app.services import tokens as tokens_service
 from chafan_core.utils.base import HTTPException_, unwrap
 
 reusable_oauth2 = OAuth2PasswordBearer(
@@ -33,6 +34,18 @@ def get_current_user_id(token: str = Depends(reusable_oauth2)) -> int:
         raise HTTPException_(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
+        )
+    token_version, bot_token_version = tokens_service.current_versions(token_data.sub)
+    # A token stamped before the counter moved has been revoked. Tokens issued
+    # before this shipped carry no claim at all and read as 0, which matches
+    # the column default -- so they keep working, which is the whole point of
+    # the defaults on TokenPayload.
+    if token_data.ver < token_version or (
+        token_data.is_bot_token and token_data.bver < bot_token_version
+    ):
+        raise HTTPException_(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Token has been revoked",
         )
     return token_data.sub
 

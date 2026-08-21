@@ -15,6 +15,7 @@ def test_redacts_the_named_secrets():
         "UPLOADS_S3_SECRET_ACCESS_KEY",
         "UPLOADS_S3_ACCESS_KEY_ID",
         "HCAPTCHA_SECRET",
+        "BOT_SECRETS",
         "DEBUG_ADMIN_TOOL_FULL_SITE_PASSCODE",
         "DEBUG_BYPASS_REDIS_VERIFICATION_CODE",
     ]:

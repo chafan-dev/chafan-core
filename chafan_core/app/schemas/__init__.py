@@ -72,6 +72,7 @@ from .form_response import (
 )
 from .invitation_link import InvitationLink, InvitationLinkCreate, InvitationLinkInDB
 from .message import Message, MessageCreate, MessageInDBBase, MessageUpdate
+from .bot import BotClaimLink, BotLinkCode
 from .msg import (
     GenericResponse,
     HealthResponse,

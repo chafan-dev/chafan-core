@@ -111,6 +111,14 @@ class User(Base):
     phone_number_country_code = Column(String, unique=True, index=True)
     phone_number_subscriber_number = Column(String, unique=True, index=True)
 
+    # Stateless JWTs carry no server-side record, so revocation lives in the
+    # *negative*: a token is refused once its `ver` claim has fallen behind.
+    # token_version covers every token the user holds ("log out everywhere");
+    # bot_token_version covers only tokens minted for a bot, so unlinking a
+    # bot can revoke precisely rather than ending the website session too.
+    token_version = Column(Integer, nullable=False, server_default="0")
+    bot_token_version = Column(Integer, nullable=False, server_default="0")
+
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean(), server_default="true", nullable=False, default=True)
     is_superuser = Column(Boolean(), default=False)
