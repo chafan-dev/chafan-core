@@ -1,9 +1,9 @@
 """Server-side image sanitization: decode with Pillow, re-encode with no metadata.
 
-The PWA strips EXIF with ``piexifjs`` and caps at 500px, but the API is public:
-against a modified or third-party client that pass does nothing. GPS EXIF
-leaking a home address is silent and irreversible, so the guarantee must live
-on the server.
+The PWA re-encodes most uploads through a canvas at 500px, which drops metadata
+as a side effect, but the API is public: against a modified or third-party
+client that pass does nothing. GPS EXIF leaking a home address is silent and
+irreversible, so the guarantee must live on the server.
 
 ``sanitize`` decodes the bytes and re-encodes them with no metadata, returning
 the clean bytes and the real content type. Three consequences to note:
