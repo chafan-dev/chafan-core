@@ -1,5 +1,5 @@
 import re
-from typing import Iterator, Literal, Optional, Tuple
+from typing import Dict, Iterator, Literal, Optional, Tuple
 
 import sentry_sdk
 from pydantic import AnyHttpUrl, ValidationError
@@ -75,6 +75,26 @@ class Settings(BaseSettings):
     FIRST_SUPERUSER: Optional[CaseInsensitiveEmailStr] = None
     FIRST_SUPERUSER_PASSWORD: Optional[SecretStr] = None
     VISITOR_USER_ID: Optional[int] = None
+
+    # One secret per bot, rather than one shared by all of them, so a bot whose
+    # host is compromised can be cut off without rotating for the others. Read
+    # as JSON: BOT_SECRETS='{"discord": "..."}'. The values are SecretStr so
+    # that printing the setting cannot disclose them -- a dict is not caught by
+    # the name-based redaction rule, but SecretStr masks itself in repr.
+    #
+    # A secret here authorises exactly one thing: redeeming a link code that a
+    # logged-in user generated and chose to send. It cannot start a link and it
+    # cannot act as anybody.
+    BOT_SECRETS: Dict[str, SecretStr] = {}
+
+    # Half the website's window. A store of many tokens on one host is a better
+    # target than one token in one browser, and re-linking is a flow the user
+    # has already done once.
+    BOT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 30
+
+    # Long enough not to be walked inside its own TTL: 8 base32 characters is
+    # about 40 bits, and the claim endpoint is rate-limited besides.
+    BOT_LINK_CODE_EXPIRE_MINUTES: int = 10
 
     DISABLE_RATE_LIMIT: bool = False
 

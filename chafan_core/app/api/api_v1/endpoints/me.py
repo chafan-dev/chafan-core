@@ -11,6 +11,7 @@ from chafan_core.app.schemas.user import (
     UserUpdatePrimaryEmail,
     UserUpdateSecondaryEmails,
 )
+from chafan_core.app.services import bot_links as bot_links_service
 from chafan_core.app.services import me as me_service
 from chafan_core.utils.constants import MAX_MY_SUBSCRIBED_ITEMS_PAGINATION_LIMIT
 
@@ -108,6 +109,20 @@ def cancel_follow_user(
     Cancel follow of user.
     """
     return me_service.cancel_follow_user(ctx, uuid=uuid)
+
+
+@router.post("/bot-link-codes/", response_model=schemas.BotLinkCode)
+def create_bot_link_code(
+    ctx: RequestContext = Depends(deps.get_request_context_logged_in),
+) -> Any:
+    """Issue a short-lived code to hand to a bot, binding it to this account.
+
+    The code goes site -> bot and never the other way: it appears on the screen
+    of whoever is logged in here, and only they can deliver it, so the account
+    that gets bound is always the one that asked. No token is minted until the
+    code is redeemed.
+    """
+    return bot_links_service.generate_link_code(ctx)
 
 
 @router.get("/channels/", response_model=List[schemas.Channel])
