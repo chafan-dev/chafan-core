@@ -6,6 +6,7 @@ import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi.encoders import jsonable_encoder
+from pydantic import AnyUrl
 from pydantic.tools import parse_obj_as
 
 from chafan_core.app import crud, karma, schemas
@@ -31,6 +32,27 @@ from chafan_core.app.schemas.event import SubscribeArticleColumnInternal
 from chafan_core.app.services import events
 
 
+def stringify_urls(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Replace pydantic ``AnyUrl`` values with plain strings, in place.
+
+    Pydantic v2 parses ``AnyHttpUrl`` into a ``Url`` object rather than a
+    ``str``, and ``.dict()`` keeps it that way. The matching columns are plain
+    ``String``, so handing one to ``setattr`` sends psycopg2 a type it cannot
+    adapt: the write raises and the request 500s. Because that error response
+    never passes back through ``CORSMiddleware``, the browser sees only an
+    opaque network failure, which is why this went unnoticed.
+
+    The coercion is deliberately narrow rather than a ``jsonable_encoder`` pass
+    over the whole payload: ``UserUpdateMe.password`` is a ``SecretStr``, and
+    encoding that yields the mask ``'**********'`` -- which ``crud.user.update``
+    would then hash and store as the user's password.
+    """
+    for field, value in list(data.items()):
+        if isinstance(value, AnyUrl):
+            data[field] = str(value)
+    return data
+
+
 def get_me(ctx) -> schemas.User:
     return user_schema_from_orm(ctx.get_current_active_user())
 
@@ -38,7 +60,7 @@ def get_me(ctx) -> schemas.User:
 def update_me(ctx, *, user_in: UserUpdateMe) -> schemas.User:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    user_in_dict = user_in.dict(exclude_unset=True)
+    user_in_dict = stringify_urls(user_in.dict(exclude_unset=True))
     if user_in.handle is not None:
         if user_in.handle == "":
             raise HTTPException_(
