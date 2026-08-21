@@ -7,6 +7,7 @@ from jose import jwt
 from passlib.context import CryptContext  # type: ignore
 from pydantic.types import SecretStr
 
+from chafan_core.app.schemas.token import WEB_TOKEN_SRC
 from chafan_core.utils.validators import CaseInsensitiveEmailStr
 from chafan_core.app.config import settings
 from chafan_core.utils.base import unwrap
@@ -58,15 +59,33 @@ def create_digit_verification_code(length:int) -> str:
     return "".join([str(random.randint(0, 9)) for _ in range(length)])
 
 def create_access_token(
-    subject: Union[str, Any], expires_delta: Optional[datetime.timedelta] = None
+    subject: Union[str, Any],
+    expires_delta: Optional[datetime.timedelta] = None,
+    *,
+    token_version: int = 0,
+    bot_token_version: int = 0,
+    src: str = WEB_TOKEN_SRC,
 ) -> str:
+    """Mint a token, stamped with the versions that can later refuse it.
+
+    `ver` and `bver` are the user's revocation counters at minting time, and
+    `src` records where the token came from. Together they are what makes a
+    stateless JWT revocable at all, and what lets a bot token be revoked
+    without ending the same user's website session.
+    """
     if expires_delta:
         expire = datetime.datetime.utcnow() + expires_delta
     else:
         expire = datetime.datetime.utcnow() + datetime.timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {
+        "exp": expire,
+        "sub": str(subject),
+        "ver": token_version,
+        "bver": bot_token_version,
+        "src": src,
+    }
     encoded_jwt = jwt.encode(
         to_encode, unwrap(settings.SECRET_KEY), algorithm=ALGORITHM
     )
