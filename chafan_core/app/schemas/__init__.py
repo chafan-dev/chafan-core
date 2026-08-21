@@ -77,7 +77,6 @@ from .msg import (
     HealthResponse,
     SiteApplicationResponse,
     UploadedImage,
-    VerifyTelegramResponse,
     WsAuthResponse,
 )
 from .notification import Notification, NotificationUpdate

@@ -8,7 +8,6 @@ from chafan_core.app.api.api_v1.endpoints import (
     article_columns,
     articles,
     audit_logs,
-    bot,
     channels,
     coin_deposits,
     coin_payments,
@@ -105,4 +104,3 @@ api_router.include_router(feedbacks.router, prefix="/feedbacks", tags=["feedback
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
 api_router.include_router(rewards.router, prefix="/rewards", tags=["rewards"])
 api_router.include_router(sitemaps.router, prefix="/sitemaps", tags=["sitemaps"])
-api_router.include_router(bot.router, prefix="/bot", tags=["bot"])
