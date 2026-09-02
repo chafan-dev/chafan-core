@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from chafan_core.app import crud, models, schemas
+from chafan_core.app import crud, models, rules, schemas
 from chafan_core.app.common import OperationType
 from chafan_core.app.endpoint_utils import get_site
 from chafan_core.app.infra import cache as infra_cache
+from chafan_core.app.model_utils import is_usable_invitation_link
 from chafan_core.app.responders import misc as misc_responder
 from chafan_core.app.schemas.invitation_link import InvitationLinkCreate
 from chafan_core.app.services import sites as sites_service
@@ -19,18 +21,36 @@ from chafan_core.utils.base import HTTPException_, unwrap
 logger = logging.getLogger(__name__)
 
 
-def try_consume_invitation_link_by_uuid(db: Session, invitation_uuid: str) -> bool:
-    logger.info(f"Consumed invitation link uuid=${invitation_uuid}")
+def resolve_usable_invitation_link(
+    db: Session, invitation_uuid: str
+) -> Optional[models.InvitationLink]:
+    """The link `invitation_uuid` names, if it can still bring someone in.
+
+    Read-only on purpose: the caller checks the link up front but only spends
+    it once whatever it was gating has actually succeeded. See `consume()`.
+    """
     invitation_link = crud.invitation_link.get_by_uuid(db, uuid=invitation_uuid)
     if invitation_link is None:
         logger.info(f"Invalid invitation uuid=${invitation_uuid}")
-        return False
-    if invitation_link.remaining_quota < 1:
-        logger.info(f"Invitation quota has exceeded limit uuid=${invitation_uuid}")
-        return False
+        return None
+    if not is_usable_invitation_link(invitation_link):
+        logger.info(f"Invitation link is spent or expired uuid=${invitation_uuid}")
+        return None
+    return invitation_link
+
+
+def consume(db: Session, invitation_link: models.InvitationLink) -> None:
+    """Spend one use of `invitation_link`.
+
+    Call this only once the thing the link was gating has succeeded -- a
+    signup that fails validation must not cost the inviter a slot.
+    """
     invitation_link.remaining_quota -= 1
     db.add(invitation_link)
-    return True
+    logger.info(
+        f"Consumed invitation link uuid=${invitation_link.uuid} "
+        f"remaining_quota={invitation_link.remaining_quota}"
+    )
 
 
 def invitation_link_schema(ctx, invitation_link: models.InvitationLink) -> schemas.InvitationLink:
@@ -70,7 +90,14 @@ def get_invitation_link(ctx, uuid: str) -> schemas.InvitationLink:
 
 def create_invitation_link(ctx, *, create_in: InvitationLinkCreate) -> schemas.InvitationLink:
     current_user = ctx.get_current_active_user()
-    # TODO we didn't check if this user is allowed to invite new users 2025-Jul-06
+    if (
+        not current_user.is_superuser
+        and (current_user.karma or 0) < rules.MIN_KARMA_INVITE_USER
+    ):
+        raise HTTPException_(
+            status_code=403,
+            detail=f"Inviting a new user requires {rules.MIN_KARMA_INVITE_USER} karma.",
+        )
     invited_to_site_id = None
     db = ctx.get_db()
 
@@ -98,8 +125,8 @@ def create_invitation_link(ctx, *, create_in: InvitationLinkCreate) -> schemas.I
 def join_site_with_invitation_link(ctx, *, uuid: str) -> None:
     current_user = ctx.get_current_active_user()
     db = ctx.get_db()
-    invitation_link = crud.invitation_link.get_by_uuid(db, uuid=uuid)
-    if invitation_link is None or not invitation_link_schema(ctx, invitation_link).valid:
+    invitation_link = resolve_usable_invitation_link(db, uuid)
+    if invitation_link is None:
         raise HTTPException_(
             status_code=400,
             detail="Invalid invitation link",
@@ -119,5 +146,4 @@ def join_site_with_invitation_link(ctx, *, uuid: str) -> None:
             owner=current_user,
             site_uuid=invitation_link.invited_to_site.uuid,
         )
-        invitation_link.remaining_quota -= 1
-        db.add(invitation_link)
+        consume(db, invitation_link)
