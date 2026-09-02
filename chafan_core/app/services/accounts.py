@@ -55,10 +55,10 @@ def open_account(
     crud.audit_log.create_with_user(
         db, ipaddr="0.0.0.0", user_id=1, api="Open new account email " + email
     )
-    invitation_link_valid = invitations_service.try_consume_invitation_link_by_uuid(
+    invitation_link = invitations_service.resolve_usable_invitation_link(
         db, invitation_link_uuid
     )
-    if not invitation_link_valid:
+    if invitation_link is None:
         raise HTTPException_(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid invitation link",
@@ -87,7 +87,16 @@ def open_account(
     user_in = schemas.UserCreate(password=password, handle=handle, email=email)
     user = crud.user.create(db, obj_in=user_in)
 
-    # TODO bonus for invite new user, new user's initial coins
+    # Only now, with the account actually created, does the invitation cost
+    # the inviter a slot and earn them the reward. Everything above this line
+    # can still reject the signup, and a rejected signup must be free.
+    invitations_service.consume(db, invitation_link)
+    pay_reward_for_invitation(
+        db,
+        inviter=invitation_link.inviter,
+        invited_to_site_id=invitation_link.invited_to_site_id,
+        invited_email=email,
+    )
     return user_schema_from_orm(user)
 
 
@@ -100,8 +109,17 @@ def pay_reward_for_invitation(
 ) -> Optional[int]:
     utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
     superuser = crud.user.get_superuser(db)
+    if inviter.id == superuser.id:
+        # The admin funds this reward, so there is no one to pay when the admin
+        # is also the inviter -- as with the shared daily link.
+        return None
+    invitations_sent = inviter.sent_new_user_invitataions
+    # Counts every invitation that brought someone in, rewarded or not, so that
+    # a spell of the admin being broke cannot hand anyone extra rewarded slots.
+    inviter.sent_new_user_invitataions = invitations_sent + 1
+    db.add(inviter)
     if (
-        inviter.sent_new_user_invitataions < rules.INVITE_NEW_USER_MAX_REWARDED
+        invitations_sent < rules.INVITE_NEW_USER_MAX_REWARDED
         and superuser.remaining_coins >= rules.INVITE_NEW_USER_REWARD
     ):
         crud.coin_payment.make_payment(

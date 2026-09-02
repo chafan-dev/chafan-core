@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
-from chafan_core.app import models
+from chafan_core.app import models, rules
 from chafan_core.app.models import InvitationLink
 from chafan_core.utils.base import get_uuid
 
@@ -36,10 +36,10 @@ def create_invitation(
     db_obj = InvitationLink(
         uuid=_get_unique_uuid(db),
         created_at=utc_now,
-        expired_at=utc_now + datetime.timedelta(days=7),
+        expired_at=utc_now + datetime.timedelta(days=rules.INVITE_LINK_VALID_DAYS),
         inviter_id=inviter.id,
         invited_to_site_id=invited_to_site_id,
-        remaining_quota=100,
+        remaining_quota=rules.INVITE_LINK_QUOTA,
     )
     db.add(db_obj)
     db.flush()

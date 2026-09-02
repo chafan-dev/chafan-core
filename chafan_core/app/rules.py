@@ -59,6 +59,7 @@ EXPERIENCE_MAX_ITEMS = 5  # only the first five of each are rewarded
 
 MIN_KARMA_CREATE_SITE = 100  # karma needed to create a site without admin approval
 MIN_KARMA_UPLOAD_IMAGE = 100  # karma needed to put a picture in an article or answer
+MIN_KARMA_INVITE_USER = 100  # karma needed to create an invitation link
 
 
 # ---------------------------------------------------------------------------
@@ -71,10 +72,7 @@ MIN_KARMA_UPLOAD_IMAGE = 100  # karma needed to put a picture in an article or a
 # is the exception -- it is burned, because storage has no counterparty to pay.
 # ---------------------------------------------------------------------------
 
-INITIAL_USER_COINS = 0  # coins a brand new account starts with
-# TODO: 0 with no organic way to earn coins means a new account can never
-# afford any coin cost (CREATE_ARTICLE_COST, UPLOAD_IMAGE_COST, ...). Fix this
-# as its own change; do not paper over it here.
+INITIAL_USER_COINS = 50  # coins a brand new account starts with
 
 CREATE_ARTICLE_COST = 2  # writing an article, paid to the site admin
 UPVOTE_ARTICLE_COST = 2  # upvoting an article, paid to the article's author
@@ -83,3 +81,15 @@ UPLOAD_IMAGE_COST = 2  # uploading a new picture; the same picture again is free
 
 INVITE_NEW_USER_REWARD = 5  # paid to you by the site admin for each person you invite
 INVITE_NEW_USER_MAX_REWARDED = 10  # only your first ten invitations are rewarded
+
+
+# ---------------------------------------------------------------------------
+# Invitation links
+#
+# One link can be used by several people, so that you can post it somewhere
+# rather than sending it one person at a time. It stops working once the quota
+# runs out or the link gets too old, whichever comes first.
+# ---------------------------------------------------------------------------
+
+INVITE_LINK_QUOTA = 100  # how many people one invitation link can bring in
+INVITE_LINK_VALID_DAYS = 7  # days before an invitation link stops working

@@ -6,12 +6,12 @@ broker/get_db) so PrincipalView methods can thin-delegate here.
 
 from __future__ import annotations
 
-import datetime
 from typing import Optional
 
 from pydantic.tools import parse_obj_as
 
 from chafan_core.app import models, schemas
+from chafan_core.app.model_utils import is_usable_invitation_link
 from chafan_core.utils.base import map_
 
 
@@ -123,10 +123,7 @@ def invitation_link_schema_from_orm(
         invitation_link.invited_to_site, mat.site_schema_from_orm
     )
     d["inviter"] = mat.preview_of_user(invitation_link.inviter)
-    utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
-    d["valid"] = (
-        invitation_link.expired_at > utc_now and invitation_link.remaining_quota > 0
-    )
+    d["valid"] = is_usable_invitation_link(invitation_link)
     return schemas.InvitationLink(**d)
 
 
